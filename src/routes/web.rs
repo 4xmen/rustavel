@@ -4,6 +4,8 @@ use axum::response::IntoResponse;
 use crate::core::routing::{Route,BuiltRoutes};
 use crate::app::http::middleware::log_middleware;
 
+
+
 pub fn web_routes() -> BuiltRoutes<AppState> {
     let mut route = Route::new();
 
@@ -12,7 +14,10 @@ pub fn web_routes() -> BuiltRoutes<AppState> {
     route.get("/about",hello).name("about");
     route.any("/test",hello).name("test").middleware(log_middleware::log_request);
 
-    route.build()
+    route.build().unwrap_or_else(|e| {
+        eprintln!("{:?}", e);
+        std::process::exit(1);
+    })
 }
 
 use axum::extract::State;

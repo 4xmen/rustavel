@@ -36,6 +36,7 @@ pub struct RouteItem<S = ()> {
     path: String,
     name: String,
     router: MethodRouter<S>,
+    methods: MethodSet, // for check duplicate route
     middlewares: Vec<
         Box<
             dyn Fn(MethodRouter<S>) -> MethodRouter<S>
@@ -45,6 +46,8 @@ pub struct RouteItem<S = ()> {
         >
     >,
 }
+
+
 
 // laravel-like route collector
 /// Represents a collection of routes, similar to Laravel's router.
@@ -61,6 +64,17 @@ pub struct BuiltRoutes<S = ()> {
     pub router: Router<S>,
     pub names: HashMap<String, String>,
 }
+
+
+/// Route errors enum
+#[derive(Debug)]
+pub enum RouteError {
+    DuplicateRoute(String),
+}
+
+/// store method set to check on build
+#[derive(Clone, Copy, Debug)]
+struct MethodSet(u8);
 
 macro_rules! define_method {
     ($method:ident, $enum_variant:ident) => {
@@ -89,6 +103,9 @@ macro_rules! define_method {
     };
 }
 
+
+
+
 impl<S: Clone + Send + Sync + 'static> Route<S> {
     pub fn new() -> Self {
         Self { items: vec![] }
@@ -100,6 +117,17 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
         H: Handler<T, S> + Clone + Send + Sync + 'static,
         T: 'static,
     {
+
+        // store method set to check duplicate
+        let methods = match method {
+            RouteMethod::Get => MethodSet(MethodSet::GET),
+            RouteMethod::Post => MethodSet(MethodSet::POST),
+            RouteMethod::Patch => MethodSet(MethodSet::PATCH),
+            RouteMethod::Delete => MethodSet(MethodSet::DELETE),
+            RouteMethod::Options => MethodSet(MethodSet::OPTIONS),
+            RouteMethod::Put => MethodSet(MethodSet::PUT),
+            RouteMethod::Any => MethodSet::any(),
+        };
 
         // convert method + handler into axum method router
         let router = match method {
@@ -122,6 +150,7 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
             name: String::new(),
             router,
             middlewares: vec![],
+            methods,
         });
 
         self
@@ -180,11 +209,39 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
         self
     }
 
-    /// Attaches a middleware to the last added route.
+    /// Attaches one middleware to the last added route.
     ///
-    /// The middleware is a function that takes a Request and Next, and returns a Response.
-    /// It can access AppState via extensions if needed (e.g., req.extensions().get::<Arc<AppState>>%).
-    /// Routes without middleware will have an empty vec, so no overhead.
+    /// Adds a middleware function to the most recently added route. The middleware
+    /// receives the request and a `Next` handler and must return a `Response`.
+    /// Use this to run preprocessing, authentication, logging, etc., for a single
+    /// route without affecting other routes.
+    ///
+    /// # Type parameters
+    /// * `F` - Middleware function type: `Fn(Request<Body>, Next) -> Fut + Clone + Send + Sync + 'static`.
+    /// * `Fut` - The future returned by the middleware: `Future<Output = Response> + Send + 'static`.
+    ///
+    /// # Arguments
+    /// * `mw` - The middleware function to attach. The function will be cloned when
+    ///   added so it must implement `Clone`.
+    ///
+    /// # Behavior
+    /// * If there is no previously added route, this method is a no-op.
+    /// * Routes without middleware keep an empty `Vec`, so attaching middleware
+    ///   imposes minimal overhead.
+    ///
+    /// # Returns
+    /// A mutable reference to self for chaining.
+    ///
+    /// # Examples
+    /// ```
+    /// let mw = |req: Request<Body>, next: Next| async move {
+    ///     // e.g., authentication or logging
+    ///     next.run(req).await
+    /// };
+    ///
+    /// let mut route = Route::new();
+    /// route.post("/login", login_handler).middleware(mw);
+    /// ```
     pub fn middleware<F, Fut>(&mut self, mw: F) -> &mut Self
     where
         F: Fn(Request<Body>, Next) -> Fut + Clone + Send + Sync + 'static,
@@ -221,7 +278,19 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
     /// let state = AppState { routes: routes_map };
     /// let app = built.router.with_state(state);
     /// ```
-    pub fn build(self) -> BuiltRoutes<S> {
+    pub fn build(self) -> Result<BuiltRoutes<S>, RouteError>  {
+
+    for i in 0..self.items.len() {
+            for j in (i + 1)..self.items.len() {
+                let a = &self.items[i];
+                let b = &self.items[j];
+
+                if a.path == b.path && a.methods.intersects(b.methods) {
+                    return Err(RouteError::DuplicateRoute(format!("Duplicate route: {} methods", a.path)));
+                }
+            }
+        }
+
         let mut router: Router<S> = Router::new();
         let mut names = HashMap::new();
 
@@ -240,7 +309,32 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
             router = router.route(&item.path, method_router);
         }
 
-        BuiltRoutes { router, names }
+        Ok(BuiltRoutes { router, names })
 
+    }
+}
+
+// add const and any function
+impl MethodSet {
+    const GET: u8 = 1 << 0;
+    const POST: u8 = 1 << 1;
+    const PUT: u8 = 1 << 2;
+    const PATCH: u8 = 1 << 3;
+    const DELETE: u8 = 1 << 4;
+    const OPTIONS: u8 = 1 << 5;
+
+    fn any() -> Self {
+        Self(
+            Self::GET
+                | Self::POST
+                | Self::PUT
+                | Self::PATCH
+                | Self::DELETE
+                | Self::OPTIONS,
+        )
+    }
+
+    fn intersects(self, other: Self) -> bool {
+        self.0 & other.0 != 0
     }
 }
