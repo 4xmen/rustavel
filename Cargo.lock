@@ -288,6 +288,7 @@ dependencies = [
  "minijinja",
  "serde",
  "tokio",
+ "tower",
 ]
 
 [[package]]

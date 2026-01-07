@@ -1,5 +1,6 @@
 mod routes;
 mod core;
+mod app;
 
 use std::sync::Arc;
 use axum::Router;

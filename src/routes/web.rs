@@ -2,14 +2,15 @@
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use crate::core::routing::{Route,BuiltRoutes};
-
+use crate::app::http::middleware::log_middleware;
 
 pub fn web_routes() -> BuiltRoutes<AppState> {
     let mut route = Route::new();
 
     route.get("/",hello).name("welcome");
     route.post("/about",hello).name("about");
-    route.any("/test",hello).name("test");
+    route.get("/about",hello).name("about");
+    route.any("/test",hello).name("test").middleware(log_middleware::log_request);
 
     route.build()
 }

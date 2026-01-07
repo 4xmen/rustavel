@@ -6,9 +6,18 @@
 //! See [`Route`] for examples.
 
 use axum::Router;
+use axum::body::Body;
+use axum::extract::Request;
 use axum::handler::Handler;
+use axum::middleware;
+use axum::middleware::Next;
+use axum::response::Response;
 use axum::routing::{MethodRouter, delete, get, options, patch, post, put};
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
+use tower::Layer;
+use tower::util::BoxLayer;
 
 /// Used internally to map DSL methods like `get` to Axum handlers.
 #[derive(Debug)]
@@ -27,6 +36,14 @@ pub struct RouteItem<S = ()> {
     path: String,
     name: String,
     router: MethodRouter<S>,
+    middlewares: Vec<
+        Box<
+            dyn Fn(MethodRouter<S>) -> MethodRouter<S>
+            + Send
+            + Sync
+            + 'static
+        >
+    >,
 }
 
 // laravel-like route collector
@@ -47,11 +64,10 @@ pub struct BuiltRoutes<S = ()> {
 
 macro_rules! define_method {
     ($method:ident, $enum_variant:ident) => {
-
         #[doc = concat!("Adds a ", stringify!($enum_variant), " route to the collector.")]
         ///
         /// # Arguments
-         #[doc = concat!(" * `path` - The URL path for the ", stringify!($enum_variant), " route.")]
+        #[doc = concat!(" * `path` - The URL path for the ", stringify!($enum_variant), " route.")]
         /// * `handler` - The handler function for this route.
         ///
         /// # Returns
@@ -61,7 +77,7 @@ macro_rules! define_method {
         /// # Examples
         /// ```
         /// let mut route = Route::new();
-         #[doc = concat!("route.", stringify!($method), "(\"/\", hello_handler).name(\"welcome\");")]
+        #[doc = concat!("route.", stringify!($method), "(\"/\", hello_handler).name(\"welcome\");")]
         /// ```
         pub fn $method<H, T>(&mut self, path: &str, handler: H) -> &mut Self
         where
@@ -84,6 +100,7 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
         H: Handler<T, S> + Clone + Send + Sync + 'static,
         T: 'static,
     {
+
         // convert method + handler into axum method router
         let router = match method {
             RouteMethod::Get => get(handler),
@@ -104,6 +121,7 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
             path: path.to_string(),
             name: String::new(),
             router,
+            middlewares: vec![],
         });
 
         self
@@ -140,7 +158,6 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
         self.add(RouteMethod::Any, path, handler)
     }
 
-
     // attach name to last route
     /// Adds a name to current route
     ///
@@ -163,8 +180,27 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
         self
     }
 
+    /// Attaches a middleware to the last added route.
+    ///
+    /// The middleware is a function that takes a Request and Next, and returns a Response.
+    /// It can access AppState via extensions if needed (e.g., req.extensions().get::<Arc<AppState>>%).
+    /// Routes without middleware will have an empty vec, so no overhead.
+    pub fn middleware<F, Fut>(&mut self, mw: F) -> &mut Self
+    where
+        F: Fn(Request<Body>, Next) -> Fut + Clone + Send + Sync + 'static,
+        Fut: Future<Output = Response> + Send + 'static,
+    {
+        if let Some(last) = self.items.last_mut() {
+            last.middlewares.push(Box::new(move |router| {
+                router.layer(axum::middleware::from_fn(mw.clone()))
+            }));
+        }
+        self
+    }
+
+
     // build final axum router
-    /// Consumes the collector and builds the final Axum router with a name-to-path map.
+    /// Consumes the collector and builds the final Axum router with a name-to-path map and add middleware if available
     ///
     /// # Returns
     /// A `BuiltRoutes<S>` containing:
@@ -194,9 +230,17 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
                 names.insert(item.name.clone(), item.path.clone());
             }
 
-            router = router.route(&item.path, item.router);
+            let mut method_router = item.router;
+
+            for mw in item.middlewares {
+                method_router = mw(method_router);
+            }
+
+
+            router = router.route(&item.path, method_router);
         }
 
         BuiltRoutes { router, names }
+
     }
 }
