@@ -9,15 +9,14 @@ use axum::Router;
 use axum::body::Body;
 use axum::extract::Request;
 use axum::handler::Handler;
-use axum::middleware;
 use axum::middleware::Next;
 use axum::response::Response;
 use axum::routing::{MethodRouter, delete, get, options, patch, post, put};
 use std::collections::HashMap;
 use std::future::Future;
-use std::pin::Pin;
 use tower::Layer;
-use tower::util::BoxLayer;
+use colored::*;
+
 
 /// Used internally to map DSL methods like `get` to Axum handlers.
 #[derive(Debug)]
@@ -296,7 +295,12 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
 
         for item in self.items {
             if !item.name.is_empty() {
-                names.insert(item.name.clone(), item.path.clone());
+                // check duplicate route name
+                if names.contains_key(&item.name) {
+                    println!("{}", format!("Warning: Duplicate route name '{}'", item.name).yellow());
+                }else{
+                    names.insert(item.name.clone(), item.path.clone());
+                }
             }
 
             let mut method_router = item.router;

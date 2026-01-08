@@ -11,4 +11,5 @@ serde = { version = "1", features = ["derive"] }
 dotenv = "0.15.0"
 axum-extra =  { version = "0.12.5" , features = ["routing" , "typed-routing"]  }
 tower = "0.5.2"
+colored = "3.0.0"
 

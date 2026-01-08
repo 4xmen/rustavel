@@ -11,7 +11,7 @@ pub fn web_routes() -> BuiltRoutes<AppState> {
 
     route.get("/",hello).name("welcome");
     route.post("/about",hello).name("about");
-    route.get("/about",hello).name("about");
+    route.get("/about2",hello).name("about");
     route.any("/test",hello).name("test").middleware(log_middleware::log_request);
 
     route.build().unwrap_or_else(|e| {
