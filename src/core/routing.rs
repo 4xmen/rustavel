@@ -5,21 +5,21 @@
 //! # Usage
 //! See [`Route`] for examples.
 
+use axum::middleware::Next;
 use axum::Router;
 use axum::body::Body;
 use axum::extract::Request;
 use axum::handler::Handler;
-use axum::middleware::Next;
 use axum::response::Response;
 use axum::routing::{MethodRouter, delete, get, options, patch, post, put};
 use std::collections::HashMap;
 use std::future::Future;
 use std::sync::Arc;
-use tower::Layer;
 
 type Middleware<S> = Arc<dyn Fn(MethodRouter<S>) -> MethodRouter<S> + Send + Sync + 'static>;
 
 /// Used internally to map DSL methods like `get` to Axum handlers.
+#[allow(dead_code)]
 #[derive(Debug)]
 enum RouteMethod {
     Get,
@@ -42,6 +42,7 @@ pub struct RouteItem<S = ()> {
 }
 
 
+/// route context hold parent group meta
 struct RouteContext<S> {
     path_prefix: String,
     name_prefix: String,
@@ -82,7 +83,9 @@ pub struct BuiltRoutes<S = ()> {
 /// Route errors enum
 #[derive(Debug)]
 pub enum RouteError {
-    DuplicateRoute(String),
+    DuplicateRoute {
+        name: String,
+    },
 }
 
 /// store method set to check on build
@@ -116,6 +119,8 @@ macro_rules! define_method {
     };
 }
 
+
+#[allow(dead_code)]
 impl<S: Clone + Send + Sync + 'static> Route<S> {
     pub fn new() -> Self {
         Self {
@@ -285,69 +290,74 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
         self
     }
 
-    // build final axum router
-    /// Consumes the collector and builds the final Axum router with a name-to-path map and add middleware if available
+    /// Consumes the route collector and builds the final Axum router.
+    ///
+    /// This method performs three distinct phases:
+    ///
+    /// 1. **Validation**
+    ///    - Detects duplicate routes based on `full_path + method`.
+    ///    - Detects duplicate route names *after* group name prefixes are applied.
+    ///
+    /// 2. **Resolution**
+    ///    - Resolves full route paths by applying all group path prefixes.
+    ///    - Resolves full route names by applying all group name prefixes.
+    ///
+    /// 3. **Assembly**
+    ///    - Applies group-level and route-level middlewares.
+    ///    - Registers routes into the Axum `Router`.
     ///
     /// # Returns
-    /// A `BuiltRoutes<S>` containing:
-    /// - `router`: the assembled `Router<S>` with all registered routes.
-    /// - `names`: a `HashMap<String, String>` mapping route names to their paths (only entries for routes with non-empty names).
+    /// - `Ok(BuiltRoutes<S>)` on success.
+    /// - `Err(RouteError)` if a duplicate route or name is detected.
     ///
-    /// # Behavior
-    /// - Consumes `self`, taking ownership of the collected route items.
-    /// - Registers each item's route into the router with `router.route(&item.path, item.router)`.
-    /// - If `item.name` is not empty, inserts `item.name.clone()` -> `item.path.clone()` into `names`.
+    /// # Errors
+    /// - `RouteError::DuplicateRoute` if two routes resolve to the same path
+    ///   and share at least one HTTP method.
+    /// - `RouteError::DuplicateName` if two routes resolve to the same full name.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// let mut route = Route::new();
-    /// route.get("/", hello_handler).name("welcome");
-    /// let built: BuiltRoutes<AppState> = route.build();
-    /// let routes_map = Arc::new(built.names.clone());
-    /// let state = AppState { routes: routes_map };
-    /// let app = built.router.with_state(state);
+    /// route.get("/", hello).name("welcome");
+    /// let built = route.build().unwrap();
     /// ```
     pub fn build(self) -> Result<BuiltRoutes<S>, RouteError> {
+        use std::collections::HashMap;
+
+        /* -------------------------------------------------------------
+         * Phase 1: Validation (path + method)
+         * -----------------------------------------------------------*/
+
+        let mut seen_routes: HashMap<String, MethodSet> = HashMap::new();
+
+        for item in &self.items {
+            let full_path = Self::build_full_path(item);
+
+            let entry = seen_routes
+                .entry(full_path.clone())
+                .or_insert(MethodSet(0));
+
+            if entry.intersects(item.methods) {
+                return Err(RouteError::DuplicateRoute {
+                    name: format!("Duplicate route for path: {}", full_path),
+                });
+            }
+
+            *entry = MethodSet(entry.0 | item.methods.0);
+        }
+
+        /* -------------------------------------------------------------
+         * Phase 2: Assembly
+         * -----------------------------------------------------------*/
+
         let mut router: Router<S> = Router::new();
         let mut names: HashMap<String, String> = HashMap::new();
 
         for item in self.items {
+            let full_path = Self::build_full_path(&item);
+            let full_name = Self::build_full_name(&item);
 
-            // Build full path
-            let mut full_path = String::new();
-            for ctx in &item.contexts {
-                full_path.push_str(&ctx.path_prefix);
-            }
-            full_path.push_str(&item.path);
-
-            if !full_path.starts_with('/') {
-                full_path.insert(0, '/');
-            }
-
-            // Build full name (only if route has a name)
-            let full_name = if item.name.is_empty() {
-                None
-            } else {
-                let mut name = String::new();
-
-                for ctx in &item.contexts {
-                    if !ctx.name_prefix.is_empty() {
-                        if !name.is_empty() {
-                            name.push('.');
-                        }
-                        name.push_str(&ctx.name_prefix);
-                    }
-                }
-
-                if !name.is_empty() {
-                    name.push('.');
-                }
-                name.push_str(&item.name);
-
-                Some(name)
-            };
-
-            // Apply middlewares
+            // Apply middlewares (group first, then route)
             let mut method_router = item.router;
 
             for ctx in &item.contexts {
@@ -362,13 +372,12 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
 
             router = router.route(&full_path, method_router);
 
-            // Register name after full resolution
+            // Register route name (after full resolution)
             if let Some(name) = full_name {
                 if names.contains_key(&name) {
-                    return Err(RouteError::DuplicateRoute(format!(
-                        "Duplicate route name: {}",
-                        name
-                    )));
+                    return Err(RouteError::DuplicateRoute {
+                        name: format!("Duplicate route name: {}", name),
+                    });
                 }
                 names.insert(name, full_path);
             }
@@ -377,8 +386,134 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
         Ok(BuiltRoutes { router, names })
     }
 
+    /// Builds the final resolved path for a route by applying all group path prefixes.
+    ///
+    /// This function concatenates:
+    /// - All `path_prefix` values from the route's context stack (in order),
+    /// - Followed by the route's own local path.
+    ///
+    /// The resulting path is normalized to always start with a `/`.
+    ///
+    /// # Behavior
+    /// - Group prefixes are applied in the order they were declared.
+    /// - The route's own path is appended last.
+    /// - If the final path does not start with `/`, it is automatically inserted.
+    ///
+    /// # Examples
+    /// ```text
+    /// Group prefix: "/api"
+    /// Route path:   "/users"
+    /// Result:       "/api/users"
+    ///
+    /// Group prefix: "/api"
+    /// Route path:   "users"
+    /// Result:       "/api/users"
+    /// ```
+    ///
+    /// # Notes
+    /// This function does not perform validation or deduplication.
+    /// It is intended to be used during the build phase after all
+    /// route contexts have been resolved.
+
+    fn build_full_path(item: &RouteItem<S>) -> String {
+        let mut path = String::new();
+
+        for ctx in &item.contexts {
+            path.push_str(&ctx.path_prefix);
+        }
+
+        path.push_str(&item.path);
+
+        if !path.starts_with('/') {
+            path.insert(0, '/');
+        }
+
+        path
+    }
+
+    /// Builds the final resolved route name by applying all group name prefixes.
+    ///
+    /// This function constructs a fully-qualified route name using dot (`.`)
+    /// notation, similar to Laravel route naming.
+    ///
+    /// # Behavior
+    /// - If the route has no local name, `None` is returned.
+    /// - Group name prefixes are applied in declaration order.
+    /// - Prefixes and the route name are joined using `.`.
+    /// - Empty prefixes are ignored.
+    ///
+    /// # Examples
+    /// ```text
+    /// Group name: "api"
+    /// Route name: "users"
+    /// Result:     "api.users"
+    ///
+    /// Nested groups:
+    ///   Group: "api"
+    ///   Group: "admin"
+    ///   Route: "dashboard"
+    /// Result: "api.admin.dashboard"
+    /// ```
+    ///
+    /// # Returns
+    /// - `Some(String)` containing the fully-qualified name if the route is named.
+    /// - `None` if the route has no name.
+    ///
+    /// # Notes
+    /// Name resolution must occur before duplicate name detection,
+    /// since group prefixes affect the final name.
+    fn build_full_name(item: &RouteItem<S>) -> Option<String> {
+        if item.name.is_empty() {
+            return None;
+        }
+
+        let mut name = String::new();
+
+        for ctx in &item.contexts {
+            if !ctx.name_prefix.is_empty() {
+                if !name.is_empty() {
+                    name.push('.');
+                }
+                name.push_str(&ctx.name_prefix);
+            }
+        }
+
+        if !name.is_empty() {
+            name.push('.');
+        }
+
+        name.push_str(&item.name);
+
+        Some(name)
+    }
 
 
+
+    /// Sets a path prefix for the current route group.
+    ///
+    /// The prefix is applied to all routes declared within the current
+    /// group context and any nested groups.
+    ///
+    /// # Arguments
+    /// * `prefix` - A path segment to prepend to all route paths
+    ///   in the current group.
+    ///
+    /// # Behavior
+    /// - The prefix is stored in the active `RouteContext`.
+    /// - Multiple prefixes are concatenated in declaration order.
+    /// - No normalization is performed at this stage.
+    ///
+    /// # Examples
+    /// ```rust
+    /// route.group(|r| {
+    ///     r.prefix("/api");
+    ///     r.get("/users", handler);
+    /// });
+    /// // Results in "/api/users"
+    /// ```
+    ///
+    /// # Notes
+    /// Prefix resolution is deferred until the `build` phase.
     pub fn prefix(&mut self, prefix: &str) -> &mut Self {
         if let Some(ctx) = self.ctx_stack.last_mut() {
             ctx.path_prefix.push_str(prefix);
@@ -386,6 +521,40 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
         self
     }
 
+
+    /// Creates a route group with its own contextual configuration.
+    ///
+    /// This method establishes a new routing context that can apply:
+    /// - Path prefixes
+    /// - Name prefixes
+    /// - Middlewares
+    ///
+    /// to all routes defined inside the provided closure.
+    ///
+    /// Contexts can be nested, and each nested group inherits and extends
+    /// the configuration of its parent.
+    ///
+    /// # Arguments
+    /// * `f` - A closure that receives a mutable reference to the router,
+    ///   allowing routes and group configuration to be defined.
+    ///
+    /// # Behavior
+    /// - Pushes a new `RouteContext` onto the context stack.
+    /// - Executes the closure within that context.
+    /// - Pops the context after the closure completes.
+    ///
+    /// # Examples
+    /// ```rust
+    /// route.group(|r| {
+    ///     r.prefix("/api").name("api");
+    ///
+    ///     r.get("/users", list_users).name("users");
+    /// });
+    /// ```
+    ///
+    /// # Notes
+    /// This method does not immediately register routes.
+    /// All resolution occurs during the `build` phase.
     pub fn group<F>(&mut self, f: F)
     where
         F: FnOnce(&mut Self),
@@ -397,6 +566,63 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
         self.ctx_stack.pop();
     }
 }
+
+impl<S> BuiltRoutes<S>
+where
+    S: Clone + Send + Sync + 'static,
+{
+    /// Merges another `BuiltRoutes` instance into this one.
+    ///
+    /// This method combines:
+    /// - The underlying Axum routers using `Router::merge`.
+    /// - The route name maps into a single namespace.
+    ///
+    /// # Type Parameters
+    /// * `S` - Shared application state type.
+    ///
+    /// # Requirements
+    /// The state type `S` must implement:
+    /// - `Clone`
+    /// - `Send`
+    /// - `Sync`
+    /// - `'static`
+    ///
+    /// These bounds are required by Axum when merging routers.
+    ///
+    /// # Behavior
+    /// - Routes from `other` are merged into `self`.
+    /// - Route names from `other` are inserted into `self.names`.
+    /// - Duplicate route names will cause a panic.
+    ///
+    /// # Examples
+    /// ```rust
+    /// let web = web_routes();
+    /// let api = api_routes();
+    ///
+    /// let app = web.merge(api);
+    /// ```
+    ///
+    /// # Panics
+    /// Panics if a duplicate route name exists between the two route sets.
+    ///
+    /// # Notes
+    /// This method consumes both `BuiltRoutes` instances and returns
+    /// a new merged instance.
+    pub fn merge(mut self, other: BuiltRoutes<S>) -> Self {
+        self.router = self.router.merge(other.router);
+
+        for (name, path) in other.names {
+            if self.names.contains_key(&name) {
+                panic!("Duplicate route name: {}", name);
+            }
+            self.names.insert(name, path);
+        }
+
+        self
+    }
+}
+
+
 
 impl<S> Clone for RouteContext<S> {
     fn clone(&self) -> Self {

@@ -1,15 +1,17 @@
 mod routes;
 mod core;
 mod app;
-
 use std::sync::Arc;
-use axum::Router;
+
 
 use crate::core::state::AppState;
 
 #[tokio::main]
 async fn main() {
-    let built = routes::web::web_routes();
+    let web = routes::web::web_routes();
+    let api = routes::api::api_routes();
+
+    let built = web.merge(api);
 
     println!("Starting server on http://localhost:3000");
 
