@@ -14,9 +14,10 @@ use axum::response::Response;
 use axum::routing::{MethodRouter, delete, get, options, patch, post, put};
 use std::collections::HashMap;
 use std::future::Future;
+use std::sync::Arc;
 use tower::Layer;
-use colored::*;
 
+type Middleware<S> = Arc<dyn Fn(MethodRouter<S>) -> MethodRouter<S> + Send + Sync + 'static>;
 
 /// Used internally to map DSL methods like `get` to Axum handlers.
 #[derive(Debug)]
@@ -35,18 +36,30 @@ pub struct RouteItem<S = ()> {
     path: String,
     name: String,
     router: MethodRouter<S>,
-    methods: MethodSet, // for check duplicate route
-    middlewares: Vec<
-        Box<
-            dyn Fn(MethodRouter<S>) -> MethodRouter<S>
-            + Send
-            + Sync
-            + 'static
-        >
-    >,
+    methods: MethodSet,
+    middlewares: Vec<Middleware<S>>,
+    contexts: Vec<RouteContext<S>>,
 }
 
 
+struct RouteContext<S> {
+    path_prefix: String,
+    name_prefix: String,
+    middlewares: Vec<Middleware<S>>,
+}
+
+
+
+
+impl<S> RouteContext<S> {
+    fn new() -> Self {
+        Self {
+            path_prefix: String::new(),
+            name_prefix: String::new(),
+            middlewares: vec![],
+        }
+    }
+}
 
 // laravel-like route collector
 /// Represents a collection of routes, similar to Laravel's router.
@@ -55,15 +68,16 @@ pub struct RouteItem<S = ()> {
 ///
 /// # Fields
 /// * `items` - A vector of individual route entries (private, so not documented publicly).
+/// * `ctx_stack` group content stack
 pub struct Route<S = ()> {
     items: Vec<RouteItem<S>>,
+    ctx_stack: Vec<RouteContext<S>>,
 }
 
 pub struct BuiltRoutes<S = ()> {
     pub router: Router<S>,
     pub names: HashMap<String, String>,
 }
-
 
 /// Route errors enum
 #[derive(Debug)]
@@ -102,12 +116,12 @@ macro_rules! define_method {
     };
 }
 
-
-
-
 impl<S: Clone + Send + Sync + 'static> Route<S> {
     pub fn new() -> Self {
-        Self { items: vec![] }
+        Self {
+            items: vec![],
+            ctx_stack: vec![],
+        }
     }
 
     // internal helper to reduce duplication
@@ -150,6 +164,7 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
             router,
             middlewares: vec![],
             methods,
+            contexts: self.ctx_stack.clone(),
         });
 
         self
@@ -187,10 +202,10 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
     }
 
     // attach name to last route
-    /// Adds a name to current route
+    /// Adds a name to current route or group
     ///
     /// # Arguments
-    /// * `path` - The URL path for the route.
+    /// * `path` - The URL path for the route or group prefix.
     /// * `handler` - The handler function for this route. Use for every method
     ///
     /// # Returns
@@ -201,19 +216,30 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
     /// let mut route = Route::new();
     /// route.get("/users", user_list).name("user.index");
     /// ```
-    pub fn name(&mut self, route_name: &str) -> &mut Self {
+    pub fn name(&mut self, name: &str) -> &mut Self {
         if let Some(last) = self.items.last_mut() {
-            last.name = route_name.to_string();
+            // If the last route has no name yet and was added
+            if last.name.is_empty() {
+                last.name = name.to_string();
+                return self;
+            }
         }
+
+        // Otherwise apply to current group context
+        if let Some(ctx) = self.ctx_stack.last_mut() {
+            ctx.name_prefix = name.to_string();
+        }
+
         self
     }
 
-    /// Attaches one middleware to the last added route.
+
+    /// Attaches one middleware to the last added route or group.
     ///
-    /// Adds a middleware function to the most recently added route. The middleware
+    /// Adds a middleware function to the most recently added route or group. The middleware
     /// receives the request and a `Next` handler and must return a `Response`.
     /// Use this to run preprocessing, authentication, logging, etc., for a single
-    /// route without affecting other routes.
+    /// route without affecting other routes or group and apply sub routes of group.
     ///
     /// # Type parameters
     /// * `F` - Middleware function type: `Fn(Request<Body>, Next) -> Fut + Clone + Send + Sync + 'static`.
@@ -246,14 +272,18 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
         F: Fn(Request<Body>, Next) -> Fut + Clone + Send + Sync + 'static,
         Fut: Future<Output = Response> + Send + 'static,
     {
-        if let Some(last) = self.items.last_mut() {
-            last.middlewares.push(Box::new(move |router| {
-                router.layer(axum::middleware::from_fn(mw.clone()))
-            }));
+        let mw = Arc::new(move |router: MethodRouter<S>| {
+            router.layer(axum::middleware::from_fn(mw.clone()))
+        });
+
+        if let Some(ctx) = self.ctx_stack.last_mut() {
+            ctx.middlewares.push(mw);
+        } else if let Some(last) = self.items.last_mut() {
+            last.middlewares.push(mw);
         }
+
         self
     }
-
 
     // build final axum router
     /// Consumes the collector and builds the final Axum router with a name-to-path map and add middleware if available
@@ -277,44 +307,104 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
     /// let state = AppState { routes: routes_map };
     /// let app = built.router.with_state(state);
     /// ```
-    pub fn build(self) -> Result<BuiltRoutes<S>, RouteError>  {
-
-    for i in 0..self.items.len() {
-            for j in (i + 1)..self.items.len() {
-                let a = &self.items[i];
-                let b = &self.items[j];
-
-                if a.path == b.path && a.methods.intersects(b.methods) {
-                    return Err(RouteError::DuplicateRoute(format!("Duplicate route: {} methods", a.path)));
-                }
-            }
-        }
-
+    pub fn build(self) -> Result<BuiltRoutes<S>, RouteError> {
         let mut router: Router<S> = Router::new();
-        let mut names = HashMap::new();
+        let mut names: HashMap<String, String> = HashMap::new();
 
         for item in self.items {
-            if !item.name.is_empty() {
-                // check duplicate route name
-                if names.contains_key(&item.name) {
-                    println!("{}", format!("Warning: Duplicate route name '{}'", item.name).yellow());
-                }else{
-                    names.insert(item.name.clone(), item.path.clone());
+
+            // Build full path
+            let mut full_path = String::new();
+            for ctx in &item.contexts {
+                full_path.push_str(&ctx.path_prefix);
+            }
+            full_path.push_str(&item.path);
+
+            if !full_path.starts_with('/') {
+                full_path.insert(0, '/');
+            }
+
+            // Build full name (only if route has a name)
+            let full_name = if item.name.is_empty() {
+                None
+            } else {
+                let mut name = String::new();
+
+                for ctx in &item.contexts {
+                    if !ctx.name_prefix.is_empty() {
+                        if !name.is_empty() {
+                            name.push('.');
+                        }
+                        name.push_str(&ctx.name_prefix);
+                    }
+                }
+
+                if !name.is_empty() {
+                    name.push('.');
+                }
+                name.push_str(&item.name);
+
+                Some(name)
+            };
+
+            // Apply middlewares
+            let mut method_router = item.router;
+
+            for ctx in &item.contexts {
+                for mw in &ctx.middlewares {
+                    method_router = mw(method_router);
                 }
             }
 
-            let mut method_router = item.router;
-
-            for mw in item.middlewares {
+            for mw in &item.middlewares {
                 method_router = mw(method_router);
             }
 
+            router = router.route(&full_path, method_router);
 
-            router = router.route(&item.path, method_router);
+            // Register name after full resolution
+            if let Some(name) = full_name {
+                if names.contains_key(&name) {
+                    return Err(RouteError::DuplicateRoute(format!(
+                        "Duplicate route name: {}",
+                        name
+                    )));
+                }
+                names.insert(name, full_path);
+            }
         }
 
         Ok(BuiltRoutes { router, names })
+    }
 
+
+
+    pub fn prefix(&mut self, prefix: &str) -> &mut Self {
+        if let Some(ctx) = self.ctx_stack.last_mut() {
+            ctx.path_prefix.push_str(prefix);
+        }
+        self
+    }
+
+    pub fn group<F>(&mut self, f: F)
+    where
+        F: FnOnce(&mut Self),
+    {
+        self.ctx_stack.push(RouteContext::new());
+
+        f(self);
+
+        self.ctx_stack.pop();
+    }
+}
+
+impl<S> Clone for RouteContext<S> {
+    fn clone(&self) -> Self {
+        Self {
+            path_prefix: self.path_prefix.clone(),
+            name_prefix: self.name_prefix.clone(),
+            middlewares: self.middlewares.clone(),
+        }
     }
 }
 
@@ -328,14 +418,7 @@ impl MethodSet {
     const OPTIONS: u8 = 1 << 5;
 
     fn any() -> Self {
-        Self(
-            Self::GET
-                | Self::POST
-                | Self::PUT
-                | Self::PATCH
-                | Self::DELETE
-                | Self::OPTIONS,
-        )
+        Self(Self::GET | Self::POST | Self::PUT | Self::PATCH | Self::DELETE | Self::OPTIONS)
     }
 
     fn intersects(self, other: Self) -> bool {
