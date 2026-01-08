@@ -571,54 +571,61 @@ impl<S> BuiltRoutes<S>
 where
     S: Clone + Send + Sync + 'static,
 {
-    /// Merges another `BuiltRoutes` instance into this one.
+    /// Merges another `BuiltRoutes` instance into this one, combining routers and route names.
     ///
-    /// This method combines:
-    /// - The underlying Axum routers using `Router::merge`.
-    /// - The route name maps into a single namespace.
+    /// # Parameters
+    /// - `other`: Another `BuiltRoutes` instance to merge into the current instance.
     ///
-    /// # Type Parameters
-    /// * `S` - Shared application state type.
-    ///
-    /// # Requirements
-    /// The state type `S` must implement:
-    /// - `Clone`
-    /// - `Send`
-    /// - `Sync`
-    /// - `'static`
-    ///
-    /// These bounds are required by Axum when merging routers.
+    /// # Returns
+    /// A `Result` containing the merged `BuiltRoutes` or a `RouteError` if a duplicate route is found.
     ///
     /// # Behavior
-    /// - Routes from `other` are merged into `self`.
-    /// - Route names from `other` are inserted into `self.names`.
-    /// - Duplicate route names will cause a panic.
+    /// - Merges the Axum routers using `Router::merge`
+    /// - Combines route name maps into a single namespace
+    /// - Checks for and prevents duplicate route names
     ///
     /// # Examples
     /// ```rust
-    /// let web = web_routes();
-    /// let api = api_routes();
+    /// // Create separate route collections
+    /// let web_routes = BuiltRoutes::new()
+    ///     .add_route("/", home_handler)
+    ///     .add_named_route("about", "/about", about_handler);
     ///
-    /// let app = web.merge(api);
+    /// let api_routes = BuiltRoutes::new()
+    ///     .add_route("/api/users", list_users_handler)
+    ///     .add_named_route("create_user", "/api/users", create_user_handler);
+    ///
+    /// // Merge routes successfully
+    /// let merged_routes = web_routes.merge(api_routes)?;
+    ///
+    /// // Attempting to merge routes with a duplicate name will return an error
+    /// let another_routes = BuiltRoutes::new()
+    ///     .add_named_route("about", "/another-about", different_about_handler);
+    ///
+    /// // This will result in a RouteError::DuplicateRoute
+    /// let merge_result = merged_routes.merge(another_routes);
+    /// assert!(merge_result.is_err());
     /// ```
     ///
-    /// # Panics
-    /// Panics if a duplicate route name exists between the two route sets.
+    /// # Errors
+    /// Returns `RouteError::DuplicateRoute` if a route name already exists in the current instance.
     ///
-    /// # Notes
-    /// This method consumes both `BuiltRoutes` instances and returns
-    /// a new merged instance.
-    pub fn merge(mut self, other: BuiltRoutes<S>) -> Self {
+    /// # Type Constraints
+    /// - `S`: Shared application state type that must implement `Clone + Send + Sync + 'static`
+    ///   (required by Axum for router merging)
+    pub fn merge(mut self, other: BuiltRoutes<S>) -> Result<Self, RouteError> {
         self.router = self.router.merge(other.router);
 
         for (name, path) in other.names {
             if self.names.contains_key(&name) {
-                panic!("Duplicate route name: {}", name);
+                return Err(RouteError::DuplicateRoute {
+                    name: format!("Duplicate route on merge: {}", name),
+                });
             }
             self.names.insert(name, path);
         }
 
-        self
+        Ok(self)
     }
 }
 

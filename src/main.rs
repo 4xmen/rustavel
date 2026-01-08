@@ -11,7 +11,10 @@ async fn main() {
     let web = routes::web::web_routes();
     let api = routes::api::api_routes();
 
-    let built = web.merge(api);
+    let built = web.merge(api).unwrap_or_else(|e| {
+        eprintln!("{:?}", e);
+        std::process::exit(1);
+    });
 
     println!("Starting server on http://localhost:3000");
 
