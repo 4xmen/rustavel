@@ -25,9 +25,9 @@ use axum::extract::State;
 use crate::core::state::AppState; // import AppState
 
 async fn hello(State(state): State<AppState>) -> impl IntoResponse {
-    let welcome_url = state.routes.get("welcome").unwrap();
+    let welcome_url = state.route("welcome");
     println!("Welcome route: {}", welcome_url);
-    let group_url = state.routes.get("api.index").unwrap();
+    let group_url = state.route("api.v1.users.create");
     println!("Group route: {}", group_url);
     (StatusCode::OK, "hello world")
 }

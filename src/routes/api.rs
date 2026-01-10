@@ -14,7 +14,13 @@ pub fn api_routes() -> BuiltRoutes<AppState> {
         r.name("api").prefix("/api").middleware(log_middleware::log_request);
 
         r.group(|v1|{
+            v1.prefix("/v1").name("v1");
             v1.get("", hello_api).name("index");
+            v1.group(|users| {
+                users.name("users").prefix("/users");
+                users.get("index", hello_api).name("index");
+                users.get("create", hello_api).name("create");
+            })
         })
     });
 

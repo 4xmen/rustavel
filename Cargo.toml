@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 axum = "0.8"
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1.49.0", features = ["full"] }
 minijinja = { version = "1", features = ["loader"] }
 serde = { version = "1", features = ["derive"] }
 dotenv = "0.15.0"
