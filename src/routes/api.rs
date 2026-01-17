@@ -17,7 +17,7 @@ pub fn api_routes() -> BuiltRoutes<AppState> {
             v1.prefix("/v1").name("v1");
             v1.get("", hello_api).name("index");
             v1.group(|users| {
-                users.name("users").prefix("/users");
+                users.prefix("/users").name("users");
                 users.get("index", hello_api).name("index");
                 users.get("create", hello_api).name("create");
             })

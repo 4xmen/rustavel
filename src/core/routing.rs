@@ -43,6 +43,7 @@ pub struct RouteItem<S = ()> {
 
 
 /// route context hold parent group meta
+/// this is private struct
 struct RouteContext<S> {
     path_prefix: String,
     name_prefix: String,
@@ -58,6 +59,16 @@ impl<S> RouteContext<S> {
             path_prefix: String::new(),
             name_prefix: String::new(),
             middlewares: vec![],
+        }
+    }
+}
+
+impl<S> Clone for RouteContext<S> {
+    fn clone(&self) -> Self {
+        Self {
+            path_prefix: self.path_prefix.clone(),
+            name_prefix: self.name_prefix.clone(),
+            middlewares: self.middlewares.clone(),
         }
     }
 }
@@ -88,9 +99,17 @@ pub enum RouteError {
     },
 }
 
-/// store method set to check on build
+/// store method set to check on build, Represents a set of HTTP methods.
+///
+/// This struct efficiently stores a collection of HTTP methods (GET, POST, PUT, etc.) using a single `u8` value.
+/// Each bit in the `u8` corresponds to a specific HTTP method.  This allows for fast and concise checks
+/// to determine if two method sets have any methods in common.
+/// # Fields
+///
+/// * `0`:  A `u8` value representing the set of HTTP methods.  Each bit corresponds to a method.
 #[derive(Clone, Copy, Debug)]
 struct MethodSet(u8);
+
 
 macro_rules! define_method {
     ($method:ident, $enum_variant:ident) => {
@@ -164,7 +183,12 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
         };
 
         self.items.push(RouteItem {
-            path: path.to_string(),
+            // fix route problems if developer forget use / start of route
+            path:  if !path.starts_with("/") && !path.is_empty(){
+                format!("/{}", path)
+            } else {
+                path.to_string()
+            },
             name: String::new(),
             router,
             middlewares: vec![],
@@ -370,6 +394,7 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
                 method_router = mw(method_router);
             }
 
+            println!("Path: {}", full_path);
             router = router.route(&full_path, method_router);
 
             // Register route name (after full resolution)
@@ -587,24 +612,13 @@ where
     /// # Examples
     /// ```rust
     /// // Create separate route collections
-    /// let web_routes = BuiltRoutes::new()
-    ///     .add_route("/", home_handler)
-    ///     .add_named_route("about", "/about", about_handler);
-    ///
-    /// let api_routes = BuiltRoutes::new()
-    ///     .add_route("/api/users", list_users_handler)
-    ///     .add_named_route("create_user", "/api/users", create_user_handler);
-    ///
-    /// // Merge routes successfully
-    /// let merged_routes = web_routes.merge(api_routes)?;
-    ///
-    /// // Attempting to merge routes with a duplicate name will return an error
-    /// let another_routes = BuiltRoutes::new()
-    ///     .add_named_route("about", "/another-about", different_about_handler);
-    ///
-    /// // This will result in a RouteError::DuplicateRoute
-    /// let merge_result = merged_routes.merge(another_routes);
-    /// assert!(merge_result.is_err());
+    /// let web = routes::web::web_routes();
+    //  let api = routes::api::api_routes();
+    //
+    //  let built = web.merge(api).unwrap_or_else(|e| {
+    //      eprintln!("{:?}", e);
+    //      std::process::exit(1);
+    //  });
     /// ```
     ///
     /// # Errors
@@ -631,18 +645,9 @@ where
 
 
 
-impl<S> Clone for RouteContext<S> {
-    fn clone(&self) -> Self {
-        Self {
-            path_prefix: self.path_prefix.clone(),
-            name_prefix: self.name_prefix.clone(),
-            middlewares: self.middlewares.clone(),
-        }
-    }
-}
-
 // add const and any function
 impl MethodSet {
+    // shift bit to detect active method
     const GET: u8 = 1 << 0;
     const POST: u8 = 1 << 1;
     const PUT: u8 = 1 << 2;
@@ -650,10 +655,12 @@ impl MethodSet {
     const DELETE: u8 = 1 << 4;
     const OPTIONS: u8 = 1 << 5;
 
+    // active all methods for any requests
     fn any() -> Self {
         Self(Self::GET | Self::POST | Self::PUT | Self::PATCH | Self::DELETE | Self::OPTIONS)
     }
 
+    // intersects: compare current route method duplicate is with other route methods or not
     fn intersects(self, other: Self) -> bool {
         self.0 & other.0 != 0
     }

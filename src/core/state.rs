@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct AppState {
     pub routes: Arc<HashMap<String, String>>,
 }
