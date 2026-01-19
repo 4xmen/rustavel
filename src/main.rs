@@ -1,21 +1,14 @@
 use std::sync::Arc;
-use dotenv::dotenv;
-use std::env;
-
 mod routes;
 mod core;
 mod app;
-
+mod config;
 
 use crate::core::state::AppState;
+use crate::config::CONFIG;
 
 #[tokio::main]
 async fn main() {
-
-    dotenv().unwrap_or_else(|e|{
-        println!(".env file not found, ERROR: {}", e);
-        std::process::exit(1);
-    });
 
 
     let web = routes::web::web_routes();
@@ -36,9 +29,13 @@ async fn main() {
     // take type annotation
     let app = built.router.with_state(state);
 
-    let app_start_point  = format!("{}:{}",
-                                   env::var("APP_IP").ok().unwrap(),
-                                   env::var("APP_PORT").ok().unwrap());
+    let app_start_point = format!(
+        "{}:{}",
+        CONFIG.app.host,
+        CONFIG.app.port
+    );
+
+
 
     println!("Starting server on http://{}", app_start_point);
     let listener = tokio::net::TcpListener::bind(app_start_point).await
