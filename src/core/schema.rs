@@ -54,6 +54,12 @@ impl Schema<'_> {
     pub fn drop_database_if_exists(db_name: &str) -> bool {
         false
     }
+    pub fn disable_foreign_key_constraints(db_name: &str) -> bool {
+        false
+    }
+    pub fn enable_foreign_key_constraints(db_name: &str) -> bool {
+        false
+    }
 
     pub fn rename(old_table_name: &str, new_table_name: &str) {}
 

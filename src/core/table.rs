@@ -2,11 +2,12 @@
 pub struct Table {
     name: String,
     columns: Vec<Column>,
+    foreign_keys: Vec<ForeignKey>,
     current: Column,
+    current_foreign: ForeignKey,
     comment: String,
     pub action: TableAction,
 }
-
 
 #[derive(Debug)]
 pub enum TableAction {
@@ -33,7 +34,7 @@ enum ColumnDataType {
     DTDate,
     DTTime,
     DTTimestamp,
-    DTTimestamps, // to add created at and updated at
+    DTTimestamps, // to add created_at and updated_at
     DTDateTime,
     DTMorph,
     DTText,
@@ -70,6 +71,15 @@ enum ColumnOption {
     Index(String),
 }
 
+#[derive(Debug, Clone)]
+struct ForeignKey {
+    column_name: String,
+    foreign_table: String,
+    referenced_column: String,
+    on_delete: bool,
+    on_update: bool,
+}
+
 macro_rules! warning_invalid_assign {
     ($col:expr) => {
         if $col.data_type == ColumnDataType::DTNone {
@@ -97,6 +107,7 @@ impl Table {
         Self {
             name: table_name.to_string(),
             columns: Vec::new(),
+            foreign_keys: Vec::new(),
             current: Column {
                 name: String::new(),
                 data_type: ColumnDataType::DTNone,
@@ -108,6 +119,13 @@ impl Table {
                 index: false,
                 unsigned: false,
             },
+            current_foreign: ForeignKey {
+                column_name: String::new(),
+                referenced_column: String::new(),
+                foreign_table: String::new(),
+                on_delete: false,
+                on_update: false,
+            },
             comment: String::new(),
             action: TableAction::Other,
         }
@@ -117,6 +135,16 @@ impl Table {
         if self.current.data_type != ColumnDataType::DTNone {
             self.columns.push(self.current.clone());
             self.current.reset();
+        }
+    }
+
+    fn check_foreign(&mut self) {
+        if self.current_foreign.column_name != ""
+            && self.current_foreign.foreign_table != ""
+            && self.current_foreign.referenced_column != ""
+        {
+            self.foreign_keys.push(self.current_foreign.clone());
+            self.current_foreign.reset();
         }
     }
 
@@ -274,6 +302,34 @@ impl Table {
 
     // --------------------------------------------------------------------------------------------
 
+    pub fn foreign(&mut self, column_name: &str) -> &mut Self {
+        self.check_foreign();
+        self.current_foreign.column_name = column_name.to_string();
+        self
+    }
+
+    pub fn reference(&mut self, referenced_column: &str) -> &mut Self {
+        self.current_foreign.referenced_column = referenced_column.to_string();
+        self
+    }
+
+    pub fn on(&mut self, referenced_table_name: &str) -> &mut Self {
+        self.current_foreign.foreign_table = referenced_table_name.to_string();
+        self
+    }
+
+    pub fn cascade_on_delete(&mut self) -> &mut Self {
+        self.current_foreign.on_delete = true;
+        self
+    }
+
+    pub fn cascade_on_update(&mut self) -> &mut Self {
+        self.current_foreign.on_update = true;
+        self
+    }
+
+    // --------------------------------------------------------------------------------------------
+
     pub fn nullable(&mut self) -> &mut Self {
         warning_invalid_assign!(&self.current);
         self.current.nullable = true;
@@ -310,6 +366,27 @@ impl Table {
     }
 
     // --------------------------------------------------------------------------------------------
+
+    pub fn validate(&mut self) -> &mut Self {
+        self.check();
+        self.check_foreign();
+
+
+        for foreign_key in &mut self.foreign_keys {
+            if !foreign_key.validate() {
+                println!("invalid foreign key:");
+                dbg!(&foreign_key);
+            }
+        }
+        for column in &mut self.columns {
+            if !column.validate() {
+                println!("invalid column:");
+                dbg!(&column);
+            }
+        }
+        self
+    }
+    // --------------------------------------------------------------------------------------------
 }
 
 impl Column {
@@ -324,5 +401,72 @@ impl Column {
         self.index = false;
         self.unsigned = false;
     }
+
+    fn validate(&mut self) -> bool {
+        match self.data_type {
+            ColumnDataType::DTNone => return false,
+
+            ColumnDataType::DTString
+            | ColumnDataType::DTLongText
+            | ColumnDataType::DTMediumText
+            | ColumnDataType::DTTinyText
+            | ColumnDataType::DTJson => {
+                // String types cannot be unsigned
+                if self.unsigned {
+                    return false;
+                }
+
+                // Handle Length option
+                if let ColumnOption::Length(length) = &self.option {
+                    if *length <= 0 {
+                        return false;
+                    }
+
+                    // If length > 255, cannot be indexed or unique
+                    if *length > 255 && (self.index || self.unique) {
+                        return false;
+                    }
+                } else {
+                    // If no Length and it's indexed or unique, invalid
+                    if self.index || self.unique {
+                        return false;
+                    }
+                }
+            }
+
+            ColumnDataType::DTBoolean =>{
+                if self.unique {
+                    return false;
+                }
+                if self.default != "false" && self.default != "true" && self.default != "1" && self.default != "0" {
+                    return false;
+                }
+            }
+            _ => return true,
+        }
+
+        true
+    }
 }
 
+impl ForeignKey {
+    fn reset(&mut self) {
+        self.column_name = String::new();
+        self.referenced_column = String::new();
+        self.foreign_table = String::new();
+        self.on_delete = false;
+        self.on_update = false;
+    }
+
+    fn validate(&mut self) -> bool {
+        let mut message = String::new();
+        if self.column_name.is_empty()
+            || self.referenced_column.is_empty()
+            || self.foreign_table.is_empty()
+        {
+            return false;
+        }
+
+        true
+    }
+}
