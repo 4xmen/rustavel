@@ -36,6 +36,8 @@ async fn main() {
     );
 
 
+    println!("db connection {:?}", CONFIG.database.connection);
+    println!("db name {:?}", CONFIG.database.database);
 
     println!("Starting server on http://{}", app_start_point);
     let listener = tokio::net::TcpListener::bind(app_start_point).await
