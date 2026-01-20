@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/inilara.iml" filepath="$PROJECT_DIR$/.idea/inilara.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/rustavel.iml" filepath="$PROJECT_DIR$/.idea/rustavel.iml" />
     </modules>
   </component>
 </project>

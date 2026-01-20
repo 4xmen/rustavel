@@ -1,3 +1,7 @@
-pub struct TodoRequest {
-    pub title: String,
+use crate::core::schema::Schema;
+
+
+pub fn test(){
+    let schema = Schema::new();
+    schema.drop_if_exists("users");
 }
