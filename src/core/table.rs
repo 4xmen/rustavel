@@ -9,10 +9,9 @@ pub struct Table {
 
 #[derive(Debug)]
 pub enum TableAction {
+    None,
     Create,
     Alter,
-    Drop,
-    Other,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -113,14 +112,13 @@ macro_rules! warning_invalid_assign {
 #[allow(dead_code)]
 impl Table {
 
-
     pub fn new(table_name: &str) -> Self {
         Self {
             name: table_name.to_string(),
             columns: Vec::new(),
             foreign_keys: Vec::new(),
             comment: String::new(),
-            action: TableAction::Other,
+            action: TableAction::None,
         }
     }
 

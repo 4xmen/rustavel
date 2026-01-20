@@ -1,6 +1,6 @@
 use crate::core::schema::Schema;
 use crate::core::state::AppState;
-use axum::extract::{RawPathParams, RawQuery, Request, State};
+use axum::extract::{RawPathParams, RawQuery, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 
@@ -22,8 +22,13 @@ pub async fn index(State(state): State<AppState>) -> impl IntoResponse {
         table.foreign("parent_id").on("users").reference("id").cascade_on_delete();
 
         table.validate();
+
         dbg!("{:?}", table);
     });
+
+    let s = Schema::new();
+    s.drop_if_exists("hello");
+
     // println!("test columns {:?}", Schema::get_columns("users"));
     // println!("test tables {:?}", Schema::get_tables());
     (StatusCode::OK, "to index called")

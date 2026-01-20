@@ -1,13 +1,27 @@
+use crate::config::CONFIG;
+use crate::config::database::{DatabaseEngine};
 use crate::core::table::{Column, Table, TableAction};
+use crate::core::sql::generator::{SqlGenerator};
+use crate::core::sql::mysql::MySqlGenerator;
+use crate::core::sql::sqlite::SqliteGenerator;
 
 #[derive(Debug)]
-pub struct Schema<'a> {
-    table_prefix: &'a str,
+pub struct Schema {
+    prefix:  String,
+    generator: Box<dyn SqlGenerator>,
 }
 
-impl Schema<'_> {
+impl Schema {
     pub fn new() -> Self {
-        Self { table_prefix: "" }
+        let generator: Box<dyn SqlGenerator> = match CONFIG.database.connection {
+            DatabaseEngine::Mysql => Box::new(MySqlGenerator),
+            DatabaseEngine::Sqlite => Box::new(SqliteGenerator),
+        };
+
+        Self {
+            generator,
+            prefix: CONFIG.database.prefix.clone(),
+        }
     }
     pub fn get_tables() -> Vec<&'static str> {
         vec![]
@@ -32,7 +46,10 @@ impl Schema<'_> {
     }
 
     pub fn drop(table_name: &str) {}
-    pub fn drop_if_exists(table_name: &str) {}
+    pub fn drop_if_exists(&self,table_name: &str) {
+        let sql = self.generator.drop_table_if_exists(&self.fix_table_name(table_name));
+        println!("{}", sql);
+    }
     pub fn drop_all_tables() {}
     pub fn drop_all_views() {}
 
@@ -82,5 +99,9 @@ impl Schema<'_> {
         let mut table = Table::new(table_name);
         table.action = TableAction::Alter;
         f(&mut table);
+    }
+
+    fn fix_table_name(&self, table_name: &str) -> String {
+        format!("{}{}",self.prefix, table_name)
     }
 }
