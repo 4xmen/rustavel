@@ -7,22 +7,22 @@ use axum::response::IntoResponse;
 pub async fn index(State(state): State<AppState>) -> impl IntoResponse {
     // just for test now
     Schema::create("users", |table| {
-        table.comment("users table comment");
+        table.table_comment("user table");
         table.id();
         table.string("name", 127).index().comment("user name");
         table.string("email", 127).unique().comment("user email");
         table.big_integer("team_id").unsigned();
         table.big_integer("parent_id").unsigned();
-        table.boolean("is_blocked").default("true");
-        table.enums("role", vec!["admin".to_string(), "user".to_string()]).default("admin");
+        table.boolean("is_blocked").default_bool(true);
+        table.enums("role", vec!["admin".to_string(), "user".to_string()]).default_str("admin");
         table.soft_delete();
         table.timestamps();
-
+        //
         table.foreign("team_id").on("teams").reference("id").cascade_on_delete();
         table.foreign("parent_id").on("users").reference("id").cascade_on_delete();
 
         table.validate();
-        // dbg!("{:?}", table);
+        dbg!("{:?}", table);
     });
     // println!("test columns {:?}", Schema::get_columns("users"));
     // println!("test tables {:?}", Schema::get_tables());
@@ -59,3 +59,4 @@ pub async fn destroy(
         ),
     )
 }
+

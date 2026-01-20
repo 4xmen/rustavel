@@ -3,8 +3,6 @@ pub struct Table {
     name: String,
     columns: Vec<Column>,
     foreign_keys: Vec<ForeignKey>,
-    current: Column,
-    current_foreign: ForeignKey,
     comment: String,
     pub action: TableAction,
 }
@@ -57,8 +55,18 @@ pub struct Column {
     unique: bool,
     index: bool,
     unsigned: bool,
-    default: String,
+    default: DefaultValue,
 }
+
+pub struct ColumnBuilder<'a> {
+    table: &'a mut Table,
+    column: Column,
+}
+pub struct ForeignKeyBuilder<'a> {
+    table: &'a mut Table,
+    key: ForeignKey,
+}
+
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -69,6 +77,14 @@ enum ColumnOption {
     Values(Vec<String>),
     Float((i8, i8)),
     Index(String),
+}
+
+#[derive(Debug, Clone)]
+pub enum DefaultValue {
+    None,
+    Bool(bool),
+    Int(i64),
+    String(String),
 }
 
 #[derive(Debug, Clone)]
@@ -93,283 +109,187 @@ macro_rules! warning_invalid_assign {
     };
 }
 
-macro_rules! initial_new_column {
-    ($self:expr, $column_name:expr,$data_type:expr) => {
-        Self::check($self);
-        $self.current.name = $column_name.trim().to_string();
-        $self.current.data_type = $data_type;
-    };
-}
 
 #[allow(dead_code)]
 impl Table {
+
+
     pub fn new(table_name: &str) -> Self {
         Self {
             name: table_name.to_string(),
             columns: Vec::new(),
             foreign_keys: Vec::new(),
-            current: Column {
-                name: String::new(),
-                data_type: ColumnDataType::DTNone,
-                nullable: false,
-                option: ColumnOption::None,
-                comment: String::new(),
-                default: String::new(),
-                unique: false,
-                index: false,
-                unsigned: false,
-            },
-            current_foreign: ForeignKey {
-                column_name: String::new(),
-                referenced_column: String::new(),
-                foreign_table: String::new(),
-                on_delete: false,
-                on_update: false,
-            },
             comment: String::new(),
             action: TableAction::Other,
         }
     }
 
-    fn check(&mut self) {
-        if self.current.data_type != ColumnDataType::DTNone {
-            self.columns.push(self.current.clone());
-            self.current.reset();
+    pub fn table_comment(&mut self, comment: impl Into<String>) -> &mut Self {
+        self.comment = comment.into();
+        self
+    }
+
+    fn column(
+        &mut self,
+        name: impl Into<String>,
+        column_data: ColumnDataType,
+        option: ColumnOption,
+    ) -> ColumnBuilder<'_> {
+        ColumnBuilder {
+            table: self,
+            column: Column {
+                name: name.into(),
+                data_type: column_data,
+                option,
+                nullable: false,
+                unique: false,
+                index: false,
+                default: DefaultValue::None,
+                comment: String::new(),
+                unsigned: false,
+            },
         }
     }
 
-    fn check_foreign(&mut self) {
-        if self.current_foreign.column_name != ""
-            && self.current_foreign.foreign_table != ""
-            && self.current_foreign.referenced_column != ""
-        {
-            self.foreign_keys.push(self.current_foreign.clone());
-            self.current_foreign.reset();
-        }
-    }
 
-    fn finalize(&mut self) {
-        if self.current.data_type != ColumnDataType::DTNone {
-            self.columns.push(self.current.clone());
-            self.current.reset();
-        }
-    }
+
 
     // --------------------------------------------------------------------------------------------
 
-    pub fn id(&mut self) -> &mut Self {
-        initial_new_column!(self, "id", ColumnDataType::DTId);
-        self.current.unsigned = true;
-        self.current.nullable = false;
-        self
+    pub fn id(&mut self) -> ColumnBuilder<'_> {
+        self.column("id", ColumnDataType::DTId, ColumnOption::None)
     }
 
-    pub fn boolean(&mut self, column_name: &str) -> &mut Self {
-        initial_new_column!(self, column_name, ColumnDataType::DTBoolean);
-        self
+    pub fn boolean(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
+        self.column(name, ColumnDataType::DTBoolean, ColumnOption::None)
+    }
+    
+
+    pub fn string(&mut self, name: impl Into<String>, len: i32) -> ColumnBuilder<'_> {
+        self.column(name, ColumnDataType::DTString, ColumnOption::Length(len))
     }
 
-    pub fn string(&mut self, column_name: &str, length: i32) -> &mut Self {
-        initial_new_column!(self, column_name, ColumnDataType::DTString);
-        self.current.option = ColumnOption::Length(length);
-        self
+    pub fn text(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
+        self.column(name, ColumnDataType::DTText, ColumnOption::None)
     }
 
-    pub fn text(&mut self, column_name: &str) -> &mut Self {
-        initial_new_column!(self, column_name, ColumnDataType::DTText);
-        self.current.data_type = ColumnDataType::DTText;
-        self
+    pub fn tiny_text(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
+        self.column(name, ColumnDataType::DTTinyText, ColumnOption::None)
     }
 
-    pub fn tiny_text(&mut self, column_name: &str) -> &mut Self {
-        initial_new_column!(self, column_name, ColumnDataType::DTTinyText);
-        self
+    pub fn medium_text(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
+        self.column(name, ColumnDataType::DTMediumText, ColumnOption::None)
+    }
+    pub fn long_text(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
+        self.column(name, ColumnDataType::DTLongText, ColumnOption::None)
     }
 
-    pub fn medium_text(&mut self, column_name: &str) -> &mut Self {
-        initial_new_column!(self, column_name, ColumnDataType::DTMediumText);
-        self
-    }
-    pub fn long_text(&mut self, column_name: &str) -> &mut Self {
-        initial_new_column!(self, column_name, ColumnDataType::DTLongText);
-        self
+    pub fn json(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
+        self.column(name, ColumnDataType::DTJson, ColumnOption::None)
     }
 
-    pub fn json(&mut self, column_name: &str) -> &mut Self {
-        initial_new_column!(self, column_name, ColumnDataType::DTJson);
-        self
+    pub fn integer(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
+        self.column(name, ColumnDataType::DTInteger, ColumnOption::None)
     }
 
-    pub fn integer(&mut self, column_name: &str) -> &mut Self {
-        initial_new_column!(self, column_name, ColumnDataType::DTInteger);
-        self
+    pub fn tiny_integer(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
+        self.column(name, ColumnDataType::DTTinyInteger, ColumnOption::None)
     }
 
-    pub fn tiny_integer(&mut self, column_name: &str) -> &mut Self {
-        initial_new_column!(self, column_name, ColumnDataType::DTTinyInteger);
-        self
+    pub fn small_integer(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
+        self.column(name, ColumnDataType::DTSmallInteger, ColumnOption::None)
     }
 
-    pub fn small_integer(&mut self, column_name: &str) -> &mut Self {
-        initial_new_column!(self, column_name, ColumnDataType::DTSmallInteger);
-        self
+    pub fn medium_integer(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
+        self.column(name, ColumnDataType::DTMediumInteger, ColumnOption::None)
     }
 
-    pub fn medium_integer(&mut self, column_name: &str) -> &mut Self {
-        initial_new_column!(self, column_name, ColumnDataType::DTMediumInteger);
-        self
+    pub fn big_integer(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
+        self.column(name, ColumnDataType::DTBigInteger, ColumnOption::None)
     }
 
-    pub fn big_integer(&mut self, column_name: &str) -> &mut Self {
-        initial_new_column!(self, column_name, ColumnDataType::DTBigInteger);
-        self
+    pub fn double(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
+        self.column(name, ColumnDataType::DTDouble, ColumnOption::None)
     }
 
-    pub fn double(&mut self, column_name: &str) -> &mut Self {
-        initial_new_column!(self, column_name, ColumnDataType::DTDouble);
-        self
+    pub fn float(&mut self, name: impl Into<String>, precision: i8) -> ColumnBuilder<'_> {
+        self.column(name, ColumnDataType::DTFloat, ColumnOption::Precision(precision))
     }
 
-    pub fn float(&mut self, column_name: &str, precision: i8) -> &mut Self {
-        initial_new_column!(self, column_name, ColumnDataType::DTFloat);
-        self.current.option = ColumnOption::Precision(precision);
-        self
+    pub fn decimal(&mut self, name: impl Into<String>, total: i8, place: i8) -> ColumnBuilder<'_> {
+        self.column(name, ColumnDataType::DTDecimal, ColumnOption::Float((total, place)))
     }
 
-    pub fn decimal(&mut self, column_name: &str, total: i8, place: i8) -> &mut Self {
-        initial_new_column!(self, column_name, ColumnDataType::DTDecimal);
-        self.current.option = ColumnOption::Float((total, place));
-        self
+    pub fn date(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
+        self.column(name, ColumnDataType::DTDate, ColumnOption::None)
     }
 
-    pub fn date(&mut self, column_name: &str) -> &mut Self {
-        initial_new_column!(self, column_name, ColumnDataType::DTDate);
-        self
+    pub fn datetime(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
+        self.column(name, ColumnDataType::DTDateTime, ColumnOption::None)
     }
 
-    pub fn datetime(&mut self, column_name: &str) -> &mut Self {
-        initial_new_column!(self, column_name, ColumnDataType::DTDateTime);
-        self
+    pub fn time(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
+        self.column(name, ColumnDataType::DTTime, ColumnOption::None)
     }
 
-    pub fn time(&mut self, column_name: &str) -> &mut Self {
-        initial_new_column!(self, column_name, ColumnDataType::DTTime);
-        self
+    pub fn timestamp(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
+        self.column(name, ColumnDataType::DTTimestamp, ColumnOption::None)
     }
 
-    pub fn timestamp(&mut self, column_name: &str) -> &mut Self {
-        initial_new_column!(self, column_name, ColumnDataType::DTTimestamp);
-        self
+    pub fn timestamps(&mut self) -> ColumnBuilder<'_> {
+        self.column("", ColumnDataType::DTTimestamps, ColumnOption::None)
     }
 
-    pub fn timestamps(&mut self) -> &mut Self {
-        Self::check(self);
-        self.current.data_type = ColumnDataType::DTTimestamps;
-        self
+    pub fn soft_delete(&mut self) -> ColumnBuilder<'_> {
+        self.column("deleted_at", ColumnDataType::DTSoftDelete, ColumnOption::None)
     }
 
-    pub fn soft_delete(&mut self) -> &mut Self {
-        initial_new_column!(self, "deleted_at", ColumnDataType::DTSoftDelete);
-        self.current.nullable = true;
-        self
+    pub fn morph(&mut self, name: impl Into<String>, index_name: impl Into<String>) -> ColumnBuilder<'_> {
+        self.column(name, ColumnDataType::DTMorph, ColumnOption::Index(index_name.into()))
     }
 
-    pub fn morph(&mut self, column_name: &str, index_name: &str) -> &mut Self {
-        initial_new_column!(self, column_name, ColumnDataType::DTMorph);
-        self.current.option = ColumnOption::Index(index_name.trim().to_string());
-        self.current.nullable = false;
-        self
+    pub fn nullable_morphs(&mut self, name: impl Into<String>, index_name: impl Into<String>) -> ColumnBuilder<'_> {
+        self.column(name, ColumnDataType::DTMorph, ColumnOption::Index(index_name.into()))
     }
 
-    pub fn nullable_morphs(&mut self, column_name: &str, index_name: &str) -> &mut Self {
-        initial_new_column!(self, column_name, ColumnDataType::DTMorph);
-        self.current.option = ColumnOption::Index(index_name.trim().to_string());
-        self.current.nullable = true;
-        self
+    pub fn enums<I, S>(&mut self, name: impl Into<String>, values: I) -> ColumnBuilder<'_>
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        let values = values.into_iter().map(Into::into).collect();
+        self.column(name, ColumnDataType::DTEnum, ColumnOption::Values(values))
+    }
+    
+    pub fn sets<I, S>(&mut self, name: impl Into<String>, values: I) -> ColumnBuilder<'_>
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        let values = values.into_iter().map(Into::into).collect();
+        self.column(name, ColumnDataType::DTSet, ColumnOption::Values(values))
     }
 
-    pub fn enums(&mut self, column_name: &str, values: Vec<String>) -> &mut Self {
-        initial_new_column!(self, column_name, ColumnDataType::DTEnum);
-        self.current.option = ColumnOption::Values(values);
-        self
-    }
-
-    pub fn sets(&mut self, column_name: &str, values: Vec<String>) -> &mut Self {
-        initial_new_column!(self, column_name, ColumnDataType::DTSet);
-        self.current.option = ColumnOption::Values(values);
-        self
-    }
 
     // --------------------------------------------------------------------------------------------
 
-    pub fn foreign(&mut self, column_name: &str) -> &mut Self {
-        self.check_foreign();
-        self.current_foreign.column_name = column_name.to_string();
-        self
-    }
-
-    pub fn reference(&mut self, referenced_column: &str) -> &mut Self {
-        self.current_foreign.referenced_column = referenced_column.to_string();
-        self
-    }
-
-    pub fn on(&mut self, referenced_table_name: &str) -> &mut Self {
-        self.current_foreign.foreign_table = referenced_table_name.to_string();
-        self
-    }
-
-    pub fn cascade_on_delete(&mut self) -> &mut Self {
-        self.current_foreign.on_delete = true;
-        self
-    }
-
-    pub fn cascade_on_update(&mut self) -> &mut Self {
-        self.current_foreign.on_update = true;
-        self
-    }
-
-    // --------------------------------------------------------------------------------------------
-
-    pub fn nullable(&mut self) -> &mut Self {
-        warning_invalid_assign!(&self.current);
-        self.current.nullable = true;
-        self
-    }
-
-    pub fn index(&mut self) -> &mut Self {
-        self.current.index = true;
-        self
-    }
-
-    pub fn unique(&mut self) -> &mut Self {
-        self.current.unique = true;
-        self
-    }
-
-    pub fn unsigned(&mut self) -> &mut Self {
-        self.current.unsigned = true;
-        self
-    }
-
-    pub fn comment(&mut self, comment: &str) -> &mut Self {
-        if self.current.data_type == ColumnDataType::DTNone {
-            self.comment = comment.trim().to_string();
-        } else {
-            self.current.comment = comment.trim().to_string();
+    pub fn foreign(&mut self, name: impl Into<String>) -> ForeignKeyBuilder<'_> {
+        ForeignKeyBuilder{
+            table: self,
+            key: ForeignKey{
+                column_name : name.into(),
+                foreign_table: String::new(),
+                referenced_column: String::new(),
+                on_update: false,
+                on_delete: false,
+            }
         }
-        self
     }
 
-    pub fn default(&mut self, default_value: &str) -> &mut Self {
-        self.current.default = default_value.trim().to_string();
-        self
-    }
 
     // --------------------------------------------------------------------------------------------
 
     pub fn validate(&mut self) -> &mut Self {
-        self.check();
-        self.check_foreign();
 
 
         for foreign_key in &mut self.foreign_keys {
@@ -390,17 +310,6 @@ impl Table {
 }
 
 impl Column {
-    fn reset(&mut self) {
-        self.name = String::new();
-        self.data_type = ColumnDataType::DTNone;
-        self.nullable = false;
-        self.option = ColumnOption::None;
-        self.comment = String::new();
-        self.default = String::new();
-        self.unique = false;
-        self.index = false;
-        self.unsigned = false;
-    }
 
     fn validate(&mut self) -> bool {
         match self.data_type {
@@ -438,9 +347,7 @@ impl Column {
                 if self.unique {
                     return false;
                 }
-                if self.default != "false" && self.default != "true" && self.default != "1" && self.default != "0" {
-                    return false;
-                }
+
             }
             _ => return true,
         }
@@ -449,14 +356,35 @@ impl Column {
     }
 }
 
-impl ForeignKey {
-    fn reset(&mut self) {
-        self.column_name = String::new();
-        self.referenced_column = String::new();
-        self.foreign_table = String::new();
-        self.on_delete = false;
-        self.on_update = false;
+impl Default for Column {
+    fn default() -> Self {
+       Column{
+           name: String::new(),
+           data_type: ColumnDataType::DTNone,
+           nullable: false,
+           comment: String::new(),
+           unique: false,
+           index: false,
+           default: DefaultValue::None,
+           unsigned: false,
+           option: ColumnOption::None,
+       }
     }
+}
+impl Default for ForeignKey {
+    fn default() -> Self {
+       ForeignKey{
+           referenced_column: String::new(),
+           column_name: String::new(),
+           foreign_table: String::new(),
+           on_delete: false,
+           on_update: false,
+       }
+    }
+}
+
+
+impl ForeignKey {
 
     fn validate(&mut self) -> bool {
         let mut message = String::new();
@@ -468,5 +396,83 @@ impl ForeignKey {
         }
 
         true
+    }
+}
+
+impl<'a> ColumnBuilder<'a> {
+
+    pub fn nullable(mut self) -> Self {
+        self.column.nullable = true;
+        self
+    }
+
+    pub fn unique(mut self) -> Self {
+        self.column.unique = true;
+        self
+    }
+
+    pub fn index(mut self) -> Self {
+        self.column.index = true;
+        self
+    }
+
+    pub fn unsigned(mut self) -> Self {
+        self.column.unsigned = true;
+        self
+    }
+
+    pub fn comment(mut self, comment: impl Into<String>) -> Self {
+        self.column.comment = comment.into();
+        self
+    }
+
+    pub fn default_bool(mut self, value: bool) -> Self {
+        self.column.default = DefaultValue::Bool(value);
+        self
+    }
+
+    pub fn default_int(mut self, value: i64) -> Self {
+        self.column.default = DefaultValue::Int(value);
+        self
+    }
+
+    pub fn default_str(mut self, value: impl Into<String>) -> Self {
+        self.column.default = DefaultValue::String(value.into());
+        self
+    }
+
+
+}
+
+impl<'a> ForeignKeyBuilder<'a> {
+    pub fn reference(&mut self, referenced_column: impl Into<String>) -> &mut Self {
+        self.key.referenced_column = referenced_column.into();
+        self
+    }
+
+    pub fn on(&mut self, referenced_table_name: impl Into<String>) -> &mut Self {
+        self.key.foreign_table = referenced_table_name.into();
+        self
+    }
+
+    pub fn cascade_on_delete(&mut self) -> &mut Self {
+        self.key.on_delete = true;
+        self
+    }
+
+    pub fn cascade_on_update(&mut self) -> &mut Self {
+        self.key.on_update = true;
+        self
+    }
+}
+
+impl<'a> Drop for ColumnBuilder<'a> {
+    fn drop(&mut self) {
+        self.table.columns.push(std::mem::take(&mut self.column));
+    }
+}
+impl<'a> Drop for ForeignKeyBuilder<'a> {
+    fn drop(&mut self) {
+        self.table.foreign_keys.push(std::mem::take(&mut self.key));
     }
 }
