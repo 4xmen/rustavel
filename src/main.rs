@@ -1,4 +1,5 @@
 use std::sync::Arc;
+
 mod routes;
 mod core;
 mod app;
@@ -6,7 +7,8 @@ mod config;
 
 use crate::core::state::AppState;
 use crate::config::CONFIG;
-use crate::core::schema::Schema;
+use crate::core::logger;
+
 
 #[tokio::main]
 async fn main() {
@@ -36,12 +38,9 @@ async fn main() {
         CONFIG.app.port
     );
 
-
-    println!("db connection {:?}", CONFIG.database.connection);
-    println!("db name {:?}", CONFIG.database.database);
+    logger::success(&format!("Starting server on http://{}", app_start_point));
 
 
-    println!("Starting server on http://{}", app_start_point);
     let listener = tokio::net::TcpListener::bind(app_start_point).await
         .unwrap();
 
