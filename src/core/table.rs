@@ -95,19 +95,6 @@ struct ForeignKey {
     on_update: bool,
 }
 
-macro_rules! warning_invalid_assign {
-    ($col:expr) => {
-        if $col.data_type == ColumnDataType::DTNone {
-            println!(
-                "Warning: You are executing the {} function while not having \
-            previously specified the column type or name,\
-             which is likely to produce an undesirable result.",
-                stringify!(func_name)
-            );
-        }
-    };
-}
-
 
 #[allow(dead_code)]
 impl Table {

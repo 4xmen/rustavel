@@ -1,26 +1,50 @@
 use crate::config::CONFIG;
-use crate::config::database::{DatabaseEngine};
-use crate::core::table::{Column, Table, TableAction};
-use crate::core::sql::generator::{SqlGenerator};
+use crate::config::database::DatabaseEngine;
+use crate::core::sql::database_client::DatabaseClient;
+use crate::core::sql::database_client::MySqlClient;
+use crate::core::sql::database_client::SqliteClient;
+use crate::core::sql::generator::SqlGenerator;
 use crate::core::sql::mysql::MySqlGenerator;
 use crate::core::sql::sqlite::SqliteGenerator;
+use crate::core::table::{Column, Table, TableAction};
+use sqlx::{MySqlPool, SqlitePool};
 
+#[allow(dead_code)]
 #[derive(Debug)]
-pub struct Schema {
-    prefix:  String,
-    generator: Box<dyn SqlGenerator>,
+pub struct Schema  {
+    prefix: String,
+    generator: Box<dyn SqlGenerator + Send + Sync>,
+    client: Box<dyn DatabaseClient + Send + Sync>,
 }
 
 impl Schema {
-    pub fn new() -> Self {
-        let generator: Box<dyn SqlGenerator> = match CONFIG.database.connection {
-            DatabaseEngine::Mysql => Box::new(MySqlGenerator),
-            DatabaseEngine::Sqlite => Box::new(SqliteGenerator),
-        };
+    pub async fn new() -> Self {
+        let (generator, client): (Box<dyn SqlGenerator>, Box<dyn DatabaseClient>) =
+            match CONFIG.database.connection {
+                DatabaseEngine::Mysql => {
+                    let con_string = format!(
+                        "mysql://{}:{}@{}:{}/{}",
+                        &CONFIG.database.username,
+                        &CONFIG.database.password,
+                        &CONFIG.database.host,
+                        &CONFIG.database.port,
+                        &CONFIG.database.database,
+                    );
+                    let pool = MySqlPool::connect(&con_string).await.unwrap();
+                    (Box::new(MySqlGenerator), Box::new(MySqlClient { pool }))
+                }
+                DatabaseEngine::Sqlite => {
+                    let pool = SqlitePool::connect(&CONFIG.database.database)
+                        .await
+                        .unwrap();
+                    (Box::new(SqliteGenerator), Box::new(SqliteClient { pool }))
+                }
+            };
 
         Self {
-            generator,
             prefix: CONFIG.database.prefix.clone(),
+            generator,
+            client,
         }
     }
     pub fn get_tables() -> Vec<&'static str> {
@@ -46,10 +70,13 @@ impl Schema {
     }
 
     pub fn drop(table_name: &str) {}
-    pub fn drop_if_exists(&self,table_name: &str) {
-        let sql = self.generator.drop_table_if_exists(&self.fix_table_name(table_name));
-        println!("{}", sql);
+    pub async fn drop_table_if_exists(&self, table: &str) {
+        let sql = self
+            .generator
+            .drop_table_if_exists(&self.fix_table_name(table));
+        self.client.execute(&sql).await.unwrap();
     }
+
     pub fn drop_all_tables() {}
     pub fn drop_all_views() {}
 
@@ -102,6 +129,6 @@ impl Schema {
     }
 
     fn fix_table_name(&self, table_name: &str) -> String {
-        format!("{}{}",self.prefix, table_name)
+        format!("{}{}", self.prefix, table_name)
     }
 }

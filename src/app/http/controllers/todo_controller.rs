@@ -4,8 +4,20 @@ use axum::extract::{RawPathParams, RawQuery, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 
-pub async fn index(State(state): State<AppState>) -> impl IntoResponse {
+
+fn assert_send_val<T: Send>(_: &T) {}
+
+pub async fn index(State(_state): State<AppState>) -> impl IntoResponse {
     // just for test now
+
+
+    let s = Schema::new().await;
+    assert_send_val(&s); // check error
+    s.drop_table_if_exists("hello").await;
+
+    (StatusCode::OK, "to index called")
+}
+pub async fn create(State(_state): State<AppState>) -> impl IntoResponse {
     Schema::create("users", |table| {
         table.table_comment("user table");
         table.id();
@@ -25,31 +37,22 @@ pub async fn index(State(state): State<AppState>) -> impl IntoResponse {
 
         dbg!("{:?}", table);
     });
-
-    let s = Schema::new();
-    s.drop_if_exists("hello");
-
-    // println!("test columns {:?}", Schema::get_columns("users"));
-    // println!("test tables {:?}", Schema::get_tables());
-    (StatusCode::OK, "to index called")
-}
-pub async fn create(State(state): State<AppState>) -> impl IntoResponse {
     (StatusCode::OK, "to create called")
 }
-pub async fn store(State(state): State<AppState>) -> impl IntoResponse {
+pub async fn store(State(_state): State<AppState>) -> impl IntoResponse {
     (StatusCode::OK, "to store called")
 }
-pub async fn edit(State(state): State<AppState>, params: RawPathParams) -> impl IntoResponse {
+pub async fn edit(State(_state): State<AppState>, params: RawPathParams) -> impl IntoResponse {
     (StatusCode::OK, println!("to edit called id: {:?}", params))
 }
-pub async fn update(State(state): State<AppState>, params: RawPathParams) -> impl IntoResponse {
+pub async fn update(State(_state): State<AppState>, params: RawPathParams) -> impl IntoResponse {
     (
         StatusCode::OK,
         println!("to  update called id: {:?}", params),
     )
 }
 pub async fn destroy(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     params: RawPathParams,
     query: RawQuery,
 ) -> impl IntoResponse {
@@ -60,7 +63,7 @@ pub async fn destroy(
         StatusCode::OK,
         println!(
             "to destroy called id:  {:?}, {:?}, {:?}",
-            state, query, params
+            _state, query, params
         ),
     )
 }
