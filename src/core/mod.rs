@@ -7,4 +7,5 @@ pub mod table;
 mod sql;
 
 pub mod logger;
+mod facades;
 

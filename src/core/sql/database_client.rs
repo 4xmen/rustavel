@@ -29,6 +29,7 @@ impl From<sqlx::Error> for DbError {
 }
 
 
+
 #[async_trait::async_trait]
 impl DatabaseClient for MySqlClient {
     async fn execute(&self, sql: &str) -> Result<(), DbError> {
@@ -43,7 +44,10 @@ impl DatabaseClient for MySqlClient {
 
         Ok(rows
             .into_iter()
-            .map(|row| row.get::<String, _>(0))
+            .map(|row| {
+                // dbg!(&row);
+                row.get::<String, _>(0)
+            })
             .collect())
     }
 }
