@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-/// A small utility struct providing string helpers similar to PHP's functions.
+/// A small utility struct providing string helpers similar to PHP's fnc.
 #[derive(Debug)]
 pub struct Str;
 
