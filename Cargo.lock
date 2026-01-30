@@ -1275,6 +1275,10 @@ dependencies = [
 [[package]]
 name = "rustavel"
 version = "0.1.0"
+
+[[package]]
+name = "rustavel-app"
+version = "0.1.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -1283,10 +1287,44 @@ dependencies = [
  "dotenv",
  "minijinja",
  "once_cell",
+ "rustavel-core",
  "serde",
  "sqlx",
  "tokio",
  "tower",
+]
+
+[[package]]
+name = "rustavel-artisan"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "dotenv",
+]
+
+[[package]]
+name = "rustavel-core"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "dotenv",
+ "once_cell",
+ "serde",
+ "sqlx",
+ "tokio",
+]
+
+[[package]]
+name = "rustavel-db"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "clap",
+ "dotenv",
+ "once_cell",
+ "rustavel-core",
+ "tokio",
 ]
 
 [[package]]

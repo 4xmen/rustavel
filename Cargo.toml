@@ -2,18 +2,27 @@
 name = "rustavel"
 version = "0.1.0"
 edition = "2024"
+#default-run = "app"
 
-[dependencies]
+[workspace]
+members = [
+    "app",
+    "core",
+    "artisan",
+    "database",
+]
+resolver = "2"
+
+[workspace.dependencies]
+
 axum = { version = "0.8", features = ["ws"] }
 tokio = { version = "1.49.0", features = ["full"] }
 minijinja = { version = "1", features = ["loader"] }
 serde = { version = "1", features = ["derive"] }
 dotenv = "0.15.0"
-axum-extra =  { version = "0.12.5" , features = ["routing" , "typed-routing"]  }
+axum-extra = { version = "0.12.5", features = ["routing", "typed-routing"] }
 tower = "0.5.2"
-sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls-ring-webpki","mysql","sqlite","postgres" ] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls-ring-webpki", "mysql", "sqlite", "postgres"] }
 once_cell = "1.21.3"
 async-trait = "0.1.89"
 clap = { version = "4.5.56", features = ["derive"] }
-
-[dev-dependencies]

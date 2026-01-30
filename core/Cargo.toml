@@ -1,0 +1,14 @@
+[package]
+name = "rustavel-core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+tokio.workspace = true
+serde.workspace = true
+dotenv.workspace = true
+sqlx.workspace = true
+once_cell.workspace = true
+async-trait.workspace = true
+axum.workspace = true

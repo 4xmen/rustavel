@@ -1,0 +1,24 @@
+[package]
+name = "rustavel-app"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "rustavel-app"
+path = "src/main.rs"
+
+[dependencies]
+rustavel-core = { path = "../core" }
+clap.workspace = true
+tokio.workspace = true
+axum.workspace = true
+minijinja.workspace = true
+serde.workspace = true
+dotenv.workspace = true
+axum-extra.workspace = true
+tower.workspace = true
+sqlx.workspace = true
+once_cell.workspace = true
+async-trait.workspace = true
+
+[dev-dependencies]
