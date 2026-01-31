@@ -81,8 +81,11 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// let s = Schema::new().await.unwrap();
-    /// s.drop_table_if_exists("test").await;
+    /// use rustavel_core::schema::Schema;
+    /// async fn run()  {
+    ///     let s = Schema::new().await.unwrap();
+    ///     s.drop_table_if_exists("test").await;
+    /// }
     /// ```
     ///
     /// # Notes
@@ -121,10 +124,13 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// let s = Schema::new().await.unwrap();
-    /// match s.get_tables().await {
-    ///     Ok(tables) => println!("Tables: {:?}", tables),
-    ///     Err(e) => eprintln!("Error retrieving tables: {:?}", e),
+    /// use rustavel_core::schema::Schema;
+    /// async fn run()  {
+    ///     let s = Schema::new().await.unwrap();
+    ///     match s.get_tables().await {
+    ///         Ok(tables) => println!("Tables: {:?}", tables),
+    ///         Err(e) => eprintln!("Error retrieving tables: {:?}", e),
+    ///     }
     /// }
     /// ```
     ///
@@ -162,10 +168,14 @@ impl Schema {
     /// - `Vec<String>`: A list of table names, or an empty vector if retrieval fails.
     ///
     /// # Examples
-    /// ```rust
-    /// let s = Schema::new().await.unwrap();
-    /// let tables = s.try_get_tables().await;
-    /// println!("Tables found: {}", tables.len());
+    /// ```
+    ///  use rustavel_core::schema::Schema;
+    ///
+    /// async fn run()  {
+    ///     let s = Schema::new().await.unwrap();
+    ///     let tables = s.try_get_tables().await;
+    ///     println!("{}", tables.len());
+    /// }
     /// ```
     ///
     /// # Notes
@@ -209,10 +219,13 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// let s = Schema::new().await.unwrap();
-    /// match s.get_column_listing("users").await {
-    ///     Ok(columns) => println!("Columns: {:?}", columns),
-    ///     Err(e) => eprintln!("Error retrieving columns: {:?}", e),
+    /// use rustavel_core::schema::Schema;
+    /// async fn run()  {
+    ///     let s = Schema::new().await.unwrap();
+    ///     match s.get_column_listing("users").await {
+    ///         Ok(columns) => println!("Columns: {:?}", columns),
+    ///         Err(e) => eprintln!("Error retrieving columns: {:?}", e),
+    ///     }
     /// }
     /// ```
     ///
@@ -263,10 +276,12 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// use crate::schema::Schema;
-    /// let s = Schema::new().await.unwrap();
-    /// let columns = s.try_get_column_listing("users").await;
-    /// println!("Columns found: {}", columns.len());
+    /// use rustavel_core::schema::Schema;
+    /// async fn run()  {
+    ///     let s = Schema::new().await.unwrap();
+    ///     let columns = s.try_get_column_listing("users").await;
+    ///     println!("Columns found: {}", columns.len());
+    /// }
     /// ```
     ///
     /// # Notes
@@ -310,10 +325,14 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// let s = Schema::new().await.unwrap();
-    /// match s.get_views().await {
-    ///     Ok(views) => println!("Views: {:?}", views),
-    ///     Err(e) => eprintln!("Error retrieving views: {:?}", e),
+    /// use rustavel_core::schema::Schema;
+    ///
+    /// async fn run()  {
+    ///     let s = Schema::new().await.unwrap();
+    ///     match s.get_views().await {
+    ///         Ok(views) => println!("Views: {:?}", views),
+    ///         Err(e) => eprintln!("Error retrieving views: {:?}", e),
+    ///     }
     /// }
     /// ```
     ///
@@ -348,9 +367,12 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// let s = Schema::new().await.unwrap();
-    /// let views = s.try_get_views().await;
-    /// println!("Views found: {}", views.len());
+    /// use rustavel_core::schema::Schema;
+    ///     async fn run()  {
+    ///     let s = Schema::new().await.unwrap();
+    ///     let views = s.try_get_views().await;
+    ///     println!("Views found: {}", views.len());
+    /// }
     /// ```
     ///
     /// # Notes
@@ -396,10 +418,14 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// let s = Schema::new().await.unwrap();
-    /// match s.get_foreign_keys("users").await {
-    ///     Ok(foreign_keys) => println!("Foreign Keys: {:?}", foreign_keys),
-    ///     Err(e) => eprintln!("Error retrieving foreign keys: {:?}", e),
+    /// use rustavel_core::schema::Schema;
+    ///
+    /// async fn run()  {
+    ///     let s = Schema::new().await.unwrap();
+    ///     match s.get_foreign_keys("users").await {
+    ///         Ok(foreign_keys) => println!("Foreign Keys: {:?}", foreign_keys),
+    ///         Err(e) => eprintln!("Error retrieving foreign keys: {:?}", e),
+    ///     }
     /// }
     /// ```
     ///
@@ -450,9 +476,12 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// let s = Schema::new().await.unwrap();
-    /// let foreign_keys = s.try_get_foreign_keys("users").await;
-    /// println!("Foreign keys found: {}", foreign_keys.len());
+    /// use rustavel_core::schema::Schema;
+    /// async fn run()  {
+    ///     let s = Schema::new().await.unwrap();
+    ///     let foreign_keys = s.try_get_foreign_keys("users").await;
+    ///     println!("Foreign keys found: {}", foreign_keys.len());
+    /// }
     /// ```
     ///
     /// # Notes
@@ -500,10 +529,13 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// let s = Schema::new().await.unwrap();
-    /// match s.drop_table("users").await {
-    ///     Ok(_) => println!("Table dropped successfully"),
-    ///     Err(e) => eprintln!("Error dropping table: {:?}", e),
+    /// use rustavel_core::schema::Schema;
+    /// async fn run()  {
+    ///     let s = Schema::new().await.unwrap();
+    ///     match s.drop_table("users").await {
+    ///         Ok(_) => println!("Table dropped successfully"),
+    ///         Err(e) => eprintln!("Error dropping table: {:?}", e),
+    ///     }
     /// }
     /// ```
     ///
@@ -542,10 +574,13 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// let s = Schema::new().await.unwrap();
-    /// match s.drop_all_tables().await {
-    ///     Ok(_) => println!("All tables dropped successfully"),
-    ///     Err(e) => eprintln!("Error dropping all tables: {:?}", e),
+    /// use rustavel_core::schema::Schema;
+    /// async fn run()  {
+    ///     let s = Schema::new().await.unwrap();
+    ///     match s.drop_all_tables().await {
+    ///         Ok(_) => println!("All tables dropped successfully"),
+    ///         Err(e) => eprintln!("Error dropping all tables: {:?}", e),
+    ///     }
     /// }
     /// ```
     ///
@@ -582,10 +617,14 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// let s = Schema::new().await.unwrap();
-    /// match s.drop_all_views().await {
-    ///     Ok(_) => println!("All views dropped successfully"),
-    ///     Err(e) => eprintln!("Error dropping all views: {:?}", e),
+    /// use rustavel_core::schema::Schema;
+    ///
+    /// async fn run()  {
+    ///     let s = Schema::new().await.unwrap();
+    ///     match s.drop_all_views().await {
+    ///         Ok(_) => println!("All views dropped successfully"),
+    ///         Err(e) => eprintln!("Error dropping all views: {:?}", e),
+    ///     }
     /// }
     /// ```
     ///
@@ -628,10 +667,13 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// let s = Schema::new().await.unwrap();
-    /// match s.has_column("users", "email").await {
-    ///     Ok(exists) => println!("Column exists: {}", exists),
-    ///     Err(e) => eprintln!("Error checking column: {:?}", e),
+    /// use rustavel_core::schema::Schema;
+    /// async fn run()  {
+    ///     let s = Schema::new().await.unwrap();
+    ///     match s.has_column("users", "email").await {
+    ///         Ok(exists) => println!("Column exists: {}", exists),
+    ///         Err(e) => eprintln!("Error checking column: {:?}", e),
+    ///     }
     /// }
     /// ```
     ///
@@ -681,10 +723,13 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// let s = Schema::new().await.unwrap();
-    /// match s.has_table("users").await {
-    ///     Ok(exists) => println!("Table exists: {}", exists),
-    ///     Err(e) => eprintln!("Error checking table: {:?}", e),
+    /// use rustavel_core::schema::Schema;
+    /// async fn run()  {
+    ///     let s = Schema::new().await.unwrap();
+    ///     match s.has_table("users").await {
+    ///         Ok(exists) => println!("Table exists: {}", exists),
+    ///         Err(e) => eprintln!("Error checking table: {:?}", e),
+    ///     }
     /// }
     /// ```
     ///
@@ -729,10 +774,13 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// let s = Schema::new().await.unwrap();
-    /// match s.has_view("user_summary").await {
-    ///     Ok(exists) => println!("View exists: {}", exists),
-    ///     Err(e) => eprintln!("Error checking view: {:?}", e),
+    /// use rustavel_core::schema::Schema;
+    /// async fn run()  {
+    ///     let s = Schema::new().await.unwrap();
+    ///     match s.has_view("user_summary").await {
+    ///         Ok(exists) => println!("View exists: {}", exists),
+    ///         Err(e) => eprintln!("Error checking view: {:?}", e),
+    ///     }
     /// }
     /// ```
     ///
@@ -778,10 +826,14 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// let s = Schema::new().await.unwrap();
-    /// match s.has_index("users", vec!["email", "username"]).await {
-    ///     Ok(exists) => println!("Index exists: {}", exists),
-    ///     Err(e) => eprintln!("Error checking index: {:?}", e),
+    /// use rustavel_core::schema::Schema;
+    ///
+    /// async fn run()  {
+    ///     let s = Schema::new().await.unwrap();
+    ///     match s.has_index("users", vec!["email", "username"]).await {
+    ///         Ok(exists) => println!("Index exists: {}", exists),
+    ///         Err(e) => eprintln!("Error checking index: {:?}", e),
+    ///     }
     /// }
     ///
     pub async fn has_index(
@@ -819,9 +871,13 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// let s = Schema::new().await.unwrap();
-    /// let created = s.create_database("my_new_database").await;
-    /// println!("Database created: {}", created);
+    /// use rustavel_core::schema::Schema;
+    ///
+    /// async fn run() {
+    ///     let s = Schema::new().await.unwrap();
+    ///     let created = s.create_database("my_new_database").await;
+    ///     println!("Database created: {}", created);
+    /// }
     /// ```
     ///
     /// # Notes
@@ -857,9 +913,12 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// let s = Schema::new().await.unwrap();
-    /// let dropped = s.drop_database_if_exists("old_database").await;
-    /// println!("Database dropped: {}", dropped);
+    /// use rustavel_core::schema::Schema;;
+    /// async fn run()  {
+    ///     let s = Schema::new().await.unwrap();
+    ///     let dropped = s.drop_database_if_exists("old_database").await;
+    ///     println!("Database dropped: {}", dropped);
+    /// }
     /// ```
     ///
     /// # Notes
@@ -899,9 +958,12 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// let s = Schema::new().await.unwrap();
-    /// let disabled = s.disable_foreign_key_constraints("my_database").await;
-    /// println!("Foreign key constraints disabled: {}", disabled);
+    /// use rustavel_core::schema::Schema;
+    /// async fn run()  {
+    ///     let s = Schema::new().await.unwrap();
+    ///     let disabled = s.disable_foreign_key_constraints("my_database").await;
+    ///     println!("Foreign key constraints disabled: {}", disabled);
+    /// }
     /// ```
     ///
     /// # Notes
@@ -944,9 +1006,12 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// let s = Schema::new().await.unwrap();
-    /// let enabled = s.enable_foreign_key_constraints("my_database").await;
-    /// println!("Foreign key constraints enabled: {}", enabled);
+    /// use rustavel_core::schema::Schema;
+    /// async fn run()  {
+    ///     let s = Schema::new().await.unwrap();
+    ///     let enabled = s.enable_foreign_key_constraints("my_database").await;
+    ///     println!("Foreign key constraints enabled: {}", enabled);
+    /// }
     /// ```
     ///
     /// # Notes
@@ -994,10 +1059,13 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// let s = Schema::new().await.unwrap();
-    /// match s.rename("old_users", "new_users").await {
-    ///     Ok(_) => println!("Table renamed successfully"),
-    ///     Err(e) => eprintln!("Error renaming table: {:?}", e),
+    /// use rustavel_core::schema::Schema;
+    /// async fn run()  {
+    ///     let s = Schema::new().await.unwrap();
+    ///     match s.rename("old_users", "new_users").await {
+    ///         Ok(_) => println!("Table renamed successfully"),
+    ///         Err(e) => eprintln!("Error renaming table: {:?}", e),
+    ///     }
     /// }
     /// ```
     ///
@@ -1046,10 +1114,13 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// let mut s = Schema::new().await.unwrap();
-    /// match s.rename_prefix("new_").await {
-    ///     Ok(_) => println!("All tables renamed successfully"),
-    ///     Err(e) => eprintln!("Error renaming tables: {:?}", e),
+    /// use rustavel_core::schema::Schema;
+    /// async fn run()  {
+    ///     let mut s = Schema::new().await.unwrap();
+    ///     match s.rename_prefix("new_").await {
+    ///         Ok(_) => println!("All tables renamed successfully"),
+    ///         Err(e) => eprintln!("Error renaming tables: {:?}", e),
+    ///     }
     /// }
     /// ```
     ///
@@ -1072,7 +1143,7 @@ impl Schema {
         }
     }
 
-    pub fn create<F>(&self, table_name: impl Into<String>, f: F)
+    pub async fn create<F>(&self, table_name: impl Into<String>, f: F)
     where
         F: FnOnce(&mut Table),
     {
@@ -1094,18 +1165,27 @@ impl Schema {
             }
         }
         for key in table.foreign_keys {
-            let str = self.generator.foreign_key(&key, &name);
+            let str = self.generator.foreign_key(&key, &name, &table.action);
 
             if !str.is_empty() {
                 foot.push(str);
             }
         }
         body.append(&mut foot);
-        let s = Str::implode(",\n", body);
-        eprintln!("{} {}", s, Str::implode(";\n", post));
+        let sql = Str::implode(",\n", body);
+        let sql = self.generator.table_sql(&name, &sql, &Str::implode(";\n", post), &table.action);
+        logger::info(&format!("Just4debug develop core: \n {}", sql));
+        match self.client.execute(&sql).await {
+            Ok(_) => {
+                logger::success(&format!("Created table  : \n {}", name));
+            },
+            Err(e) => {
+                logger::error(&format!("{:?}", e));
+            }
+        }
     }
 
-    pub fn table<F>(&self, table_name: impl Into<String>, f: F)
+    pub async fn table<F>(&self, table_name: impl Into<String>, f: F)
     where
         F: FnOnce(&mut Table),
     {
@@ -1131,14 +1211,23 @@ impl Schema {
             body.push(self.generator.drop_column(&column));
         }
         for key in table.foreign_keys {
-            let str = self.generator.foreign_key(&key, &name);
+            let str = self.generator.foreign_key(&key, &name, &table.action);
 
             if !str.is_empty() {
                 foot.push(str);
             }
         }
         body.append(&mut foot);
-        let s = Str::implode(",\n", body);
-        eprintln!("{} {}", s, Str::implode(";\n", post));
+        let sql = Str::implode(",\n", body);
+        let sql = self.generator.table_sql(&name, &sql, &Str::implode(";\n", post), &table.action);
+        logger::info(&format!("Just4debug develop core: \n {}", sql));
+        match self.client.execute(&sql).await {
+            Ok(_) => {
+                logger::success(&format!("Updaed table  : \n {}", name));
+            },
+            Err(e) => {
+                logger::error(&format!("{:?}", e));
+            }
+        }
     }
 }

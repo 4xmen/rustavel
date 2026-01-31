@@ -16,6 +16,8 @@ pub struct DatabaseConfig {
     pub password: String,
     pub database: String,
     pub prefix: String,
+    pub collection: String,
+    pub charset: String,
 }
 
 impl Default for DatabaseConfig {
@@ -26,8 +28,10 @@ impl Default for DatabaseConfig {
             port: 3306,
             username: "root".into(),
             password: "".into(),
-            database: "test".into(),
+            database: "laravel".into(),
             prefix: "".into(),
+            collection: "utf8mb4_unicode_ci".into(),
+            charset: "utf8mb4".into(),
         }
     }
 }
@@ -66,6 +70,12 @@ impl DatabaseConfig {
 
         if let Ok(v) = env::var("DB_PREFIX") {
             cfg.prefix = v;
+        }
+        if let Ok(v) = env::var("DB_COLLATION") {
+            cfg.collection = v;
+        }
+        if let Ok(v) = env::var("DB_CHARSET") {
+            cfg.charset = v;
         }
 
         cfg

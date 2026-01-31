@@ -1,3 +1,4 @@
+use std::env::current_dir;
 use clap::{Parser, Subcommand};
 use std::process::Command;
 
@@ -15,7 +16,9 @@ enum Commands {
     // may add: Make { kind: String, name: String }, Seed, etc.
 }
 
+
 fn main() {
+
     dotenv::dotenv().ok();
     let cli = Cli::parse();
 
@@ -23,11 +26,12 @@ fn main() {
         Commands::Migrate => {
             // compile and run database
             Command::new("cargo")
-                .args(["run", "--package", "database", "--bin", "database"])
+                .args(["run", "--package", "rustavel-db", "--bin", "database"])
                 .status()
                 .unwrap();
         }
         Commands::Serv => {
+            print!("{}",current_dir().unwrap().display());
             // serv app
             Command::new("cargo")
                 .args(["run", "--package", "rustavel-app", "--bin", "rustavel-app"])

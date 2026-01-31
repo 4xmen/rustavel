@@ -13,16 +13,18 @@ impl File {
     ///
     /// # Examples
     ///
-    /// ```rust
-    /// fn main() -> std::io::Result<()> {
-    ///     File::create_link("storage/app/public", "public/storage")?;
-    ///     Ok(())
-    /// }
+    /// ```rust,ignore
+    /// use rustavel_core::facades::file::File;
+    /// File::create_link("storage/app/public", "public/storage").unwrap();
     /// ```
     ///
     /// # Errors
     ///
     /// Returns an `io::Error` if the link creation fails
+    /// # Note:
+    /// ⚠️ This operation has filesystem side effects and is platform-dependent.
+    /// so ignored in test
+    ///
     pub fn create_link(source: &str, destination: &str) -> std::io::Result<()> {
         let source_path = Path::new(source);
         let destination_path = Path::new(destination);

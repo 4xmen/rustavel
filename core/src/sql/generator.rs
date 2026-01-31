@@ -25,6 +25,14 @@ pub trait SqlGenerator: Debug + Sync + Send {
         table_name: &str,
         action: &TableAction,
     ) -> (String, String, String);
-    fn foreign_key(&self, key: &ForeignKey, table_name: &str) -> String;
+    fn foreign_key(&self, key: &ForeignKey, table_name: &str, action: &TableAction) -> String;
     fn drop_column(&self, column_name: &str) -> String;
+
+    fn table_sql(
+        &self,
+        table_name: &str,
+        body_sql: &str,
+        post_sql: &str,
+        action: &TableAction,
+    ) -> String;
 }

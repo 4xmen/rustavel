@@ -1273,10 +1273,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rustavel"
-version = "0.1.0"
-
-[[package]]
 name = "rustavel-app"
 version = "0.1.0"
 dependencies = [
@@ -1309,6 +1305,7 @@ dependencies = [
  "async-trait",
  "axum",
  "dotenv",
+ "log",
  "once_cell",
  "serde",
  "sqlx",

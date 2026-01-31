@@ -13,12 +13,13 @@ impl Migration for CreateUsers {
             table.id();
             table.string("name", 127).index().comment("user name");
             table.string("email", 127).unique().comment("user email");
+            table.big_integer("parent_id").unsigned().comment("parent id");
             table.boolean("is_dark").default_bool(true).comment("user theme control");
             table.foreign("parent_id").on("users").reference("id").cascade_on_delete();
             table.soft_delete();
             table.timestamps();
             table.validate();
-        });
+        }).await;
         Ok(())
     }
 
@@ -28,6 +29,6 @@ impl Migration for CreateUsers {
     }
 
     fn name(&self) -> &'static str {
-        "2025_01_15_create_users"
+        "m_2025_01_15_create_users"
     }
 }

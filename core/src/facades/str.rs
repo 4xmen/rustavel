@@ -1,117 +1,183 @@
-use std::borrow::Cow;
+use std::collections::HashSet;
 
-/// A small utility struct providing string helpers similar to PHP's fnc.
+/// String helper utilities inspired by Laravel's Str helpers.
+///
+/// Designed for internal DSL usage:
+/// - UTF-8 safe
+/// - Minimal allocations
+/// - Idiomatic Rust
 #[derive(Debug)]
 pub struct Str;
 
 impl Str {
-    /// Explode: split string by the given delimiter into a Vec<String>.
-    /// Behaves like PHP explode — returns all parts (including empty ones).
+    /// Split a string by the given delimiter.
+    ///
+    /// Behaves like PHP's `explode`:
+    /// - Empty parts are preserved
+    /// - If delimiter is empty, splits into Unicode scalar values
+    ///
+    /// # Example
+    /// ```rust
+    /// use rustavel_core::facades::str::Str;
+    /// let v = Str::explode("a,,b", ",");
+    /// assert_eq!(v, vec!["a", "", "b"]);
+    /// ```
     pub fn explode(s: &str, delimiter: &str) -> Vec<String> {
         if delimiter.is_empty() {
-            // If delimiter is empty, split into individual characters (UTF-8 graphemes not handled here).
-            // Use chars to preserve valid UTF-8 codepoints (may split multi-codepoint graphemes).
             return s.chars().map(|c| c.to_string()).collect();
         }
-        // Use split which preserves empty fields for consecutive delimiters
-        s.split(delimiter).map(|p| p.to_string()).collect()
+
+        s.split(delimiter).map(str::to_owned).collect()
     }
 
-    /// Implode (join): join an iterator of &str or String with the given delimiter.
-    pub fn implode<'a, I, S>(delimiter: &str, parts: I) -> String
+    /// Join string parts using the given delimiter.
+    ///
+    /// Accepts any iterator of string-like values.
+    ///
+    /// # Example
+    /// ```rust
+    ///
+    /// use rustavel_core::facades::str::Str;
+    /// let s = Str::implode("-", ["a", "b", "c"]);
+    /// assert_eq!(s, "a-b-c");
+    /// ```
+    pub fn implode<I, S>(delimiter: &str, parts: I) -> String
     where
         I: IntoIterator<Item = S>,
-        S: Into<Cow<'a, str>>,
+        S: AsRef<str>,
     {
         let mut iter = parts.into_iter();
-        match iter.next() {
-            None => String::new(),
-            Some(first) => {
-                let mut out = String::from(first.into());
-                for p in iter {
-                    out.push_str(delimiter);
-                    out.push_str(&p.into());
-                }
-                out
-            }
-        }
-    }
 
-    /// Limit: limit a string by number of words, similar to PHP word-based limiting.
-    ///
-    /// - `count`: maximum number of words to allow.
-    /// - `end` : string to append when trimmed (e.g., "..." )
-    /// - Words are split on Unicode whitespace (using `split_whitespace`).
-    /// - Preserves original spacing only insofar as words are joined with single spaces.
-    pub fn limit_words(s: &str, count: usize, end: &str) -> String {
-        if count == 0 {
-            return end.to_string();
+        let mut out = match iter.next() {
+            Some(first) => String::from(first.as_ref()),
+            None => return String::new(),
+        };
+
+        for p in iter {
+            out.push_str(delimiter);
+            out.push_str(p.as_ref());
         }
 
-        // Collect words using split_whitespace (Unicode-aware)
-        let words: Vec<&str> = s.split_whitespace().collect();
-        if words.len() <= count {
-            // Return original string (preserve original spacing) if not exceeding.
-            // To preserve original spacing exactly, return s; PHP's str_word_count isn't identical,
-            // but user asked for "exactly like PHP" — this approximates by returning original when not trimmed.
-            return s.to_string();
-        }
-
-        let mut out = String::with_capacity(s.len());
-        for (i, w) in words.iter().take(count).enumerate() {
-            if i > 0 {
-                out.push(' ');
-            }
-            out.push_str(w);
-        }
-        out.push_str(end);
         out
     }
 
-    /// Trim characters from both ends. `chars` is a string where each char is treated
-    /// as a trimming character (like PHP trim($str, $chars)).
-    pub fn trim(s: &str, chars: &str) -> String {
-        Str::ltrim(&Str::rtrim(s, chars), chars)
+    /// Limit a string by number of words.
+    ///
+    /// Words are detected using Unicode whitespace.
+    /// If the string exceeds the limit, `end` is appended.
+    ///
+    /// # Example
+    /// ```rust
+    /// use rustavel_core::facades::str::Str;
+    /// let s = Str::limit_words("hello world from rust", 2, "...");
+    /// assert_eq!(s, "hello world...");
+    /// ```
+    pub fn limit_words(s: &str, count: usize, end: &str) -> String {
+        if count == 0 {
+            return end.to_owned();
+        }
+
+        let mut iter = s.split_whitespace();
+        let mut out = String::new();
+
+        for i in 0..count {
+            match iter.next() {
+                Some(word) => {
+                    if i > 0 {
+                        out.push(' ');
+                    }
+                    out.push_str(word);
+                }
+                None => return s.to_owned(),
+            }
+        }
+
+        if iter.next().is_some() {
+            out.push_str(end);
+        }
+
+        out
     }
 
-    /// Trim characters from the start (left) only.
+    /// Trim characters from both ends of the string.
+    ///
+    /// Each character in `chars` is treated as an individual trim character.
+    ///
+    /// # Example
+    /// ```rust
+    /// use rustavel_core::facades::str::Str;
+    /// let s = Str::trim("..hello..", ".");
+    /// assert_eq!(s, "hello");
+    /// ```
+    pub fn trim(s: &str, chars: &str) -> String {
+        if chars.is_empty() {
+            return s.trim().to_owned();
+        }
+
+        let set: HashSet<char> = chars.chars().collect();
+
+        let start = s
+            .char_indices()
+            .find(|(_, c)| !set.contains(c))
+            .map(|(i, _)| i)
+            .unwrap_or(s.len());
+
+        let end = s
+            .char_indices()
+            .rev()
+            .find(|(_, c)| !set.contains(c))
+            .map(|(i, c)| i + c.len_utf8())
+            .unwrap_or(start);
+
+        s[start..end].to_owned()
+    }
+
+    /// Trim characters from the start of the string.
+    ///
+    /// # Example
+    /// ```rust
+    /// use rustavel_core::facades::str::Str;
+    /// let s = Str::ltrim("///path", "/");
+    /// assert_eq!(s, "path");
+    /// ```
     pub fn ltrim(s: &str, chars: &str) -> String {
         if chars.is_empty() {
-            return s.trim_start().to_string();
+            return s.trim_start().to_owned();
         }
-        let set: Vec<char> = chars.chars().collect();
-        let mut start = 0;
-        for (i, ch) in s.char_indices() {
-            if set.contains(&ch) {
-                // continue trimming
-                start = i + ch.len_utf8();
-                continue;
-            } else {
-                // found first non-trim char; slice from here
-                return s[i..].to_string();
-            }
-        }
-        // all characters were trimmed
-        String::new()
+
+        let set: HashSet<char> = chars.chars().collect();
+        let start = s
+            .char_indices()
+            .find(|(_, c)| !set.contains(c))
+            .map(|(i, _)| i)
+            .unwrap_or(s.len());
+
+        s[start..].to_owned()
     }
 
-    /// Trim characters from the end (right) only.
+    /// Trim characters from the end of the string.
+    ///
+    /// # Example
+    /// ```rust
+    /// use rustavel_core::facades::str::Str;
+    ///
+    /// let s = Str::rtrim("file.txt\n\n", "\n");
+    /// assert_eq!(s, "file.txt");
+    /// ```
     pub fn rtrim(s: &str, chars: &str) -> String {
         if chars.is_empty() {
-            return s.trim_end().to_string();
+            return s.trim_end().to_owned();
         }
-        let set: Vec<char> = chars.chars().collect();
-        // iterate from the end using char_indices: collect indices then pick last non-trim
-        let mut last_non_trim_byte = None;
-        for (i, ch) in s.char_indices() {
-            if !set.contains(&ch) {
-                last_non_trim_byte = Some(i + ch.len_utf8());
-            }
-        }
-        match last_non_trim_byte {
-            Some(pos) => s[..pos].to_string(),
-            None => String::new(),
-        }
+
+        let set: HashSet<char> = chars.chars().collect();
+        let end = s
+            .char_indices()
+            .rev()
+            .find(|(_, c)| !set.contains(c))
+            .map(|(i, c)| i + c.len_utf8())
+            .unwrap_or(0);
+
+        s[..end].to_owned()
     }
 }
 

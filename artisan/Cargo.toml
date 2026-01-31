@@ -5,7 +5,7 @@ edition = "2024"
 
 [[bin]]
 name = "artisan"
-path = "src/main.rs"
+path = "src/artisan.rs"
 
 [dependencies]
 clap.workspace = true

@@ -5,6 +5,7 @@ use crate::table::{Column, ColumnDataType, ColumnOption, DefaultValue, ForeignKe
 #[derive(Debug)]
 pub struct SqliteGenerator;
 
+#[allow(dead_code)]
 impl SqliteGenerator {
     #[inline]
     fn master(&self) -> &'static str {
@@ -316,7 +317,7 @@ impl SqlGenerator for SqliteGenerator {
         (column_sql, footer_sql, post_sql)
     }
 
-    fn foreign_key(&self, key: &ForeignKey, _table_name: &str) -> String {
+    fn foreign_key(&self, key: &ForeignKey, _table_name: &str, _action: &TableAction) -> String {
         let update = if key.on_update {
             "on update cascade"
         } else {
@@ -339,5 +340,29 @@ impl SqlGenerator for SqliteGenerator {
             "-- SQLite does not support DROP COLUMN directly: `{}`",
             column_name
         )
+    }
+
+    fn table_sql(
+        &self,
+        table_name: &str,
+        body_sql: &str,
+        post_sql: &str,
+        action: &TableAction,
+    ) -> String {
+        match action {
+            TableAction::Create => {
+                format!(
+                    "CREATE TABLE `{}` ( {} ) \n ;\n {}",
+                    table_name, body_sql, post_sql
+                )
+            }
+            TableAction::Alter => {
+                format!(
+                    "ALTER TABLE `{} \n {} ; \n {}`",
+                    table_name, body_sql, post_sql
+                )
+            }
+            _ => "".to_string(),
+        }
     }
 }

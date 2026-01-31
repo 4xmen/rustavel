@@ -117,9 +117,19 @@ macro_rules! define_method {
         /// A mutable reference to self for chaining.
         ///
         /// # Examples
-        /// ```
+        /// ```rust
+        ///
+        /// # use axum::extract::State;
+        /// # use axum::http::StatusCode;
+        /// # use axum::response::IntoResponse;
+        /// # use rustavel_core::routing::Route;
+        /// # use rustavel_core::state::AppState;
+        ///
         /// let mut route = Route::new();
-        #[doc = concat!("route.", stringify!($method), "(\"/\", hello_handler).name(\"welcome\");")]
+        #[doc = concat!("route.", stringify!($method), "(\"/\", hello).name(\"welcome\");")]
+        /// async fn hello(State(state): State<AppState>) -> impl IntoResponse  {
+        ///     (StatusCode::OK, "hello world")
+        /// }
         /// ```
         pub fn $method<H, T>(&mut self, path: &str, handler: H) -> &mut Self
         where
@@ -210,8 +220,17 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
     ///
     /// # Examples
     /// ```
+    /// # use axum::extract::State;
+    /// # use axum::http::StatusCode;
+    /// # use axum::response::IntoResponse;
+    /// # use rustavel_core::routing::Route;
+    /// # use rustavel_core::state::AppState;
+    ///
     /// let mut route = Route::new();
     /// route.any("/", index).name("index");
+    /// async fn index(State(state): State<AppState>) -> impl IntoResponse  {
+    ///     (StatusCode::OK, "hello world")
+    /// }
     /// ```
     pub fn any<H, T>(&mut self, path: &str, handler: H) -> &mut Self
     where
@@ -233,8 +252,18 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
     ///
     /// # Examples
     /// ```
+    /// # use axum::extract::State;
+    /// # use axum::http::StatusCode;
+    /// # use axum::response::IntoResponse;
+    /// # use rustavel_core::routing::Route;
+    /// # use rustavel_core::state::AppState;
+    ///
     /// let mut route = Route::new();
-    /// route.get("/users", user_list).name("user.index");
+    /// route.get("/users", hello).name("user.index");
+    /// async fn hello(State(state): State<AppState>) -> impl IntoResponse  {
+    ///     (StatusCode::OK, "hello world")
+    /// }
+    ///
     /// ```
     pub fn name(&mut self, name: &str) -> &mut Self {
         if let Some(last) = self.items.last_mut() {
@@ -277,7 +306,7 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
     /// A mutable reference to self for chaining.
     ///
     /// # Examples
-    /// ```
+    /// ```rust,ignore
     /// let mw = |req: Request<Body>, next: Next| async move {
     ///     // e.g., authentication or logging
     ///     next.run(req).await
@@ -331,9 +360,18 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
     ///
     /// # Examples
     /// ```rust
+    /// # use axum::extract::State;
+    /// # use axum::http::StatusCode;
+    /// # use axum::response::IntoResponse;
+    /// # use rustavel_core::routing::Route;
+    /// # use rustavel_core::state::AppState;
+    ///
     /// let mut route = Route::new();
     /// route.get("/", hello).name("welcome");
     /// let built = route.build().unwrap();
+    /// async fn hello(State(state): State<AppState>) -> impl IntoResponse  {
+    ///     (StatusCode::OK, "hello world")
+    /// }
     /// ```
     pub fn build(self) -> Result<BuiltRoutes<S>, RouteError> {
         use std::collections::HashMap;
@@ -516,11 +554,21 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
     ///
     /// # Examples
     /// ```rust
+    /// # use axum::extract::State;
+    /// # use axum::http::StatusCode;
+    /// # use axum::response::IntoResponse;
+    /// # use rustavel_core::routing::Route;
+    /// # use rustavel_core::state::AppState;
+    /// let mut route = Route::new();
+    /// route.get("/users", hello).name("user.index");
     /// route.group(|r| {
     ///     r.prefix("/api");
-    ///     r.get("/users", handler);
+    ///     r.get("/users", hello);
     /// });
-    /// // Results in "/api/users"
+    /// async fn hello(State(state): State<AppState>) -> impl IntoResponse  {
+    ///     (StatusCode::OK, "hello world")
+    /// }
+    ///
     /// ```
     ///
     /// # Notes
@@ -555,11 +603,20 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
     ///
     /// # Examples
     /// ```rust
+    /// # use axum::extract::State;
+    /// # use axum::http::StatusCode;
+    /// # use axum::response::IntoResponse;
+    /// # use rustavel_core::routing::Route;
+    /// # use rustavel_core::state::AppState;
+    /// let mut route = Route::new();
     /// route.group(|r| {
     ///     r.prefix("/api").name("api");
     ///
     ///     r.get("/users", list_users).name("users");
     /// });
+    /// async fn list_users(State(state): State<AppState>) -> impl IntoResponse  {
+    ///     (StatusCode::OK, "hello world")
+    /// }
     /// ```
     ///
     /// # Notes
@@ -595,15 +652,15 @@ where
     /// - Checks for and prevents duplicate route names
     ///
     /// # Examples
-    /// ```rust
+    /// ```rust,ignore
     /// // Create separate route collections
     /// let web = routes::web::web_routes();
-    //  let api = routes::api::api_routes();
-    //
-    //  let built = web.merge(api).unwrap_or_else(|e| {
-    //      eprintln!("{:?}", e);
-    //      std::process::exit(1);
-    //  });
+    ///  let api = routes::api::api_routes();
+    ///
+    ///  let built = web.merge(api).unwrap_or_else(|e| {
+    ///      eprintln!("{:?}", e);
+    ///      std::process::exit(1);
+    ///  });
     /// ```
     ///
     /// # Errors

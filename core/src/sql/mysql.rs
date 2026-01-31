@@ -1,4 +1,5 @@
 use super::generator::SqlGenerator;
+use crate::config::CONFIG;
 use crate::logger;
 use crate::table::{Column, ColumnDataType, ColumnOption, DefaultValue, ForeignKey, TableAction};
 use std::string::String;
@@ -7,6 +8,7 @@ use std::string::String;
 #[allow(dead_code)]
 pub struct MySqlGenerator;
 
+#[allow(dead_code)]
 impl MySqlGenerator {
     #[inline]
     fn db(&self) -> &'static str {
@@ -371,19 +373,24 @@ impl SqlGenerator for MySqlGenerator {
         (column_sql, footer_sql, String::new())
     }
 
-    fn foreign_key(&self, key: &ForeignKey, table_name: &str) -> String {
+    fn foreign_key(&self, key: &ForeignKey, table_name: &str, action: &TableAction) -> String {
         let update = match key.on_update {
-            true => "CASCADE",
-            false => "RESTRICT",
+            true => "ON DELETE CASCADE",
+            false => "",
         };
         let delete = match key.on_delete {
-            true => "CASCADE",
-            false => "RESTRICT",
+            true => "ON UPDATE CASCADE",
+            false => "",
+        };
+        let prefix = match *action  {
+            TableAction::Alter => "ADD ",
+            _ => ""
         };
         format!(
-            "CONSTRAINT `{}_{}_foreign` FOREIGN KEY (`{}`) \
+            "{} CONSTRAINT `{}_{}_foreign` FOREIGN KEY (`{}`) \
         REFERENCES `{}` (`{}`) \
-        ON UPDATE {} ON DELETE {}",
+         {} {}",
+            prefix,
             table_name,
             key.column_name,
             key.column_name,
@@ -396,5 +403,30 @@ impl SqlGenerator for MySqlGenerator {
 
     fn drop_column(&self, column_name: &str) -> String {
         format!("DROP COLUMN `{}`", column_name)
+    }
+
+    fn table_sql(
+        &self,
+        table_name: &str,
+        body_sql: &str,
+        post_sql: &str,
+        action: &TableAction,
+    ) -> String {
+        match action {
+            TableAction::Create => {
+                let collection = CONFIG.database.collection.clone();
+                format!(
+                    "CREATE TABLE `{}` ( \n {} \n ) COLLATE='{}' ENGINE=InnoDB; \n {}",
+                    table_name, body_sql, collection, post_sql
+                )
+            }
+            TableAction::Alter => {
+                format!(
+                    "ALTER TABLE `{}` \n {} ; \n {}",
+                    table_name, body_sql, post_sql
+                )
+            }
+            _ => "".to_string(),
+        }
     }
 }
