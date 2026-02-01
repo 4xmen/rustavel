@@ -1,6 +1,7 @@
 use std::env::current_dir;
 use clap::{Parser, Subcommand};
-use std::process::Command;
+use std::process::Command as ProcessCommand;
+
 
 #[derive(Parser)]
 #[command(name = "artisan")]
@@ -25,7 +26,7 @@ fn main() {
     match cli.command {
         Commands::Migrate => {
             // compile and run database
-            Command::new("cargo")
+            ProcessCommand::new("cargo")
                 .args(["run", "--package", "rustavel-db", "--bin", "database"])
                 .status()
                 .unwrap();
@@ -33,7 +34,7 @@ fn main() {
         Commands::Serv => {
             print!("{}",current_dir().unwrap().display());
             // serv app
-            Command::new("cargo")
+            ProcessCommand::new("cargo")
                 .args(["run", "--package", "rustavel-app", "--bin", "rustavel-app"])
                 .status()
                 .unwrap();

@@ -1305,9 +1305,7 @@ dependencies = [
  "async-trait",
  "axum",
  "dotenv",
- "log",
  "once_cell",
- "serde",
  "sqlx",
  "tokio",
 ]

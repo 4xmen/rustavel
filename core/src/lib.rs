@@ -6,3 +6,4 @@ pub mod schema;
 pub mod sql;
 pub mod state;
 pub mod table;
+pub mod mvc;

@@ -21,6 +21,7 @@ pub fn web_routes() -> BuiltRoutes<AppState> {
         todo.get("/create", todo_controller::create).name("create");
         todo.post("", todo_controller::store).name("store");
         todo.get("edit/{id}", todo_controller::edit).name("edit");
+        todo.get("show/{id}", todo_controller::show).name("show");
         todo.post("update/{id}", todo_controller::update)
             .name("update");
         todo.get("delete/{id}", todo_controller::destroy)
