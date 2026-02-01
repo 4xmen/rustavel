@@ -29,8 +29,8 @@ pub async fn index(State(_state): State<AppState>) -> impl IntoResponse {
     (StatusCode::OK, Json(tasks))
 }
 pub async fn create(State(_state): State<AppState>) -> impl IntoResponse {
-    println!("try to call all");
     Todo::all();
+    println!("so so...");
     (StatusCode::OK, "to create called")
 }
 pub async fn store(State(_state): State<AppState>) -> impl IntoResponse {

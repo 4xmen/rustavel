@@ -420,7 +420,6 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
                 method_router = mw(method_router);
             }
 
-            println!("Path: {}", full_path);
             router = router.route(&full_path, method_router);
 
             // Register route name (after full resolution)

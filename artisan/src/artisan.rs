@@ -32,12 +32,23 @@ fn main() {
                 .unwrap();
         }
         Commands::Serv => {
-            print!("{}",current_dir().unwrap().display());
-            // serv app
-            ProcessCommand::new("cargo")
-                .args(["run", "--package", "rustavel-app", "--bin", "rustavel-app"])
-                .status()
-                .unwrap();
-        } // add another command here :)
+            println!("Starting rustavel-app with hot-reload (cargo watch)...");
+
+            let status = ProcessCommand::new("cargo")
+                .args([
+                    "watch",
+                    "-p", "rustavel-app",
+                    "--ignore", "target",
+                    "-x", "run --package rustavel-app --bin rustavel-app",
+                ])
+                .status();
+
+            match status {
+                Ok(s) if s.success() => {},
+                Ok(s) => eprintln!("cargo watch با کد {} خارج شد", s.code().unwrap_or(-1)),
+                Err(e) => eprintln!("نشد cargo watch رو اجرا کنیم: {}", e),
+            }
+        }
+        // add another command here :)
     }
 }
