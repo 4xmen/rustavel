@@ -1,5 +1,5 @@
 
-use rustavel_core::schema::Schema;
+use rustavel_core::db::schema::Schema;
 use crate::migrator::Migration;
 use async_trait::async_trait;
 use rustavel_core::sql::database_client::DbError;

@@ -6,6 +6,8 @@ use rustavel_core::state::AppState;
 use crate::models::todo::Todo;
 use axum::Json;
 use rustavel_core::sql::query::QueryDsl;
+
+
 pub async fn index(State(_state): State<AppState>) -> impl IntoResponse {
     // just for test now
     let tasks =  vec!(

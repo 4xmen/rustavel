@@ -1,7 +1,7 @@
 use super::generator::SqlGenerator;
 use crate::config::CONFIG;
 use crate::logger;
-use crate::table::{Column, ColumnDataType, ColumnOption, DefaultValue, ForeignKey, TableAction};
+use crate::db::table::{Column, ColumnDataType, ColumnOption, DefaultValue, ForeignKey, TableAction};
 use std::string::String;
 
 #[derive(Debug)]

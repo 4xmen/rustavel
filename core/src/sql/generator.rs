@@ -1,4 +1,4 @@
-use crate::table::{Column, ForeignKey, TableAction};
+use crate::db::table::{Column, ForeignKey, TableAction};
 use std::fmt::Debug;
 
 pub trait SqlGenerator: Debug + Sync + Send {

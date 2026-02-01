@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use rustavel_core::schema::Schema;
+use rustavel_core::db::schema::Schema;
 use rustavel_core::sql::database_client::{ DbError};
 use crate::migrations::m_2025_01_15_1945_create_users::CreateUsers;
 

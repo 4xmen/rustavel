@@ -1,6 +1,6 @@
 use super::generator::SqlGenerator;
 use crate::logger;
-use crate::table::{Column, ColumnDataType, ColumnOption, DefaultValue, ForeignKey, TableAction};
+use crate::db::table::{Column, ColumnDataType, ColumnOption, DefaultValue, ForeignKey, TableAction};
 
 #[derive(Debug)]
 pub struct SqliteGenerator;

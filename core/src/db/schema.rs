@@ -6,7 +6,7 @@ use crate::sql::database_client::{DatabaseClient, DbError, MySqlClient, SqliteCl
 use crate::sql::generator::SqlGenerator;
 use crate::sql::mysql::MySqlGenerator;
 use crate::sql::sqlite::SqliteGenerator;
-use crate::table::{Table, TableAction};
+use crate::db::table::{Table, TableAction};
 use sqlx::{MySqlPool, SqlitePool};
 
 #[derive(Debug)]
@@ -81,7 +81,7 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// use rustavel_core::schema::Schema;
+    /// use rustavel_core::db::schema::Schema;
     /// async fn run()  {
     ///     let s = Schema::new().await.unwrap();
     ///     s.drop_table_if_exists("test").await;
@@ -124,7 +124,7 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// use rustavel_core::schema::Schema;
+    /// use rustavel_core::db::schema::Schema;
     /// async fn run()  {
     ///     let s = Schema::new().await.unwrap();
     ///     match s.get_tables().await {
@@ -169,7 +169,7 @@ impl Schema {
     ///
     /// # Examples
     /// ```
-    ///  use rustavel_core::schema::Schema;
+    ///  use rustavel_core::db::schema::Schema;
     ///
     /// async fn run()  {
     ///     let s = Schema::new().await.unwrap();
@@ -219,7 +219,7 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// use rustavel_core::schema::Schema;
+    /// use rustavel_core::db::schema::Schema;
     /// async fn run()  {
     ///     let s = Schema::new().await.unwrap();
     ///     match s.get_column_listing("users").await {
@@ -276,7 +276,7 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// use rustavel_core::schema::Schema;
+    /// use rustavel_core::db::schema::Schema;
     /// async fn run()  {
     ///     let s = Schema::new().await.unwrap();
     ///     let columns = s.try_get_column_listing("users").await;
@@ -325,7 +325,7 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// use rustavel_core::schema::Schema;
+    /// use rustavel_core::db::schema::Schema;
     ///
     /// async fn run()  {
     ///     let s = Schema::new().await.unwrap();
@@ -367,7 +367,7 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// use rustavel_core::schema::Schema;
+    /// use rustavel_core::db::schema::Schema;
     ///     async fn run()  {
     ///     let s = Schema::new().await.unwrap();
     ///     let views = s.try_get_views().await;
@@ -418,7 +418,7 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// use rustavel_core::schema::Schema;
+    /// use rustavel_core::db::schema::Schema;
     ///
     /// async fn run()  {
     ///     let s = Schema::new().await.unwrap();
@@ -476,7 +476,7 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// use rustavel_core::schema::Schema;
+    /// use rustavel_core::db::schema::Schema;
     /// async fn run()  {
     ///     let s = Schema::new().await.unwrap();
     ///     let foreign_keys = s.try_get_foreign_keys("users").await;
@@ -529,7 +529,7 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// use rustavel_core::schema::Schema;
+    /// use rustavel_core::db::schema::Schema;
     /// async fn run()  {
     ///     let s = Schema::new().await.unwrap();
     ///     match s.drop_table("users").await {
@@ -574,7 +574,7 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// use rustavel_core::schema::Schema;
+    /// use rustavel_core::db::schema::Schema;
     /// async fn run()  {
     ///     let s = Schema::new().await.unwrap();
     ///     match s.drop_all_tables().await {
@@ -617,7 +617,7 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// use rustavel_core::schema::Schema;
+    /// use rustavel_core::db::schema::Schema;
     ///
     /// async fn run()  {
     ///     let s = Schema::new().await.unwrap();
@@ -667,7 +667,7 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// use rustavel_core::schema::Schema;
+    /// use rustavel_core::db::schema::Schema;
     /// async fn run()  {
     ///     let s = Schema::new().await.unwrap();
     ///     match s.has_column("users", "email").await {
@@ -723,7 +723,7 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// use rustavel_core::schema::Schema;
+    /// use rustavel_core::db::schema::Schema;
     /// async fn run()  {
     ///     let s = Schema::new().await.unwrap();
     ///     match s.has_table("users").await {
@@ -774,7 +774,7 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// use rustavel_core::schema::Schema;
+    /// use rustavel_core::db::schema::Schema;
     /// async fn run()  {
     ///     let s = Schema::new().await.unwrap();
     ///     match s.has_view("user_summary").await {
@@ -826,7 +826,7 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// use rustavel_core::schema::Schema;
+    /// use rustavel_core::db::schema::Schema;
     ///
     /// async fn run()  {
     ///     let s = Schema::new().await.unwrap();
@@ -871,7 +871,7 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// use rustavel_core::schema::Schema;
+    /// use rustavel_core::db::schema::Schema;
     ///
     /// async fn run() {
     ///     let s = Schema::new().await.unwrap();
@@ -913,7 +913,7 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// use rustavel_core::schema::Schema;;
+    /// use rustavel_core::db::schema::Schema;;
     /// async fn run()  {
     ///     let s = Schema::new().await.unwrap();
     ///     let dropped = s.drop_database_if_exists("old_database").await;
@@ -958,7 +958,7 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// use rustavel_core::schema::Schema;
+    /// use rustavel_core::db::schema::Schema;
     /// async fn run()  {
     ///     let s = Schema::new().await.unwrap();
     ///     let disabled = s.disable_foreign_key_constraints("my_database").await;
@@ -1006,7 +1006,7 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// use rustavel_core::schema::Schema;
+    /// use rustavel_core::db::schema::Schema;
     /// async fn run()  {
     ///     let s = Schema::new().await.unwrap();
     ///     let enabled = s.enable_foreign_key_constraints("my_database").await;
@@ -1059,7 +1059,7 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// use rustavel_core::schema::Schema;
+    /// use rustavel_core::db::schema::Schema;
     /// async fn run()  {
     ///     let s = Schema::new().await.unwrap();
     ///     match s.rename("old_users", "new_users").await {
@@ -1114,7 +1114,7 @@ impl Schema {
     ///
     /// # Examples
     /// ```rust
-    /// use rustavel_core::schema::Schema;
+    /// use rustavel_core::db::schema::Schema;
     /// async fn run()  {
     ///     let mut s = Schema::new().await.unwrap();
     ///     match s.rename_prefix("new_").await {

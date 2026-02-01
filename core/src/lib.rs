@@ -2,8 +2,8 @@ pub mod config;
 pub mod facades;
 pub mod logger;
 pub mod routing;
-pub mod schema;
 pub mod sql;
 pub mod state;
-pub mod table;
 pub mod mvc;
+
+pub mod db;
