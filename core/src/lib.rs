@@ -7,3 +7,4 @@ pub mod state;
 pub mod mvc;
 
 pub mod db;
+pub mod http;

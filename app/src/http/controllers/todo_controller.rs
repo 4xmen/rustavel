@@ -1,11 +1,12 @@
 use std::vec;
-use axum::extract::{RawPathParams, RawQuery, State};
+use axum::extract::{RawPathParams, RawQuery, State, Path};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse};
 use rustavel_core::state::AppState;
 use crate::models::todo::Todo;
 use axum::Json;
 use rustavel_core::sql::query::QueryDsl;
+
 
 
 pub async fn index(State(_state): State<AppState>) -> impl IntoResponse {
@@ -42,16 +43,17 @@ pub async fn edit(State(_state): State<AppState>, params: RawPathParams) -> impl
 
     (StatusCode::OK, println!("to edit called id: {:?}", params))
 }
+#[axum::debug_handler]
+pub async fn update(State(_state): State<AppState>, params: RawPathParams) -> impl IntoResponse {
+
+    (StatusCode::OK, println!("to edit called id: {:?}", params))
+}
 pub async fn show(State(_state): State<AppState>, params: RawPathParams) -> impl IntoResponse {
 
     (StatusCode::OK, println!("to edit called id: {:?}", params))
 }
-pub async fn update(State(_state): State<AppState>, params: RawPathParams) -> impl IntoResponse {
-    (
-        StatusCode::OK,
-        println!("to update called id: {:?}", params),
-    )
-}
+
+
 pub async fn destroy(
     State(_state): State<AppState>,
     params: RawPathParams,

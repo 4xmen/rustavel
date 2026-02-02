@@ -194,6 +194,34 @@ Learning and exploration are part of the process.
 Respectful questions are always encouraged.
 
 
+## Graveyard
+
+This directory contains ideas that were explored during development but ultimately abandoned.
+
+For each idea, a short explanation (typically 5–10 lines) is provided **at the top of the source files as comments**, describing why the approach was discontinued and what issues were identified.
+This is intentional: if the code is copied or reused elsewhere, its context and limitations should remain immediately visible.
+
+The code is preserved largely in the state it was last touched. Some entries may still have passing tests, which reflects that an implementation can be functional while still being unsuitable or non-idiomatic.
+
+**Why keep these ideas?**
+
+* Some explorations may become useful again with new constraints, insights, or combinations
+* They may serve as learning material or inspiration for others
+* They help preserve the full design and decision-making history of the project
+
+**Important note on responsibility (specific to this directory only):**
+The following warning applies **only to the code contained in the Graveyard directory**, and not to the rest of the project.
+
+If you choose to use any code from this directory, you do so at your own discretion and responsibility.
+These implementations were intentionally left as-is after being deemed unsuitable for continuation, and should not be considered production-ready without careful review and revision.
+
+**Workspace note:**
+The Graveyard crates are not included in the workspace by default.
+To build, test, or evaluate them, the corresponding workspace entries must be explicitly uncommented. This is done deliberately to avoid accidental usage.
+
+If you manage to meaningfully improve or revive one of these ideas in an idiomatic and safe way, contributions or notes about your approach are always welcome.
+
+
 ## Final Note
 
 Rustavel is an exploration.

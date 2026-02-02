@@ -1,0 +1,13 @@
+[package]
+name = "expired-idea"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "graveyard"
+path = "src/main.rs"
+
+[dependencies]
+rustavel-core = { path = "../core" }
+regex.workspace = true
+serde.workspace = true
