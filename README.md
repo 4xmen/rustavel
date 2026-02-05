@@ -87,7 +87,7 @@ Rustavel is organized as a Cargo workspace:
 ├── core       # Shared primitives and abstractions
 ├── artisan    # CLI tooling
 ├── database   # Migrations and schema-related code
-
+├── graveyard  # DEPRECATED libs 
 ```
 
 Each crate has a clear responsibility and can evolve independently.
@@ -194,7 +194,7 @@ Learning and exploration are part of the process.
 Respectful questions are always encouraged.
 
 
-## Graveyard
+## Graveyard  🪦
 
 This directory contains ideas that were explored during development but ultimately abandoned.
 

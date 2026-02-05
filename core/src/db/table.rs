@@ -1,3 +1,6 @@
+use crate::config::CONFIG;
+use crate::config::database::DatabaseEngine;
+
 #[derive(Debug)]
 pub struct Table {
     pub name: String,
@@ -142,10 +145,69 @@ impl Table {
         }
     }
 
+    pub fn to_struct(&self) -> String {
+        let name = self.name.clone();
+        let mut result = "#[derive(Debug, sqlx::FromRow)]\n".to_string();
+        result += &format!("pub struct {} {{\n", name);
+
+        for col in &self.columns {
+            let field = Self::make_field(col);
+            result += &format!("    {},\n", field);
+        }
+
+        result += "}\n";
+        result
+    }
+
+    fn make_field(column: &Column) -> String {
+        // map ColumnDataType -> Rust type
+        let mut rust_type = match column.data_type {
+            ColumnDataType::DTId => "i64".to_string(),
+            ColumnDataType::DTBoolean => "bool".to_string(),
+            ColumnDataType::DTTinyInteger => "i8".to_string(),
+            ColumnDataType::DTSmallInteger => "i16".to_string(),
+            ColumnDataType::DTMediumInteger => "i32".to_string(),
+            ColumnDataType::DTInteger => "i32".to_string(),
+            ColumnDataType::DTBigInteger => "i64".to_string(),
+            ColumnDataType::DTFloat => "f32".to_string(),
+            ColumnDataType::DTDouble => "f64".to_string(),
+            ColumnDataType::DTDecimal => "f64".to_string(),
+            ColumnDataType::DTString
+            | ColumnDataType::DTText
+            | ColumnDataType::DTTinyText
+            | ColumnDataType::DTMediumText
+            | ColumnDataType::DTLongText => "String".to_string(),
+            ColumnDataType::DTJson => "serde_json::Value".to_string(),
+            ColumnDataType::DTDate => "chrono::NaiveDate".to_string(),
+            ColumnDataType::DTDateTime
+            | ColumnDataType::DTTimestamp
+            | ColumnDataType::DTTimestamps => "chrono::NaiveDateTime".to_string(),
+            ColumnDataType::DTTime => "chrono::NaiveTime".to_string(),
+            ColumnDataType::DTSoftDelete => "Option<chrono::NaiveDateTime>".to_string(),
+            ColumnDataType::DTEnum | ColumnDataType::DTSet => "String".to_string(),
+            ColumnDataType::DTMorph => "i64".to_string(),
+            ColumnDataType::DTNone => "()".to_string(),
+        };
+
+        if column.nullable && !rust_type.starts_with("Option") {
+            rust_type = format!("Option<{}>", rust_type);
+        }
+
+        if column.unsigned && CONFIG.database.connection == DatabaseEngine::Mysql{
+            rust_type = rust_type.replace("i","u");
+        }
+
+        if column.data_type == ColumnDataType::DTTimestamps {
+             format!("pub created_at: {},\n    pub updated_at: {}", rust_type, rust_type)
+        }else{
+            format!("pub {}: {}", column.name, rust_type)
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
 
     pub fn id(&mut self) -> ColumnBuilder<'_> {
-        self.column("id", ColumnDataType::DTId, ColumnOption::None)
+        self.column("id", ColumnDataType::DTId, ColumnOption::None).unsigned()
     }
 
     pub fn boolean(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
@@ -264,7 +326,7 @@ impl Table {
             name,
             ColumnDataType::DTMorph,
             ColumnOption::Index(index_name.into()),
-        )
+        ).nullable()
     }
 
     pub fn enums<I, S>(&mut self, name: impl Into<String>, values: I) -> ColumnBuilder<'_>
