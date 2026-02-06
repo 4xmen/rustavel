@@ -5,7 +5,7 @@ use jiff::Zoned;
 use jiff::fmt::strtime::format;
 use std::fs;
 use std::io;
-use std::path::{ PathBuf};
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 use crate::utility::ui::{title, operation, TitleKind, Status};
 
@@ -112,6 +112,8 @@ pub fn migrate(args: &NewMigArgs) -> Result<bool, MigrationError> {
         Status::Done,
     );
 
+    register_new_migration(&final_name,&Str::studly(&args.name) )?;
+
     Ok(true)
 }
 
@@ -134,4 +136,82 @@ fn resolve_target_path(
             Ok(cwd.join(path).join(file_name))
         }
     }
+}
+
+
+
+/// Update `mod.rs` to register a new migration.
+///
+/// This function does:
+/// 1. Locate `mod.rs` inside `database/src/migrations`.
+/// 2. Validate that placeholders exist:
+///    - `// #[add-mig-mods]`
+///    - `// #[add-mig-trait]`
+/// 3. Check duplicates for module and struct.
+/// 4. Append new module and struct before placeholders.
+pub fn register_new_migration(final_name: &str, struct_raw: &str) -> io::Result<()> {
+    // Derive module and struct names
+    let module_name = final_name; // same as file name without `.rs`
+    let struct_name = format!(
+        "{}::{}",
+        &final_name,
+        &struct_raw
+    );
+
+    // Locate mod.rs
+    let mod_rs_path: PathBuf = std::env::current_dir()?
+        .join("database/src/migrations/mod.rs");
+
+    // Read content
+    let content = fs::read_to_string(&mod_rs_path)?;
+
+    // Placeholders
+    let mod_placeholder = "// #[add-mig-mods] DO NOT REMOVE THIS COMMENT, OTHERWISE AUTOMATIC ADD WILL BREAK";
+    let trait_placeholder = "// #[add-mig-trait] DO NOT REMOVE THIS COMMENT, OTHERWISE AUTOMATIC ADD WILL BREAK";
+
+    // Validate placeholders exist
+    if !content.contains(mod_placeholder) {
+        return Err(io::Error::new(
+            io::ErrorKind::Other,
+            format!("Placeholder '{}' not found in mod.rs", mod_placeholder),
+        ));
+    }
+    if !content.contains(trait_placeholder) {
+        return Err(io::Error::new(
+            io::ErrorKind::Other,
+            format!("Placeholder '{}' not found in mod.rs", trait_placeholder),
+        ));
+    }
+
+    // Check duplicates
+    if content.contains(&format!("pub mod {};", module_name)) {
+        return Err(io::Error::new(
+            io::ErrorKind::Other,
+            format!("Module '{}' already exists in mod.rs", module_name),
+        ));
+    }
+    if content.contains(&format!("Box::new({}::{} {{}})", module_name, struct_name)) {
+        return Err(io::Error::new(
+            io::ErrorKind::Other,
+            format!("Struct '{}' already exists in get_all_migrations", struct_name),
+        ));
+    }
+
+    // Append module and struct before placeholders
+    let new_content = content
+        .replace(
+            mod_placeholder,
+            &format!("pub mod {};\n{}", module_name, mod_placeholder),
+        )
+        .replace(
+            trait_placeholder,
+            &format!("Box::new({} {{}}),\n    {}", struct_name, trait_placeholder),
+        );
+
+    // Write back to mod.rs
+    fs::write(&mod_rs_path, new_content)?;
+
+    println!("✅ mod.rs updated: module '{}' registered", module_name);
+
+    Ok(())
 }

@@ -1,6 +1,6 @@
 use crate::config::CONFIG;
 use crate::config::database::DatabaseEngine;
-use crate::facades::str::Str;
+use illuminate_string::Str;
 use crate::logger;
 use crate::sql::database_client::{DatabaseClient, DbError, MySqlClient, SqliteClient};
 use crate::sql::generator::SqlGenerator;
@@ -1151,6 +1151,7 @@ impl Schema {
         let mut table = Table::new(&format!("{}{}", CONFIG.database.prefix, name));
         table.action = TableAction::Create;
         f(&mut table);
+        eprintln!("struct {}",&table.to_struct());
         let mut body = vec![];
         let mut foot = vec![];
         let mut post = vec![];
@@ -1183,6 +1184,8 @@ impl Schema {
                 logger::error(&format!("{:?}", e));
             }
         }
+
+
     }
 
     pub async fn table<F>(&self, table_name: impl Into<String>, f: F)

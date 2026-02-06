@@ -1580,6 +1580,7 @@ dependencies = [
  "async-trait",
  "axum",
  "dotenv",
+ "illuminate-string",
  "once_cell",
  "regex",
  "serde",

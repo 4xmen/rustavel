@@ -1,7 +1,8 @@
 use async_trait::async_trait;
 use rustavel_core::db::schema::Schema;
 use rustavel_core::sql::database_client::{ DbError};
-use crate::migrations::m_2025_01_15_1945_create_users::CreateUsers;
+use crate::migrations::get_all_migrations;
+
 
 #[async_trait]
 pub trait Migration: Send + Sync {
@@ -27,10 +28,3 @@ pub async fn run_migrations(up: bool) -> Result<(), DbError> {
     Ok(())
 }
 
-fn get_all_migrations() -> Vec<Box<dyn Migration>> {
-    // may need do it auto mex time
-    vec![
-        Box::new(CreateUsers {}),
-        // add other migration
-    ]
-}

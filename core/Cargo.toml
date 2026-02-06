@@ -13,3 +13,4 @@ async-trait.workspace = true
 axum.workspace = true
 regex.workspace =  true
 serde.workspace =  true
+illuminate-string.workspace =  true
