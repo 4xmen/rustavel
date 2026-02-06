@@ -1,7 +1,10 @@
-use std::env::current_dir;
+mod make;
+
+// use std::env::current_dir;
 use clap::{Parser, Subcommand};
 use std::process::Command as ProcessCommand;
-
+// use clap::Args;
+use crate::make::migration::{NewMigArgs,migrate};
 
 #[derive(Parser)]
 #[command(name = "artisan")]
@@ -14,8 +17,21 @@ struct Cli {
 enum Commands {
     Migrate,
     Serv,
+    Make {
+        #[command(subcommand)]
+        kind: MakeCmd,
+    },
     // may add: Make { kind: String, name: String }, Seed, etc.
 }
+
+
+#[derive(Subcommand, Debug)]
+enum MakeCmd {
+    /// Create a new migration file
+    Migration(NewMigArgs),
+}
+
+
 
 
 fn main() {
@@ -45,8 +61,20 @@ fn main() {
 
             match status {
                 Ok(s) if s.success() => {},
-                Ok(s) => eprintln!("cargo watch با کد {} خارج شد", s.code().unwrap_or(-1)),
-                Err(e) => eprintln!("نشد cargo watch رو اجرا کنیم: {}", e),
+                Ok(s) => eprintln!("cargo watch exit with code: {} ", s.code().unwrap_or(-1)),
+                Err(e) => eprintln!(" cargo watch can't run: {}", e),
+            }
+        },
+        Commands::Make { kind } => {
+            // println!("what use did? {:?}", kind);
+
+            match kind {
+                MakeCmd::Migration(args) => {
+                    let _ = migrate(&args).unwrap_or_else(|e| {
+                        println!("{:?}",e);
+                        false
+                    });
+                },
             }
         }
         // add another command here :)

@@ -9,7 +9,7 @@ pub struct CreateUsers;
 #[async_trait]
 impl Migration for CreateUsers {
     async fn up(&self, schema: &mut Schema) -> Result<(), DbError> {
-        schema.create("users", |table | {
+        schema.create("users", |table| {
             table.id();
             table.string("name", 127).index().comment("user name");
             table.string("email", 127).unique().comment("user email");

@@ -10,3 +10,7 @@ path = "src/artisan.rs"
 [dependencies]
 clap.workspace = true
 dotenv.workspace = true
+serde.workspace = true
+minijinja.workspace = true
+illuminate-string.workspace =  true
+jiff.workspace =  true

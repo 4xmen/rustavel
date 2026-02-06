@@ -5,7 +5,7 @@ edition = "2024"
 
 [[bin]]
 name = "rustavel-app"
-path = "src/main.rs"
+path = "src/rustavel.rs"
 
 [dependencies]
 rustavel-core = { path = "../core" }

@@ -1,0 +1,36 @@
+use crate::migrator::Migration;
+use async_trait::async_trait;
+use rustavel_core::db::schema::Schema;
+use rustavel_core::sql::database_client::DbError;
+
+pub struct {{  name }};
+
+#[async_trait]
+impl Migration for {{  name }} {
+    async fn up(&self, schema: &mut Schema) -> Result<(), DbError> {
+        {% if is_create %}
+        schema.create("{{ create }}", |table| {
+                table.id();
+                // add some rows you want here here
+                table.validate();
+            }).await;
+        {% endif %}
+        {% if is_table %}
+        schema.table("{{ table }}", |table| {
+                // do what you want here
+            }).await;
+        {% endif %}
+        Ok(())
+    }
+
+    async fn down(&self, schema: &mut Schema) -> Result<(), DbError> {
+        {% if is_create %}
+        schema.drop_table("{{ create }}").await?;
+        {% endif %}
+        Ok(())
+    }
+
+    fn name(&self) -> &'static str {
+        "{{  final_name }}"
+    }
+}

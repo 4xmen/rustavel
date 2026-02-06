@@ -1,6 +1,6 @@
 use std::env;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum DatabaseEngine {
     Mysql,
     Sqlite,
@@ -78,6 +78,13 @@ impl DatabaseConfig {
             cfg.charset = v;
         }
 
+        // make DATABASE_URL
+        if cfg.connection == DatabaseEngine::Mysql {
+
+
+        } else if cfg.connection == DatabaseEngine::Sqlite {
+
+        }
         cfg
     }
 }

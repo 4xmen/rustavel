@@ -7,6 +7,7 @@ pub struct AppConfig {
     pub debug: bool,
     pub host: String,
     pub port: u16,
+    pub timezone: String,
 }
 
 impl Default for AppConfig {
@@ -17,6 +18,7 @@ impl Default for AppConfig {
             debug: false,
             host: "127.0.0.1".into(),
             port: 3000,
+            timezone: "UTC".into(),
         }
     }
 }
@@ -43,6 +45,10 @@ impl AppConfig {
 
         if let Ok(v) = env::var("APP_PORT") {
             cfg.port = v.parse().expect("APP_PORT must be a number");
+        }
+
+        if let Ok(v) = env::var("APP_TIMEZONE") {
+            cfg.timezone = v;
         }
 
         cfg
