@@ -5,7 +5,9 @@ use jiff::Zoned;
 use jiff::fmt::strtime::format;
 use std::fs;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::{ PathBuf};
+use std::time::Instant;
+use crate::utility::ui::{title, operation, TitleKind, Status};
 
 const MIGRATION_TEMPLATE: &str = include_str!("templates/migration.rs.j2");
 
@@ -61,10 +63,13 @@ struct MigrationContext {
 }
 
 pub fn migrate(args: &NewMigArgs) -> Result<bool, MigrationError> {
+
+    let start = Instant::now();
+
     let now = Zoned::now();
 
-    let timestamp = format("%Y_%m_%d_%H_%M", &now)
-        .unwrap_or_else(|_| "2025_01_01_00_00".into());
+    let timestamp = format("%Y_%m_%d_%H%M", &now)
+        .unwrap_or_else(|_| "2025_01_01_0000".into());
 
     let final_name = format!(
         "m_{}_{}",
@@ -99,7 +104,13 @@ pub fn migrate(args: &NewMigArgs) -> Result<bool, MigrationError> {
 
     fs::write(&target_path, rendered)?;
 
-    println!("{}",format!("migration file created: {}", final_name));
+
+    // It measures execution time, not disk flush time.
+    operation(
+        &format!("migration created: {}", final_name),
+        start.elapsed(),
+        Status::Done,
+    );
 
     Ok(true)
 }
