@@ -62,6 +62,18 @@ struct MigrationContext {
     table: Option<String>,
 }
 
+
+/// Create and persist a new migration file from CLI (artisan) input.
+///
+/// This function does:
+/// 1. Generate a timestamped and snake_cased migration filename.
+/// 2. Build a rendering context from CLI arguments (create/table flags, names).
+/// 3. Render the migration source code using the migration template.
+/// 4. Resolve the target filesystem path for the migration file.
+/// 5. Create parent directories if they do not exist.
+/// 6. Write the rendered migration to disk.
+/// 7. Register the new migration in `database/src/migrations/mod.rs`.
+/// 8. Report the operation status and execution time.
 pub fn migrate(args: &NewMigArgs) -> Result<bool, MigrationError> {
 
     let start = Instant::now();
@@ -117,6 +129,14 @@ pub fn migrate(args: &NewMigArgs) -> Result<bool, MigrationError> {
     Ok(true)
 }
 
+
+/// Resolve the final filesystem path for the migration file.
+///
+/// This function does:
+/// 1. Use the default `database/src/migrations` directory when no path is provided.
+/// 2. Treat the provided path as an absolute path when `--realpath` is set.
+/// 3. Otherwise, resolve the provided path relative to the current working directory.
+/// 4. Append the migration filename to the resolved base path.
 fn resolve_target_path(
     file_name: &str,
     args: &NewMigArgs,
@@ -190,7 +210,7 @@ pub fn register_new_migration(final_name: &str, struct_raw: &str) -> io::Result<
             format!("Module '{}' already exists in mod.rs", module_name),
         ));
     }
-    if content.contains(&format!("Box::new({}::{} {{}})", module_name, struct_name)) {
+    if content.contains(&format!("Box::new({} {{}})", struct_name)) {
         return Err(io::Error::new(
             io::ErrorKind::Other,
             format!("Struct '{}' already exists in get_all_migrations", struct_name),
@@ -205,13 +225,13 @@ pub fn register_new_migration(final_name: &str, struct_raw: &str) -> io::Result<
         )
         .replace(
             trait_placeholder,
-            &format!("Box::new({} {{}}),\n    {}", struct_name, trait_placeholder),
+            &format!("Box::new({} {{}}),\n        {}", struct_name, trait_placeholder),
         );
 
     // Write back to mod.rs
     fs::write(&mod_rs_path, new_content)?;
 
-    println!("✅ mod.rs updated: module '{}' registered", module_name);
+    // println!("✅ mod.rs updated: module '{}' registered", module_name);
 
     Ok(())
 }
