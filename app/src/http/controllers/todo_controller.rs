@@ -1,5 +1,5 @@
 use std::vec;
-use axum::extract::{RawPathParams, RawQuery, State, Path};
+use axum::extract::{RawPathParams, RawQuery, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse};
 use rustavel_core::state::AppState;

@@ -3,8 +3,18 @@ mod make;
 // use std::env::current_dir;
 use clap::{Parser, Subcommand};
 use std::process::Command as ProcessCommand;
+use rustavel_core::config::CONFIG;
 // use clap::Args;
 use crate::make::migration::{NewMigArgs,migrate};
+use dialoguer::{theme::ColorfulTheme, Confirm};
+
+fn confirm(message: &str) -> bool {
+    Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt(message)
+        .default(false)
+        .interact()
+        .unwrap()
+}
 
 #[derive(Parser)]
 #[command(name = "artisan")]
@@ -46,6 +56,14 @@ fn main() {
 
     match cli.command {
         Commands::Migrate  { down} => {
+
+            if CONFIG.app.env == "production" {
+                if !confirm("Are you sure you want to run migration in production mode?") {
+
+                    println!("cancelled...");
+                    std::process::exit(0);
+                }
+            }
             let mut args = vec!["run", "--package", "rustavel-db", "--bin", "database"];
             if down {
                 args.push("--");

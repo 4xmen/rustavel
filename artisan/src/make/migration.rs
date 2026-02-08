@@ -11,8 +11,8 @@ use rustavel_core::facades::terminal_ui::{operation,Status};
 
 const MIGRATION_TEMPLATE: &str = include_str!("templates/migration.rs.j2");
 
-#[warn(dead_code)]
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum MigrationError {
     Template(TemplateError),
     Io(io::Error),
