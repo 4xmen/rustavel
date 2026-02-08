@@ -14,3 +14,6 @@ axum.workspace = true
 regex.workspace =  true
 serde.workspace =  true
 illuminate-string.workspace =  true
+colored.workspace = true
+terminal_size.workspace = true
+ansi-str.workspace = true

@@ -5,12 +5,13 @@ use jiff::Zoned;
 use jiff::fmt::strtime::format;
 use std::fs;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::{ PathBuf};
 use std::time::Instant;
-use crate::utility::ui::{title, operation, TitleKind, Status};
+use rustavel_core::facades::terminal_ui::{operation,Status};
 
 const MIGRATION_TEMPLATE: &str = include_str!("templates/migration.rs.j2");
 
+#[warn(dead_code)]
 #[derive(Debug)]
 pub enum MigrationError {
     Template(TemplateError),

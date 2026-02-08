@@ -2,6 +2,7 @@ use colored::*;
 use std::time::Duration;
 use terminal_size::{terminal_size, Width};
 
+#[warn(dead_code)]
 /// Available status results for an operation
 pub enum Status {
     Done,

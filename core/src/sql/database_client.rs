@@ -4,6 +4,7 @@ use std::fmt::Debug;
 #[derive(Debug)]
 pub enum DbError {
     Sqlx(sqlx::Error),
+    InvalidTable,
     NotFound,
     InvalidQuery(String),
 }

@@ -1562,29 +1562,30 @@ dependencies = [
 name = "rustavel-artisan"
 version = "0.1.0"
 dependencies = [
- "ansi-str",
  "clap",
- "colored",
  "dotenv",
  "illuminate-string",
  "jiff",
  "minijinja",
+ "rustavel-core",
  "serde",
- "terminal_size",
 ]
 
 [[package]]
 name = "rustavel-core"
 version = "0.1.0"
 dependencies = [
+ "ansi-str",
  "async-trait",
  "axum",
+ "colored",
  "dotenv",
  "illuminate-string",
  "once_cell",
  "regex",
  "serde",
  "sqlx",
+ "terminal_size",
  "tokio",
 ]
 

@@ -1,8 +1,8 @@
+use std::time::Instant;
+use crate::migrations::get_all_migrations;
 use async_trait::async_trait;
 use rustavel_core::db::schema::Schema;
-use rustavel_core::sql::database_client::{ DbError};
-use crate::migrations::get_all_migrations;
-
+use rustavel_core::sql::database_client::DbError;
 
 #[async_trait]
 pub trait Migration: Send + Sync {
@@ -11,14 +11,19 @@ pub trait Migration: Send + Sync {
     fn name(&self) -> &'static str;
 }
 
-pub async fn run_migrations(up: bool) -> Result<(), DbError> {
+pub async fn run_migrations(up: bool, passive: bool) -> Result<(), DbError> {
+    let migrations = get_all_migrations(); // از migrations/mod.rs
 
-    let migrations = get_all_migrations();  // از migrations/mod.rs
-
+    let mut schema = Schema::new().await?;
+    // DSL تو
     for mig in migrations {
-        let mut schema = Schema::new().await?;  // DSL تو
         if up {
+
+            let start = Instant::now();
             mig.up(&mut schema).await?;
+            if !passive {
+                schema.execute_migration(mig.name(),&start.into()).await?;
+            }
         } else {
             mig.down(&mut schema).await?;
         }
@@ -27,4 +32,3 @@ pub async fn run_migrations(up: bool) -> Result<(), DbError> {
     }
     Ok(())
 }
-

@@ -1,4 +1,4 @@
-
+use std::time::Instant;
 use rustavel_core::db::schema::Schema;
 use crate::migrator::Migration;
 use async_trait::async_trait;
@@ -19,7 +19,7 @@ impl Migration for CreateUsers {
             table.soft_delete();
             table.timestamps();
             table.validate();
-        }).await;
+        });
         Ok(())
     }
 

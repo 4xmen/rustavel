@@ -1,7 +1,7 @@
 use crate::config::CONFIG;
 use crate::config::database::DatabaseEngine;
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct Table {
     pub name: String,
     pub columns: Vec<Column>,
@@ -11,7 +11,7 @@ pub struct Table {
     pub drop_columns: Vec<String>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TableAction {
     None,
     Create,

@@ -8,13 +8,10 @@ name = "artisan"
 path = "src/artisan.rs"
 
 [dependencies]
+rustavel-core = { path = "../core" }
 clap.workspace = true
 dotenv.workspace = true
 serde.workspace = true
 minijinja.workspace = true
 illuminate-string.workspace =  true
 jiff.workspace =  true
-
-colored = "2"
-terminal_size = "0.3"
-ansi-str="0.9"

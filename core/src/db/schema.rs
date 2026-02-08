@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crate::config::CONFIG;
 use crate::config::database::DatabaseEngine;
 use illuminate_string::Str;
@@ -8,6 +9,8 @@ use crate::sql::mysql::MySqlGenerator;
 use crate::sql::sqlite::SqliteGenerator;
 use crate::db::table::{Table, TableAction};
 use sqlx::{MySqlPool, SqlitePool};
+use tokio::time::Instant;
+use crate::facades::terminal_ui::{Status,operation};
 
 #[derive(Debug)]
 pub struct Schema {
@@ -15,6 +18,8 @@ pub struct Schema {
     generator: Box<dyn SqlGenerator + Send + Sync>,
     client: Box<dyn DatabaseClient + Send + Sync>,
     debug: bool,
+    tables: HashMap<String, Table>,
+    current: Option<Table>,
 }
 
 impl Schema {
@@ -58,6 +63,8 @@ impl Schema {
             generator,
             client,
             debug,
+            tables: HashMap::new(),
+            current: None,
         })
     }
 
@@ -1143,7 +1150,7 @@ impl Schema {
         }
     }
 
-    pub async fn create<F>(&self, table_name: impl Into<String>, f: F)
+    pub fn create<F>(&mut self, table_name: impl Into<String>, f: F) -> &mut Self
     where
         F: FnOnce(&mut Table),
     {
@@ -1151,86 +1158,148 @@ impl Schema {
         let mut table = Table::new(&format!("{}{}", CONFIG.database.prefix, name));
         table.action = TableAction::Create;
         f(&mut table);
-        eprintln!("struct {}",&table.to_struct());
-        let mut body = vec![];
-        let mut foot = vec![];
-        let mut post = vec![];
-        for column in table.columns {
-            let (b, f, p) = self.generator.column(&column, &name, &table.action);
-            body.push(b);
-            if !f.is_empty() {
-                foot.push(f);
-            }
-            if !p.is_empty() {
-                post.push(p);
-            }
-        }
-        for key in table.foreign_keys {
-            let str = self.generator.foreign_key(&key, &name, &table.action);
 
-            if !str.is_empty() {
-                foot.push(str);
+
+        // check if the table already exists
+        if let Some(tbl) = self.tables.get_mut(&name) {
+
+            // update table state only if the existing table is the same
+            for column in &table.columns {
+                tbl.columns.push(column.clone());
             }
+        } else {
+            // insert the new table if it doesn't exist
+            self.tables.insert(name.clone(), table.clone());
         }
-        body.append(&mut foot);
-        let sql = Str::implode(",\n", body);
-        let sql = self.generator.table_sql(&name, &sql, &Str::implode(";\n", post), &table.action);
-        logger::info(&format!("Just4debug develop core: \n {}", sql));
-        match self.client.execute(&sql).await {
-            Ok(_) => {
-                logger::success(&format!("Created table  : \n {}", name));
-            },
-            Err(e) => {
-                logger::error(&format!("{:?}", e));
-            }
-        }
+
+        self.current = Some(table);
+        // println!("{:?}",self.tables.keys().cloned().collect::<Vec<_>>());
+
+        self
+        // eprintln!("struct {}",&table.to_struct());
+        // let mut body = vec![];
+        // let mut foot = vec![];
+        // let mut post = vec![];
+        // for column in table.columns {
+        //     let (b, f, p) = self.generator.column(&column, &name, &table.action);
+        //     body.push(b);
+        //     if !f.is_empty() {
+        //         foot.push(f);
+        //     }
+        //     if !p.is_empty() {
+        //         post.push(p);
+        //     }
+        // }
+        // for key in table.foreign_keys {
+        //     let str = self.generator.foreign_key(&key, &name, &table.action);
+        //
+        //     if !str.is_empty() {
+        //         foot.push(str);
+        //     }
+        // }
+        // body.append(&mut foot);
+        // let sql = Str::implode(",\n", body);
+        // let sql = self.generator.table_sql(&name, &sql, &Str::implode(";\n", post), &table.action);
+        // logger::info(&format!("Just4debug develop core: \n {}", sql));
+        // match self.client.execute(&sql).await {
+        //     Ok(_) => {
+        //         logger::success(&format!("Created table  : \n {}", name));
+        //     },
+        //     Err(e) => {
+        //         logger::error(&format!("{:?}", e));
+        //     }
+        // }
 
 
     }
 
-    pub async fn table<F>(&self, table_name: impl Into<String>, f: F)
+    pub fn table<F>(&mut self, table_name: impl Into<String>, f: F) -> &mut Self
     where
         F: FnOnce(&mut Table),
     {
         let name = table_name.into();
         let mut table = Table::new(&format!("{}{}", CONFIG.database.prefix, name));
         table.action = TableAction::Alter;
+
         f(&mut table);
 
-        let mut body = vec![];
-        let mut foot = vec![];
-        let mut post = vec![];
-        for column in table.columns {
-            let (b, f, p) = self.generator.column(&column, &name, &table.action);
-            body.push(b);
-            if !f.is_empty() {
-                foot.push(f);
-            }
-            if !p.is_empty() {
-                post.push(p);
-            }
-        }
-        for column in table.drop_columns {
-            body.push(self.generator.drop_column(&column));
-        }
-        for key in table.foreign_keys {
-            let str = self.generator.foreign_key(&key, &name, &table.action);
+        // println!("{:?}",self.tables.keys().cloned().collect::<Vec<_>>());
+        // check if the table already exists
+        if let Some(tbl) = self.tables.get_mut(&name) {
 
-            if !str.is_empty() {
-                foot.push(str);
+            // update table state only if the existing table is the same
+            for column in &table.columns {
+                tbl.columns.push(column.clone());
             }
+            // dbg!(&tbl.columns);
+
+        } else {
+            // insert the new table if it doesn't exist
+            self.tables.insert(name.clone(), table.clone());
         }
-        body.append(&mut foot);
-        let sql = Str::implode(",\n", body);
-        let sql = self.generator.table_sql(&name, &sql, &Str::implode(";\n", post), &table.action);
-        logger::info(&format!("Just4debug develop core: \n {}", sql));
-        match self.client.execute(&sql).await {
-            Ok(_) => {
-                logger::success(&format!("Updaed table  : \n {}", name));
-            },
-            Err(e) => {
-                logger::error(&format!("{:?}", e));
+
+
+        self.current = Some(table);
+
+        self
+
+
+    }
+
+    /// execute last migration generated by schema
+    pub async fn execute_migration(&self, final_name: &str ,duration: &Instant) -> Result<(),DbError> {
+
+        if let Some(table) = &self.current {
+            let mut body = vec![];
+            let mut foot = vec![];
+            let mut post = vec![];
+            for column in &table.columns {
+                let (b, f, p) = self.generator.column(&column, &table.name, &table.action);
+                body.push(b);
+                if !f.is_empty() {
+                    foot.push(f);
+                }
+                if !p.is_empty() {
+                    post.push(p);
+                }
             }
+            for column in &table.drop_columns {
+                body.push(self.generator.drop_column(&column));
+            }
+            for key in &table.foreign_keys {
+                let str = self.generator.foreign_key(&key, &table.name, &table.action);
+
+                if !str.is_empty() {
+                    foot.push(str);
+                }
+            }
+            body.append(&mut foot);
+            let sql = Str::implode(",\n", body);
+            let sql = self.generator.table_sql(&table.name, &sql, &Str::implode(";\n", post), &table.action);
+            // logger::info(&format!("Just4debug develop core: \n {}", sql));
+            match self.client.execute(&sql).await {
+                Ok(_) => {
+                    // logger::success(&format!("Updated table  : \n {}", &table.name));
+                    operation(
+                        &format!("migration executed: {}", final_name),
+                        duration.elapsed(),
+                        Status::Done,
+                    );
+                    Ok(())
+                },
+                Err(e) => {
+                    // logger::error(&format!("{:?}", e));
+                    operation(
+                        &format!("migration executed: {}", final_name),
+                        duration.elapsed(),
+                        Status::Failed,
+                    );
+                    Err(e)
+                }
+            }
+        }else {
+            Err(DbError::InvalidTable)
         }
+
     }
 }

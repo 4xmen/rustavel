@@ -1,5 +1,4 @@
 mod make;
-mod utility;
 
 // use std::env::current_dir;
 use clap::{Parser, Subcommand};
@@ -16,7 +15,12 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    Migrate,
+    Migrate {
+        /// Run migrations down
+        #[arg(long)]
+        down: bool,
+
+    },
     Serv,
     Make {
         #[command(subcommand)]
@@ -41,10 +45,15 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Migrate => {
+        Commands::Migrate  { down} => {
+            let mut args = vec!["run", "--package", "rustavel-db", "--bin", "database"];
+            if down {
+                args.push("--");
+                args.push("--down");
+            }
             // compile and run database
             ProcessCommand::new("cargo")
-                .args(["run", "--package", "rustavel-db", "--bin", "database"])
+                .args(args)
                 .status()
                 .unwrap();
         }
