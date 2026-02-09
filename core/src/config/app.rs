@@ -8,6 +8,7 @@ pub struct AppConfig {
     pub host: String,
     pub port: u16,
     pub timezone: String,
+    pub key: String,
 }
 
 impl Default for AppConfig {
@@ -19,6 +20,7 @@ impl Default for AppConfig {
             host: "127.0.0.1".into(),
             port: 3000,
             timezone: "UTC".into(),
+            key: "".into(),
         }
     }
 }
@@ -49,6 +51,10 @@ impl AppConfig {
 
         if let Ok(v) = env::var("APP_TIMEZONE") {
             cfg.timezone = v;
+        }
+
+        if let Ok(v) = env::var("APP_KEY") {
+            cfg.key = v;
         }
 
         cfg

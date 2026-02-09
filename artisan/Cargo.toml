@@ -16,3 +16,5 @@ minijinja.workspace = true
 illuminate-string.workspace =  true
 jiff.workspace =  true
 dialoguer.workspace = true
+data-encoding.workspace = true
+rand.workspace = true

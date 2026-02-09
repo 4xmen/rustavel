@@ -1606,11 +1606,13 @@ name = "rustavel-artisan"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "data-encoding",
  "dialoguer",
  "dotenv",
  "illuminate-string",
  "jiff",
  "minijinja",
+ "rand 0.8.5",
  "rustavel-core",
  "serde",
 ]

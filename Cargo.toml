@@ -10,21 +10,49 @@ resolver = "2"
 
 [workspace.dependencies]
 
-axum = { version = "0.8", features = ["ws", "macros"] }
+# ── Runtime / Async ───────────────────────────────
 tokio = { version = "1.49.0", features = ["full"] }
-minijinja = { version = "1", features = ["loader"] }
-dotenv = "0.15.0"
+
+# ── Web Framework / HTTP ──────────────────────────
+axum = { version = "0.8", features = ["ws", "macros"] }
 axum-extra = { version = "0.12.5", features = ["routing", "typed-routing"] }
-tower = "0.5.2"
+tower = "0.5.2" # middleware / layers
+
+# ── Templates / Views + Code genrate ─────────────────────────────
+minijinja = { version = "1", features = ["loader"] } # Jinja-like templates
+
+# ── Database / Persistence ────────────────────────
 sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls-ring-webpki", "mysql", "sqlite", "postgres", "macros"] }
-once_cell = "1.21.3"
-async-trait = "0.1.89"
-clap = { version = "4.5.56", features = ["derive"] }
-regex = "1.12.2"
+
+# ── Serialization / Data ──────────────────────────
 serde = { version = "1", features = ["derive"] }
-jiff = "0.2.18"
-illuminate-string = { git = "https://github.com/RustNSparks/illuminate-string.git", branch = "main" }
+
+# ── CLI / Config ──────────────────────────────────
+clap = { version = "4.5.56", features = ["derive"] }
+dotenv = "0.15.0" # env loading (dev)
+
+# ── Utilities / Glue ──────────────────────────────
+once_cell = "1.21.3"     # lazy statics
+async-trait = "0.1.89"   # async in traits
+
+# ── Time / Date ───────────────────────────────────
+jiff = "0.2.18" # modern time handling
+
+# ── String and utilty  ─────────────────────────
+regex = "1.12.2" # str
+illuminate-string = { git = "https://github.com/RustNSparks/illuminate-string.git", branch = "main" } #str
+rand = "0.8" #random
+
+# ── Terminal / UX ─────────────────────────
 colored = "2"
 terminal_size = "0.3"
 ansi-str = "0.9"
 dialoguer = "0.12"
+
+# ── Crypto / Security ─────────────────────
+ring = "0.17"            # crypto + secure hash
+crc32fast = "1.4"        # cheap integrity hash
+
+# ── Encoding / Web ────────────────────────
+data-encoding = "2.5"    # binary encodings
+percent-encoding = "2.3" # URL encode/decode

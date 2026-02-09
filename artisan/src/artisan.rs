@@ -1,4 +1,5 @@
 mod make;
+mod general;
 
 // use std::env::current_dir;
 use clap::{Parser, Subcommand};
@@ -7,7 +8,7 @@ use rustavel_core::config::CONFIG;
 // use clap::Args;
 use crate::make::migration::{NewMigArgs,migrate};
 use dialoguer::{theme::ColorfulTheme, Confirm};
-
+use rustavel_core::facades::terminal_ui::{TitleKind, title};
 fn confirm(message: &str) -> bool {
     Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt(message)
@@ -15,6 +16,7 @@ fn confirm(message: &str) -> bool {
         .interact()
         .unwrap()
 }
+use crate::general::lib::{generate_laravel_app_key, set_env_value};
 
 #[derive(Parser)]
 #[command(name = "artisan")]
@@ -25,6 +27,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    //// app key generate
+    KeyGenerate,
     Migrate {
         /// Run migrations down
         #[arg(long)]
@@ -55,12 +59,34 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
+
+        Commands::KeyGenerate => {
+            if !CONFIG.app.key.is_empty() {
+                if !confirm("Are you sure you want to regenerate key?") {
+
+                    title(TitleKind::Error,"Application key set successfully.");
+                    std::process::exit(0);
+                }
+            }
+
+            let app_key = generate_laravel_app_key();
+
+            match set_env_value( "APP_KEY", &app_key) {
+                Ok(_) => {
+                    title(TitleKind::Info,"Cancelled...");
+                }
+                Err(e) => {
+                    title(TitleKind::Error,&format!("failed to set APP_KEY: {}", e));
+                }
+            }
+
+        }
         Commands::Migrate  { down} => {
 
             if CONFIG.app.env == "production" {
                 if !confirm("Are you sure you want to run migration in production mode?") {
 
-                    println!("cancelled...");
+                    title(TitleKind::Info,"Cancelled...");
                     std::process::exit(0);
                 }
             }
@@ -89,8 +115,8 @@ fn main() {
 
             match status {
                 Ok(s) if s.success() => {},
-                Ok(s) => eprintln!("cargo watch exit with code: {} ", s.code().unwrap_or(-1)),
-                Err(e) => eprintln!(" cargo watch can't run: {}", e),
+                Ok(s) => title(TitleKind::Success,&format!("cargo watch exit with code: {} ", s.code().unwrap_or(-1))),
+                Err(e) => title(TitleKind::Error, &format!("cargo watch can't run: {}", e)),
             }
         },
         Commands::Make { kind } => {
@@ -100,6 +126,7 @@ fn main() {
                 MakeCmd::Migration(args) => {
                     let _ = migrate(&args).unwrap_or_else(|e| {
                         println!("{:?}",e);
+                        title(TitleKind::Error, &format!("migration errorC: {:?}", e));
                         false
                     });
                 },
