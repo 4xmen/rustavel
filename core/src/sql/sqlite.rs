@@ -51,6 +51,10 @@ impl SqlGenerator for SqliteGenerator {
         )
     }
 
+    fn get_migrations_listing(&self) -> String {
+        "SELECT migration FROM migrations".to_string()
+    }
+
     fn get_foreign_keys(&self, table_name: &str) -> String {
         format!("PRAGMA foreign_key_list(\"{}\");", table_name)
     }
@@ -59,15 +63,15 @@ impl SqlGenerator for SqliteGenerator {
         format!("DROP TABLE \"{}\";", table_name)
     }
 
-    fn drop_all_tables(&self) -> String {
-        "
-        SELECT 'DROP TABLE IF EXISTS \"' || name || '\";'
-        FROM sqlite_master
-        WHERE type = 'table'
-          AND name NOT LIKE 'sqlite_%';
-        "
-        .to_string()
-    }
+    // fn drop_all_tables(&self) -> String {
+    //     "
+    //     SELECT 'DROP TABLE IF EXISTS \"' || name || '\";'
+    //     FROM sqlite_master
+    //     WHERE type = 'table'
+    //       AND name NOT LIKE 'sqlite_%';
+    //     "
+    //     .to_string()
+    // }
 
     fn drop_all_views(&self) -> String {
         "
@@ -147,11 +151,11 @@ impl SqlGenerator for SqliteGenerator {
         "-- sqlite: drop database not supported via SQL".to_string()
     }
 
-    fn disable_foreign_key_constraints(&self, _db_name: &str) -> String {
+    fn disable_foreign_key_constraints(&self) -> String {
         "PRAGMA foreign_keys = OFF;".to_string()
     }
 
-    fn enable_foreign_key_constraints(&self, _db_name: &str) -> String {
+    fn enable_foreign_key_constraints(&self) -> String {
         "PRAGMA foreign_keys = ON;".to_string()
     }
 
@@ -365,4 +369,22 @@ impl SqlGenerator for SqliteGenerator {
             _ => "".to_string(),
         }
     }
+
+    fn get_ran(&self) -> String {
+        "SELECT migration FROM migrations".to_string()
+    }
+
+
+    fn get_next_batch_number(&self) -> String {
+        "SELECT MAX(batch) AS batch FROM migrations".to_string()
+    }
+
+    fn add_migrated_table(&self) -> String {
+        "INSERT INTO migrations (migration, batch) VALUES (?, ?)".to_string()
+    }
+
+    fn rem_migrated_table(&self) -> String {
+        "DELETE FROM migrations WHERE name = ?".to_string()
+    }
+
 }

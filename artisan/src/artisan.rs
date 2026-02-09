@@ -34,6 +34,14 @@ enum Commands {
         #[arg(long)]
         down: bool,
 
+        ///  Drop all tables and re-run all migrations
+        #[arg(long)]
+        fresh: bool,
+
+        /// Run migrations in passive mode ( Effective just in up mode)
+        #[arg(long)]
+        passive: bool,
+
     },
     Serv,
     Make {
@@ -81,7 +89,7 @@ fn main() {
             }
 
         }
-        Commands::Migrate  { down} => {
+        Commands::Migrate  { down, fresh, passive } => {
 
             if CONFIG.app.env == "production" {
                 if !confirm("Are you sure you want to run migration in production mode?") {
@@ -91,9 +99,17 @@ fn main() {
                 }
             }
             let mut args = vec!["run", "--package", "rustavel-db", "--bin", "database"];
-            if down {
+            if down || fresh || passive {
                 args.push("--");
+            }
+            if down {
                 args.push("--down");
+            }
+            if fresh {
+                args.push("--fresh");
+            }
+            if passive {
+                args.push("--passive");
             }
             // compile and run database
             ProcessCommand::new("cargo")
@@ -126,7 +142,7 @@ fn main() {
                 MakeCmd::Migration(args) => {
                     let _ = migrate(&args).unwrap_or_else(|e| {
                         println!("{:?}",e);
-                        title(TitleKind::Error, &format!("migration errorC: {:?}", e));
+                        title(TitleKind::Error, &format!("migration error: {:?}", e));
                         false
                     });
                 },

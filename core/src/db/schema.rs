@@ -1,16 +1,16 @@
-use std::collections::HashMap;
 use crate::config::CONFIG;
 use crate::config::database::DatabaseEngine;
-use illuminate_string::Str;
+use crate::db::table::{Table, TableAction};
+use crate::facades::terminal_ui::{Status, operation};
 use crate::logger;
 use crate::sql::database_client::{DatabaseClient, DbError, MySqlClient, SqliteClient};
 use crate::sql::generator::SqlGenerator;
 use crate::sql::mysql::MySqlGenerator;
 use crate::sql::sqlite::SqliteGenerator;
-use crate::db::table::{Table, TableAction};
+use illuminate_string::Str;
 use sqlx::{MySqlPool, SqlitePool};
+use std::collections::HashMap;
 use tokio::time::Instant;
-use crate::facades::terminal_ui::{Status,operation};
 
 #[derive(Debug)]
 pub struct Schema {
@@ -250,6 +250,23 @@ impl Schema {
                     .generator
                     .get_column_listing(&self.fix_table_name(&table_name.into())),
             )
+            .await
+        {
+            // note if table not found we don't have error just empty vector
+            Ok(tables) => Ok(tables),
+            Err(e) => {
+                if self.debug {
+                    logger::error(&format!("{:?}", e));
+                }
+                Err(e)
+            }
+        }
+    }
+
+    pub async fn get_migrations_listing(&self) -> Result<Vec<String>, DbError> {
+        match self
+            .client
+            .fetch_strings(&self.generator.get_migrations_listing())
             .await
         {
             // note if table not found we don't have error just empty vector
@@ -596,15 +613,13 @@ impl Schema {
     /// - Requires highest level of database permissions.
     /// - Permanently removes all data in all tables.
     pub async fn drop_all_tables(&self) -> Result<(), DbError> {
-        self.client
-            .execute(&self.generator.drop_all_tables())
-            .await
-            .map_err(|e| {
-                if self.debug {
-                    logger::error(&format!("{:?}", e));
-                }
-                e
-            })
+        self.disable_foreign_key_constraints();
+        let tables = self.get_tables().await?;
+        for table in tables {
+            self.drop_table(&table).await?;
+        }
+        self.enable_foreign_key_constraints();
+        Ok(())
     }
 
     /// Drops all views in the database.
@@ -968,7 +983,7 @@ impl Schema {
     /// use rustavel_core::db::schema::Schema;
     /// async fn run()  {
     ///     let s = Schema::new().await.unwrap();
-    ///     let disabled = s.disable_foreign_key_constraints("my_database").await;
+    ///     let disabled = s.disable_foreign_key_constraints().await;
     ///     println!("Foreign key constraints disabled: {}", disabled);
     /// }
     /// ```
@@ -977,13 +992,13 @@ impl Schema {
     /// - Not supported in all database systems.
     /// - Useful for bulk data operations or migrations where foreign key checks need to be temporarily suspended.
     /// - Requires appropriate database permissions.
-    pub async fn disable_foreign_key_constraints(&self, db_name: impl Into<String>) -> bool {
+    pub async fn disable_foreign_key_constraints(&self) -> bool {
         match self
             .client
             .execute(
                 &self
                     .generator
-                    .disable_foreign_key_constraints(&db_name.into()),
+                    .disable_foreign_key_constraints(),
             )
             .await
         {
@@ -1016,7 +1031,7 @@ impl Schema {
     /// use rustavel_core::db::schema::Schema;
     /// async fn run()  {
     ///     let s = Schema::new().await.unwrap();
-    ///     let enabled = s.enable_foreign_key_constraints("my_database").await;
+    ///     let enabled = s.enable_foreign_key_constraints().await;
     ///     println!("Foreign key constraints enabled: {}", enabled);
     /// }
     /// ```
@@ -1025,13 +1040,13 @@ impl Schema {
     /// - Not supported in all database systems.
     /// - Typically used after performing operations that required foreign key constraints to be disabled.
     /// - Requires appropriate database permissions.
-    pub async fn enable_foreign_key_constraints(&self, db_name: impl Into<String>) -> bool {
+    pub async fn enable_foreign_key_constraints(&self) -> bool {
         match self
             .client
             .execute(
                 &self
                     .generator
-                    .enable_foreign_key_constraints(&db_name.into()),
+                    .enable_foreign_key_constraints(),
             )
             .await
         {
@@ -1150,7 +1165,6 @@ impl Schema {
         }
     }
 
-
     pub fn create<F>(&mut self, table_name: impl Into<String>, f: F) -> &mut Self
     where
         F: FnOnce(&mut Table),
@@ -1160,10 +1174,8 @@ impl Schema {
         table.action = TableAction::Create;
         f(&mut table);
 
-
         // check if the table already exists
         if let Some(tbl) = self.tables.get_mut(&name) {
-
             // update table state only if the existing table is the same
             for column in &table.columns {
                 tbl.columns.push(column.clone());
@@ -1177,8 +1189,6 @@ impl Schema {
         // println!("{:?}",self.tables.keys().cloned().collect::<Vec<_>>());
 
         self
-
-
     }
 
     pub fn table<F>(&mut self, table_name: impl Into<String>, f: F) -> &mut Self
@@ -1194,29 +1204,27 @@ impl Schema {
         // println!("{:?}",self.tables.keys().cloned().collect::<Vec<_>>());
         // check if the table already exists
         if let Some(tbl) = self.tables.get_mut(&name) {
-
             // update table state only if the existing table is the same
             for column in &table.columns {
                 tbl.columns.push(column.clone());
             }
             // dbg!(&tbl.columns);
-
         } else {
             // insert the new table if it doesn't exist
             self.tables.insert(name.clone(), table.clone());
         }
 
-
         self.current = Some(table);
 
         self
-
-
     }
 
     /// execute last migration generated by schema
-    pub async fn execute_migration(&self, final_name: &str ,duration: &Instant) -> Result<(),DbError> {
-
+    pub async fn execute_migration(
+        &self,
+        final_name: &str,
+        duration: &Instant,
+    ) -> Result<(), DbError> {
         // extract last migration data information
         if let Some(table) = &self.current {
             let mut body = vec![];
@@ -1244,32 +1252,114 @@ impl Schema {
             }
             body.append(&mut foot);
             let sql = Str::implode(",\n", body);
-            let sql = self.generator.table_sql(&table.name, &sql, &Str::implode(";\n", post), &table.action);
+            let sql = self.generator.table_sql(
+                &table.name,
+                &sql,
+                &Str::implode(";\n", post),
+                &table.action,
+            );
             // logger::info(&format!("Just4debug develop core: \n {}", sql));
             // execute generated sql
             match self.client.execute(&sql).await {
                 Ok(_) => {
                     // logger::success(&format!("Updated table  : \n {}", &table.name));
-                    operation(
-                        &format!("migration executed: {}", final_name),
-                        duration.elapsed(),
-                        Status::Done,
-                    );
+                    operation(final_name, duration.elapsed(), Status::Done);
+
                     Ok(())
-                },
+                }
                 Err(e) => {
                     // logger::error(&format!("{:?}", e));
-                    operation(
-                        &format!("migration executed: {}", final_name),
-                        duration.elapsed(),
-                        Status::Failed,
-                    );
+                    operation(final_name, duration.elapsed(), Status::Failed);
                     Err(e)
                 }
             }
-        }else {
+        } else {
             Err(DbError::InvalidTable)
         }
+    }
 
+    pub async fn repository_exists(&self) -> Result<bool, DbError> {
+        self.has_table("migrations").await
+    }
+
+    pub async fn get_ran_migrations(&self) -> Result<Vec<String>, DbError> {
+        match self.client.fetch_strings(&self.generator.get_ran()).await {
+            // note if table not found we don't have error just empty vector
+            Ok(ran) => Ok(ran),
+            Err(e) => {
+                if self.debug {
+                    logger::error(&format!("{:?}", e));
+                }
+                Err(e)
+            }
+        }
+    }
+
+    pub async fn get_next_batch_number(&self) -> Result<i64, DbError> {
+        match self
+            .client
+            .fetch_numbers(&self.generator.get_next_batch_number())
+            .await
+        {
+            Ok(max_vec) => {
+                // if table is empty
+                if max_vec.is_empty() {
+                    Ok(1)
+                } else {
+                    Ok(max_vec[0] + 1)
+                }
+            }
+            Err(e) => {
+                if self.debug {
+                    logger::error(&format!("{:?}", e));
+                }
+                Err(e)
+            }
+        }
+    }
+
+    pub async fn create_migration_table(&mut self) -> Result<(), DbError> {
+        let start = Instant::now();
+        self.create("migrations", |table| {
+            table.id();
+            table.string("migration", 255);
+            table.integer("batch");
+        })
+        .execute_migration("Creating migration table", &start.into())
+        .await?;
+        Ok(())
+    }
+
+    pub async fn add_migrated_table(
+        &mut self,
+        migration_name: &str,
+        batch_number: i64,
+    ) -> Result<(), DbError> {
+        let sql = &self.generator.add_migrated_table();
+        match self
+            .client
+            .execute_params(sql, &[migration_name, &batch_number.to_string()])
+            .await
+        {
+            Ok(_) => Ok(()),
+            Err(e) => {
+                if self.debug {
+                    logger::error(&format!("{:?}", e));
+                }
+                Err(e)
+            }
+        }
+    }
+    pub async fn rem_migrated_table(&mut self, migration_name: &str) -> Result<(), DbError> {
+        let sql = &self.generator.rem_migrated_table();
+        match self.client.execute_params(sql, &[migration_name]).await {
+            Ok(_) => Ok(()),
+            Err(e) => {
+                if self.debug {
+                    logger::error(&format!("{:?}", e));
+                }
+                Err(e)
+            }
+        }
     }
 }

@@ -51,8 +51,8 @@ dialoguer = "0.12"
 
 # ── Crypto / Security ─────────────────────
 ring = "0.17"            # crypto + secure hash
-crc32fast = "1.4"        # cheap integrity hash
+crc32fast = "1.5"        # cheap integrity hash
 
 # ── Encoding / Web ────────────────────────
-data-encoding = "2.5"    # binary encodings
+data-encoding = "2.10"    # binary encodings
 percent-encoding = "2.3" # URL encode/decode

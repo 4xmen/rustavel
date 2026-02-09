@@ -1,7 +1,9 @@
 use super::generator::SqlGenerator;
 use crate::config::CONFIG;
+use crate::db::table::{
+    Column, ColumnDataType, ColumnOption, DefaultValue, ForeignKey, TableAction,
+};
 use crate::logger;
-use crate::db::table::{Column, ColumnDataType, ColumnOption, DefaultValue, ForeignKey, TableAction};
 use std::string::String;
 
 #[derive(Debug)]
@@ -51,6 +53,10 @@ impl SqlGenerator for MySqlGenerator {
         )
     }
 
+    fn get_migrations_listing(&self) -> String {
+        "SELECT `migration` FROM `migrations`".to_string()
+    }
+
     fn get_foreign_keys(&self, table_name: &str) -> String {
         format!(
             "
@@ -68,16 +74,16 @@ impl SqlGenerator for MySqlGenerator {
         format!("DROP TABLE `{}`;", table_name)
     }
 
-    fn drop_all_tables(&self) -> String {
-        "
-        SET FOREIGN_KEY_CHECKS = 0;
-        SELECT CONCAT('DROP TABLE IF EXISTS `', table_name, '`;')
-        FROM information_schema.tables
-        WHERE table_schema = DATABASE();
-        SET FOREIGN_KEY_CHECKS = 1;
-        "
-        .to_string()
-    }
+    // fn drop_all_tables(&self) -> String {
+    //     "
+    //     SET FOREIGN_KEY_CHECKS = 0;
+    //     SELECT CONCAT('DROP TABLE IF EXISTS `', table_name, '`;')
+    //     FROM information_schema.tables
+    //     WHERE table_schema = DATABASE();
+    //     SET FOREIGN_KEY_CHECKS = 1;
+    //     "
+    //     .to_string()
+    // }
 
     fn drop_all_views(&self) -> String {
         "
@@ -160,11 +166,11 @@ impl SqlGenerator for MySqlGenerator {
         format!("DROP DATABASE IF EXISTS `{}`;", db_name)
     }
 
-    fn disable_foreign_key_constraints(&self, _db_name: &str) -> String {
+    fn disable_foreign_key_constraints(&self) -> String {
         "SET FOREIGN_KEY_CHECKS = 0;".to_string()
     }
 
-    fn enable_foreign_key_constraints(&self, _db_name: &str) -> String {
+    fn enable_foreign_key_constraints(&self) -> String {
         "SET FOREIGN_KEY_CHECKS = 1;".to_string()
     }
 
@@ -382,9 +388,9 @@ impl SqlGenerator for MySqlGenerator {
             true => "ON UPDATE CASCADE",
             false => "",
         };
-        let prefix = match *action  {
+        let prefix = match *action {
             TableAction::Alter => "ADD ",
-            _ => ""
+            _ => "",
         };
         format!(
             "{} CONSTRAINT `{}_{}_foreign` FOREIGN KEY (`{}`) \
@@ -428,5 +434,20 @@ impl SqlGenerator for MySqlGenerator {
             }
             _ => "".to_string(),
         }
+    }
+
+    fn get_ran(&self) -> String {
+        "SELECT `migration` FROM `migrations`".to_string()
+    }
+    fn get_next_batch_number(&self) -> String {
+        "SELECT MAX(batch) AS 'batch' FROM `migrations`".to_string()
+    }
+
+    fn add_migrated_table(&self) -> String {
+        "INSERT INTO `migrations` (`migration`, `batch`) VALUES (?, ?)".to_string()
+    }
+
+    fn rem_migrated_table(&self) -> String {
+        "DELETE FROM `migrations` WHERE  `name` = ?".to_string()
     }
 }

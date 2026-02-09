@@ -20,7 +20,7 @@ pub fn title(kind: TitleKind, message: &str) {
         TitleKind::Success => " OK ".on_green().bold(),
     };
 
-    println!("\n{}  {}", label, message.bold());
+    println!("\n{}  {}\n", label, message.bold());
 }
 
 /// Print a timed operation line similar to Laravel output
