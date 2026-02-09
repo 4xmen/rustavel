@@ -62,6 +62,9 @@ impl SqlGenerator for SqliteGenerator {
     fn drop_table(&self, table_name: &str) -> String {
         format!("DROP TABLE \"{}\";", table_name)
     }
+    fn drop_view(&self, view_name: &str) -> String {
+        format!("DROP VIEW \"{}\";", view_name)
+    }
 
     // fn drop_all_tables(&self) -> String {
     //     "
@@ -73,14 +76,14 @@ impl SqlGenerator for SqliteGenerator {
     //     .to_string()
     // }
 
-    fn drop_all_views(&self) -> String {
-        "
-        SELECT 'DROP VIEW IF EXISTS \"' || name || '\";'
-        FROM sqlite_master
-        WHERE type = 'view';
-        "
-        .to_string()
-    }
+    // fn drop_all_views(&self) -> String {
+    //     "
+    //     SELECT 'DROP VIEW IF EXISTS \"' || name || '\";'
+    //     FROM sqlite_master
+    //     WHERE type = 'view';
+    //     "
+    //     .to_string()
+    // }
 
     fn has_column(&self, table_name: &str, column_name: &str) -> String {
         format!(

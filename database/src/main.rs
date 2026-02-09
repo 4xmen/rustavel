@@ -22,6 +22,7 @@ struct Cli {
     fresh: bool,
 }
 
+
 fn main() {
     dotenv::dotenv().ok();
 

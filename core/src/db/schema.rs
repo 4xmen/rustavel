@@ -11,6 +11,7 @@ use illuminate_string::Str;
 use sqlx::{MySqlPool, SqlitePool};
 use std::collections::HashMap;
 use tokio::time::Instant;
+use futures::future::join_all;
 
 #[derive(Debug)]
 pub struct Schema {
@@ -581,6 +582,22 @@ impl Schema {
                 e
             })
     }
+
+    pub async fn drop_view(&self, view_name: impl Into<String>) -> Result<(), DbError> {
+        self.client
+            .execute(
+                &self
+                    .generator
+                    .drop_view(&self.fix_table_name(&view_name.into())),
+            )
+            .await
+            .map_err(|e| {
+                if self.debug {
+                    logger::error(&format!("{:?}", e));
+                }
+                e
+            })
+    }
     /// Drops all tables in the database.
     ///
     /// This method:
@@ -614,9 +631,21 @@ impl Schema {
     /// - Permanently removes all data in all tables.
     pub async fn drop_all_tables(&self) -> Result<(), DbError> {
         self.disable_foreign_key_constraints();
+
         let tables = self.get_tables().await?;
-        for table in tables {
-            self.drop_table(&table).await?;
+        let drop_futures: Vec<_> = tables
+            .into_iter()
+            .map(|table| {
+                self.drop_table(table)
+            })
+            .collect();
+
+        // execute all each other
+        let results = join_all(drop_futures).await;
+
+       // check result
+        for res in results {
+            res?; // خطاها propagate می‌شوند
         }
         self.enable_foreign_key_constraints();
         Ok(())
@@ -654,15 +683,22 @@ impl Schema {
     /// - Permanently removes all database views.
     /// - Requires appropriate database permissions.
     pub async fn drop_all_views(&self) -> Result<(), DbError> {
-        self.client
-            .execute(&self.generator.drop_all_views())
-            .await
-            .map_err(|e| {
-                if self.debug {
-                    logger::error(&format!("{:?}", e));
-                }
-                e
+        let views = self.get_views().await?;
+        let drop_futures: Vec<_> = views
+            .into_iter()
+            .map(|view| {
+                self.drop_view(view)
             })
+            .collect();
+
+        // execute all each other
+        let results = join_all(drop_futures).await;
+
+        // check result
+        for res in results {
+            res?; // خطاها propagate می‌شوند
+        }
+        Ok(())
     }
 
     /// Checks if a specific column exists in a given table.

@@ -12,6 +12,7 @@ resolver = "2"
 
 # ── Runtime / Async ───────────────────────────────
 tokio = { version = "1.49.0", features = ["full"] }
+futures = "0.3"
 
 # ── Web Framework / HTTP ──────────────────────────
 axum = { version = "0.8", features = ["ws", "macros"] }

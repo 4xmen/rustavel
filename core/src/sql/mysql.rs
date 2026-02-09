@@ -74,6 +74,10 @@ impl SqlGenerator for MySqlGenerator {
         format!("DROP TABLE `{}`;", table_name)
     }
 
+    fn drop_view(&self, view_name: &str) -> String {
+        format!("DROP VIEW `{}`;", view_name)
+    }
+
     // fn drop_all_tables(&self) -> String {
     //     "
     //     SET FOREIGN_KEY_CHECKS = 0;
@@ -85,14 +89,14 @@ impl SqlGenerator for MySqlGenerator {
     //     .to_string()
     // }
 
-    fn drop_all_views(&self) -> String {
-        "
-        SELECT CONCAT('DROP VIEW IF EXISTS `', table_name, '`;')
-        FROM information_schema.views
-        WHERE table_schema = DATABASE();
-        "
-        .to_string()
-    }
+    // fn drop_all_views(&self) -> String {
+    //     "
+    //     SELECT CONCAT('DROP VIEW IF EXISTS `', table_name, '`;')
+    //     FROM information_schema.views
+    //     WHERE table_schema = DATABASE();
+    //     "
+    //     .to_string()
+    // }
 
     fn has_column(&self, table_name: &str, column_name: &str) -> String {
         format!(

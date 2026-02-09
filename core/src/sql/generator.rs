@@ -10,8 +10,9 @@ pub trait SqlGenerator: Debug + Sync + Send {
     fn get_migrations_listing(&self) -> String;
     fn get_foreign_keys(&self, table_name: &str) -> String;
     fn drop_table(&self, table_name: &str) -> String;
+    fn drop_view(&self, view_name: &str) -> String;
     // fn drop_all_tables(&self) -> String;
-    fn drop_all_views(&self) -> String;
+    // fn drop_all_views(&self) -> String;
     fn has_column(&self, table_name: &str, column_name: &str) -> String;
     fn has_table(&self, table_name: &str) -> String;
     fn has_view(&self, table_name: &str) -> String;
