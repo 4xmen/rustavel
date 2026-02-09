@@ -31,8 +31,8 @@ Rustavel follows a few strict principles:
 - **Opt-in abstractions**  
   Nothing is mandatory. You can adopt individual parts without buying into the whole stack.
 
-- **SQL-first, not ORM-first**  
-  Data access is explicit. Rustavel does not impose an ORM model.
+- **Schema-first, not ORM-first**  
+  Data access is explicit. Rustavel does not impose an ORM model but focuses on migrations; the rest is up to the user.
 
 - **Familiar ideas, idiomatic Rust**  
   Laravel-inspired *concepts*, not Laravel-style implementations.

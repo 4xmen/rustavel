@@ -583,6 +583,40 @@ impl Schema {
             })
     }
 
+    /// Drops a specific view from the database.
+    ///
+    /// This method:
+    /// - Ensures the view name is properly formatted.
+    /// - Utilizes the database generator to create a SQL DROP VIEW command.
+    /// - Executes the drop command using the database client.
+    ///
+    /// # Behavior
+    /// - Attempts to remove the specified view from the database.
+    /// - Returns success if the view is dropped or does not exist.
+    /// - Logs any errors if debug mode is enabled.
+    ///
+    /// # Parameters
+    /// - `view_name`: The name of the view to be dropped.
+    ///
+    /// # Returns
+    /// - `Ok(())`: Successful view drop operation.
+    /// - `Err(DbError)`: Error encountered during view drop.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use rustavel_core::db::schema::Schema;
+    /// async fn run() {
+    ///     let s = Schema::new().await.unwrap();
+    ///     match s.drop_view("adult_users").await {
+    ///         Ok(_) => println!("View dropped successfully"),
+    ///         Err(e) => eprintln!("Error dropping view: {:?}", e),
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// # Notes
+    /// - Be cautious when dropping views as this action is irreversible.
+    /// - Requires appropriate database permissions.
     pub async fn drop_view(&self, view_name: impl Into<String>) -> Result<(), DbError> {
         self.client
             .execute(
@@ -630,7 +664,7 @@ impl Schema {
     /// - Requires highest level of database permissions.
     /// - Permanently removes all data in all tables.
     pub async fn drop_all_tables(&self) -> Result<(), DbError> {
-        self.disable_foreign_key_constraints();
+        self.disable_foreign_key_constraints().await;
 
         let tables = self.get_tables().await?;
         let drop_futures: Vec<_> = tables
@@ -645,9 +679,9 @@ impl Schema {
 
        // check result
         for res in results {
-            res?; // خطاها propagate می‌شوند
+            res?;
         }
-        self.enable_foreign_key_constraints();
+        self.enable_foreign_key_constraints().await;
         Ok(())
     }
 
@@ -1201,6 +1235,44 @@ impl Schema {
         }
     }
 
+    /// Defines and creates a new table in the schema.
+    ///
+    /// This method:
+    /// - Initializes a new `Table` with a specified name.
+    /// - Allows customized configuration of the table's columns and properties via a closure.
+    /// - Checks if a table with the same name already exists, updating its state or inserting a new entry as appropriate.
+    ///
+    /// # Parameters
+    /// - `table_name`: The name of the table to be created.
+    /// - `f`: A closure that receives a mutable reference to a `Table` object, allowing configuration of the table's structure.
+    ///
+    /// # Returns
+    /// - `&mut Self`: A mutable reference to the current schema builder instance, allowing for method chaining.
+    ///
+    /// # Behavior
+    /// - If the table already exists, its state is updated only if the existing structure is the same as the new definition.
+    /// - If the table does not exist, it is added to the schema's internal table representation.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use rustavel_core::db::schema::Schema;
+    ///
+    /// async fn run() {
+    ///     let mut s = Schema::new().await.unwrap();
+    ///     s.create("users", |table| {
+    ///         table.id();
+    ///         table.string("username", 255);
+    ///         table.integer("age");
+    ///     });
+    ///
+    ///     // Further operations...
+    /// }
+    /// ```
+    ///
+    /// # Notes
+    /// - This method enables flexible table definitions and can be called multiple times to define different tables.
+    /// - Ensure appropriate database permissions are granted to create tables in the schema.
+
     pub fn create<F>(&mut self, table_name: impl Into<String>, f: F) -> &mut Self
     where
         F: FnOnce(&mut Table),
@@ -1226,6 +1298,42 @@ impl Schema {
 
         self
     }
+
+    /// Alters an existing table in the schema.
+    ///
+    /// This method:
+    /// - Initializes a `Table` object representing the specified table name.
+    /// - Allows for modification of the table's columns and properties via a closure.
+    /// - Checks if the specified table already exists and updates its state accordingly.
+    ///
+    /// # Parameters
+    /// - `table_name`: The name of the table to be altered.
+    /// - `f`: A closure that receives a mutable reference to a `Table` object, allowing for the configuration of the table's structure.
+    ///
+    /// # Returns
+    /// - `&mut Self`: A mutable reference to the current schema builder instance, allowing for method chaining.
+    ///
+    /// # Behavior
+    /// - If the table already exists, its state is updated based on the alterations made in the provided closure.
+    /// - If the table does not exist, it is added to the schema's internal representation as a new entry.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use rustavel_core::db::schema::Schema;
+    ///
+    /// async fn run() {
+    ///     let mut s = Schema::new().await.unwrap();
+    ///     s.table("users", |table| {
+    ///         table.string("email", 255).unique(); // Adding a new column
+    ///     });
+    ///
+    ///     // Further operations...
+    /// }
+    /// ```
+    ///
+    /// # Notes
+    /// - This method enables modifications to the existing table structure and can be invoked multiple times for different tables.
+    /// - Ensure appropriate database permissions are granted to alter tables in the schema.
 
     pub fn table<F>(&mut self, table_name: impl Into<String>, f: F) -> &mut Self
     where
@@ -1255,7 +1363,49 @@ impl Schema {
         self
     }
 
-    /// execute last migration generated by schema
+    /// Executes the last migration generated by the schema.
+    ///
+    /// This method:
+    /// - Retrieves the last migration's data information.
+    /// - Generates the SQL commands to apply the migration, including adding or dropping columns and creating foreign keys.
+    /// - Executes the generated SQL command using the database client.
+    ///
+    /// # Behavior
+    /// - Attempts to apply the last migration to the database.
+    /// - Returns success if the migration is executed successfully.
+    /// - Logs the operation status if debug mode is enabled.
+    ///
+    /// # Parameters
+    /// - `final_name`: The name of the migration being executed.
+    /// - `duration`: The time duration taken to execute the migration.
+    ///
+    /// # Returns
+    /// - `Ok(())`: Successful execution of the migration.
+    /// - `Err(DbError)`: Error encountered during migration execution.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use rustavel_core::db::schema::Schema;
+    /// use std::time::Instant;
+    ///
+    /// async fn run() {
+    ///     let mut s = Schema::new().await.unwrap();
+    ///     let start_time = Instant::now();
+    ///     s.create("mocks",|table|{
+    ///         table.id();
+    ///         table.string("name",110).nullable().comment("name of mock");
+    ///     });
+    ///     match s.execute_migration("add_user_table", &start_time.into()).await {
+    ///         Ok(_) => println!("Migration executed successfully"),
+    ///         Err(e) => eprintln!("Error executing migration: {:?}", e),
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// # Notes
+    /// - Ensure that the current migration data is valid before calling this method.
+    /// - Requires appropriate database permissions to execute the migration.
+
     pub async fn execute_migration(
         &self,
         final_name: &str,
@@ -1314,9 +1464,74 @@ impl Schema {
         }
     }
 
+
+    /// Checks if the migrations repository exists in the database.
+    ///
+    /// This method:
+    /// - Queries the database to determine if the `migrations` table is present.
+    ///
+    /// # Behavior
+    /// - Returns `true` if the migrations repository exists, `false` otherwise.
+    /// - Returns an error if there is an issue querying the database.
+    ///
+    /// # Returns
+    /// - `Ok(true)`: The migrations repository exists.
+    /// - `Ok(false)`: The migrations repository does not exist.
+    /// - `Err(DbError)`: Error encountered while checking the repository's existence.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use rustavel_core::db::schema::Schema;
+    ///
+    /// async fn run() {
+    ///     let s = Schema::new().await.unwrap();
+    ///     match s.repository_exists().await {
+    ///         Ok(exists) if exists => println!("Migrations repository exists"),
+    ///         Ok(_) => println!("Migrations repository does not exist"),
+    ///         Err(e) => eprintln!("Error checking repository: {:?}", e),
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// # Notes
+    /// - This method relies on the `has_table` function to perform the check.
+    /// - Requires appropriate database permissions to query the table existence.
+
     pub async fn repository_exists(&self) -> Result<bool, DbError> {
         self.has_table("migrations").await
     }
+
+
+    /// Retrieves a list of successfully executed migrations from the database.
+    ///
+    /// This method:
+    /// - Queries the `migrations` table to fetch the names of migrations that have been executed.
+    ///
+    /// # Behavior
+    /// - Returns a vector of migration names that have been run.
+    /// - If the migrations table does not exist, it returns an empty vector without an error.
+    /// - Logs any errors encountered during the operation if debug mode is enabled.
+    ///
+    /// # Returns
+    /// - `Ok(Vec<String>)`: A vector containing the names of executed migrations.
+    /// - `Err(DbError)`: Error encountered while fetching the migrations.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use rustavel_core::db::schema::Schema;
+    ///
+    /// async fn run() {
+    ///     let s = Schema::new().await.unwrap();
+    ///     match s.get_ran_migrations().await {
+    ///         Ok(ran) => println!("Ran migrations: {:?}", ran),
+    ///         Err(e) => eprintln!("Error retrieving ran migrations: {:?}", e),
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// # Notes
+    /// - This method relies on the `fetch_strings` function to perform the retrieval.
+    /// - Ensure appropriate database permissions are granted to access the migrations table.
 
     pub async fn get_ran_migrations(&self) -> Result<Vec<String>, DbError> {
         match self.client.fetch_strings(&self.generator.get_ran()).await {
@@ -1331,6 +1546,36 @@ impl Schema {
         }
     }
 
+    /// Retrieves the next available batch number for migrations.
+    ///
+    /// This method:
+    /// - Queries the database to find the highest batch number currently recorded.
+    /// - Increments the highest number by one to determine the next batch number.
+    ///
+    /// # Behavior
+    /// - Returns `1` if there are no existing batch numbers (i.e., the table is empty).
+    /// - Logs any errors encountered during the operation if debug mode is enabled.
+    ///
+    /// # Returns
+    /// - `Ok(i64)`: The next available batch number.
+    /// - `Err(DbError)`: Error encountered while fetching the batch number.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use rustavel_core::db::schema::Schema;
+    ///
+    /// async fn run() {
+    ///     let s = Schema::new().await.unwrap();
+    ///     match s.get_next_batch_number().await {
+    ///         Ok(next_batch) => println!("Next batch number: {}", next_batch),
+    ///         Err(e) => eprintln!("Error retrieving next batch number: {:?}", e),
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// # Notes
+    /// - This method relies on the `fetch_numbers` function to perform the query.
+    /// - Ensure appropriate database permissions are granted to access the required data.
     pub async fn get_next_batch_number(&self) -> Result<i64, DbError> {
         match self
             .client
@@ -1354,6 +1599,43 @@ impl Schema {
         }
     }
 
+
+
+    /// Creates the migration table in the database.
+    ///
+    /// This method:
+    /// - Initializes a new table named `migrations`.
+    /// - Defines the structure of the table, including:
+    ///   - An `id` column as the primary key.
+    ///   - A `migration` column to store migration names (up to 255 characters).
+    ///   - A `batch` column to track the batch number for the migration.
+    ///
+    /// # Behavior
+    /// - Executes the creation of the table and logs the operation's duration.
+    /// - Returns success if the table is created successfully.
+    /// - Returns an error if any issue is encountered during the creation process.
+    ///
+    /// # Returns
+    /// - `Ok(())`: Successful creation of the migration table.
+    /// - `Err(DbError)`: Error encountered during table creation.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use rustavel_core::db::schema::Schema;
+    /// use std::time::Instant;
+    ///
+    /// async fn run() {
+    ///     let mut s = Schema::new().await.unwrap();
+    ///     match s.create_migration_table().await {
+    ///         Ok(_) => println!("Migration table created successfully"),
+    ///         Err(e) => eprintln!("Error creating migration table: {:?}", e),
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// # Notes
+    /// - The method utilizes a closure to define the table schema and then executes the migration creation.
+    /// - Ensure appropriate database permissions are granted to create tables.
     pub async fn create_migration_table(&mut self) -> Result<(), DbError> {
         let start = Instant::now();
         self.create("migrations", |table| {
@@ -1366,6 +1648,39 @@ impl Schema {
         Ok(())
     }
 
+    /// Adds a migrated table entry to the migrations repository.
+    ///
+    /// This method:
+    /// - Inserts a new record into the `migrations` table with the specified migration name and batch number.
+    ///
+    /// # Behavior
+    /// - Executes the insert operation using parameterized SQL for security against SQL injection.
+    /// - Logs any errors encountered during the operation if debug mode is enabled.
+    ///
+    /// # Parameters
+    /// - `migration_name`: The name of the migration being added.
+    /// - `batch_number`: The batch number associated with the migration.
+    ///
+    /// # Returns
+    /// - `Ok(())`: Successful addition of the migrated table entry.
+    /// - `Err(DbError)`: Error encountered while adding the entry.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use rustavel_core::db::schema::Schema;
+    ///
+    /// async fn run() {
+    ///     let mut s = Schema::new().await.unwrap();
+    ///     match s.add_migrated_table("add_user_table", 1).await {
+    ///         Ok(_) => println!("Migration added successfully"),
+    ///         Err(e) => eprintln!("Error adding migration: {:?}", e),
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// # Notes
+    /// - This method utilizes a prepared statement to execute the insertion safely.
+    /// - Ensure appropriate database permissions are granted to modify the migrations table.
     pub async fn add_migrated_table(
         &mut self,
         migration_name: &str,
@@ -1386,6 +1701,41 @@ impl Schema {
             }
         }
     }
+
+
+    /// Removes a migrated table entry from the migrations repository.
+    ///
+    /// This method:
+    /// - Deletes the specified migration entry from the `migrations` table based on the migration name.
+    ///
+    /// # Behavior
+    /// - Executes the deletion using parameterized SQL for security against SQL injection.
+    /// - Logs any errors encountered during the operation if debug mode is enabled.
+    ///
+    /// # Parameters
+    /// - `migration_name`: The name of the migration to be removed.
+    ///
+    /// # Returns
+    /// - `Ok(())`: Successful removal of the migrated table entry.
+    /// - `Err(DbError)`: Error encountered while removing the entry.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use rustavel_core::db::schema::Schema;
+    ///
+    /// async fn run() {
+    ///     let mut s = Schema::new().await.unwrap();
+    ///     match s.rem_migrated_table("add_user_table").await {
+    ///         Ok(_) => println!("Migration removed successfully"),
+    ///         Err(e) => eprintln!("Error removing migration: {:?}", e),
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// # Notes
+    /// - This method utilizes a prepared statement for safe execution of the deletion.
+    /// - Ensure appropriate database permissions are granted to modify the migrations table.
+
     pub async fn rem_migrated_table(&mut self, migration_name: &str) -> Result<(), DbError> {
         let sql = &self.generator.rem_migrated_table();
         match self.client.execute_params(sql, &[migration_name]).await {
