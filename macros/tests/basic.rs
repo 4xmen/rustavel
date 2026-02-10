@@ -9,6 +9,14 @@ struct TestStruct {
 
     password_confirmation: String,
 }
+#[derive(LaravelValidate)]
+struct OtherTestStruct {
+    #[validating("required|min:20|max:180")]
+    username: String,
+
+    #[validating("nullable|min:0")]
+    age: Option<i32>,
+}
 
 #[test]
 fn test_parsed_rules() {

@@ -6,6 +6,9 @@ use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{Attribute, DeriveInput, Field, LitStr, parse_macro_input};
 use syn::{Error, Result};
+use std::collections::HashSet;
+use syn::{Type, TypePath};
+
 
 // Define an enum for the validation rules
 // This enum represents all supported rules, making it easy to extend later by adding new variants
@@ -47,7 +50,7 @@ pub fn laravel_validate(input: TokenStream) -> TokenStream {
 
     if let syn::Data::Struct(data_struct) = &mut ast.data {
         // collect all fields name required in safe validation like confirm
-        let field_names: Vec<String> = data_struct
+        let field_names: HashSet<String> = data_struct
             .fields
             .iter()
             .filter_map(|field| field.ident.as_ref().map(|ident| ident.to_string()))
@@ -62,6 +65,20 @@ pub fn laravel_validate(input: TokenStream) -> TokenStream {
                 // Parse the rules from the attribute (either single string or list) into Vec<Rule>
                 match parse_rules(&attr, &field_names) {
                     Ok(rules) => {
+                        // check nullable can't be a non Option<_> type
+                        if rules.iter().any(|r| matches!(r, Rule::Nullable)) {
+                            if !is_option_type(&field.ty) {
+                                return Error::new(
+                                    field.ty.__span(),
+                                    format!(
+                                        "Field '{}' is marked as nullable but is not Option<T>",
+                                        field.ident.as_ref().unwrap()
+                                    ),
+                                )
+                                    .to_compile_error()
+                                    .into();
+                            }
+                        }
                         // For display, format as "field: rule1|rule2|..."
                         let field_name = field.ident.as_ref().unwrap().to_string();
                         let rules_str: Vec<String> = rules.iter().map(|r| r.as_str()).collect();
@@ -84,10 +101,11 @@ pub fn laravel_validate(input: TokenStream) -> TokenStream {
     // This is static (no &self needed) since rules are compile-time known
     // In tests, we can call Struct::display_parsed_rules()
     let struct_name = &ast.ident;
+    let lit = LitStr::new(&rules_display, Span::call_site());
     let r#gen = quote! {
-        impl #struct_name {
-            pub fn display_parsed_rules() -> &'static str {
-                #rules_display
+    impl #struct_name {
+        pub fn display_parsed_rules() -> &'static str {
+                #lit
             }
         }
     };
@@ -110,7 +128,7 @@ fn find_validating_attr(field: &Field) -> Option<Attribute> {
 /// - Single string: #[validating("required|email|max:180")] -> split by '|' and parse each
 /// - List of strings: #[validating("required", "email", "max:180")] -> parse each
 /// Returns syn::Error if any rule is invalid or unsupported
-fn parse_rules(attr: &Attribute, fields_name: &Vec<String>) -> Result<Vec<Rule>> {
+fn parse_rules(attr: &Attribute, fields_name: &HashSet<String>) -> Result<Vec<Rule>> {
     let mut rules = Vec::new();
 
     // Parse the attribute's arguments as a punctuated list of LitStr
@@ -142,7 +160,7 @@ fn parse_rules(attr: &Attribute, fields_name: &Vec<String>) -> Result<Vec<Rule>>
 
 /// Parse a single rule string like "required" or "max:180" or "confirmed:other_field" into Rule
 /// Returns syn::Error if invalid format or unsupported rule
-fn parse_single_rule(raw: &str, span: Span, fields_name: &Vec<String>) -> Result<Rule> {
+fn parse_single_rule(raw: &str, span: Span, fields_name: &HashSet<String>) -> Result<Rule> {
     if raw.contains(':') {
         // Rules with parameters, like "max:180" or "confirmed:password_confirmation"
         let parts: Vec<&str> = raw.splitn(2, ':').collect();
@@ -191,4 +209,13 @@ fn parse_single_rule(raw: &str, span: Span, fields_name: &Vec<String>) -> Result
             _ => Err(Error::new(span, format!("Unsupported rule: '{}'", raw))),
         }
     }
+}
+
+fn is_option_type(ty: &Type) -> bool {
+    if let Type::Path(TypePath { path, .. }) = ty {
+        if let Some(segment) = path.segments.last() {
+            return segment.ident == "Option";
+        }
+    }
+    false
 }
