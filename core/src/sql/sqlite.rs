@@ -51,9 +51,6 @@ impl SqlGenerator for SqliteGenerator {
         )
     }
 
-    fn get_migrations_listing(&self) -> String {
-        "SELECT migration FROM migrations".to_string()
-    }
 
     fn get_foreign_keys(&self, table_name: &str) -> String {
         format!("PRAGMA foreign_key_list(\"{}\");", table_name)
@@ -373,8 +370,14 @@ impl SqlGenerator for SqliteGenerator {
         }
     }
 
+
+
     fn get_ran(&self) -> String {
         "SELECT migration FROM migrations".to_string()
+    }
+
+    fn get_ran_gt(&self) -> String {
+        "SELECT migration FROM migrations WHERE batch > 0".to_string()
     }
 
 
@@ -387,7 +390,7 @@ impl SqlGenerator for SqliteGenerator {
     }
 
     fn rem_migrated_table(&self) -> String {
-        "DELETE FROM migrations WHERE name = ?".to_string()
+        "DELETE FROM migrations WHERE migration = ?".to_string()
     }
 
 }

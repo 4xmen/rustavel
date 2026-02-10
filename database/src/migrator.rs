@@ -13,7 +13,7 @@ pub trait Migration: Send + Sync {
     fn name(&self) -> &'static str;
 }
 
-pub async fn run_migrations(up: bool, passive: bool, fresh: bool) -> Result<(), DbError> {
+pub async fn run_migrations(rollback: i64, passive: bool, fresh: bool) -> Result<(), DbError> {
     let migrations = get_all_migrations();
     let mut batch = 1;
     let mut schema = Schema::new().await?;
@@ -32,15 +32,18 @@ pub async fn run_migrations(up: bool, passive: bool, fresh: bool) -> Result<(), 
             schema.create_migration_table().await?;
         }
         batch = schema.get_next_batch_number().await?;
-        schema.get_migrations_listing().await?
+        schema.get_ran_migrations().await?
     } else {
         vec![]
     };
+    let downs = schema.get_ran_migrations_gt(batch - (rollback + 1)).await?;
+
 
 
     title(TitleKind::Info,"Running migrations.");
     for mig in migrations {
-        if up {
+        start = Instant::now();
+        if rollback <= 0 {
             mig.up(&mut schema).await?;
             if !passive && !migration_list.contains(&mig.name().to_string()) {
                 // run migration
@@ -52,7 +55,13 @@ pub async fn run_migrations(up: bool, passive: bool, fresh: bool) -> Result<(), 
 
             }
         } else {
-            mig.down(&mut schema).await?;
+            // println!("Rolling back {}, {:?}, {} , {}", mig.name(), downs, batch, batch - (rollback + 1));
+            if downs.contains(&mig.name().to_string()) {
+                mig.down(&mut schema).await?;
+                migrated_count += 1;
+                schema.rem_migrated_table(mig.name()).await?;
+                operation(mig.name(), start.elapsed(), Status::Done);
+            }
         }
     }
 

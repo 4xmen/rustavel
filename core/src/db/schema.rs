@@ -264,22 +264,6 @@ impl Schema {
         }
     }
 
-    pub async fn get_migrations_listing(&self) -> Result<Vec<String>, DbError> {
-        match self
-            .client
-            .fetch_strings(&self.generator.get_migrations_listing())
-            .await
-        {
-            // note if table not found we don't have error just empty vector
-            Ok(tables) => Ok(tables),
-            Err(e) => {
-                if self.debug {
-                    logger::error(&format!("{:?}", e));
-                }
-                Err(e)
-            }
-        }
-    }
 
     /// Attempts to retrieve the list of columns for a specified database table.
     ///
@@ -1535,6 +1519,50 @@ impl Schema {
 
     pub async fn get_ran_migrations(&self) -> Result<Vec<String>, DbError> {
         match self.client.fetch_strings(&self.generator.get_ran()).await {
+            // note if table not found we don't have error just empty vector
+            Ok(ran) => Ok(ran),
+            Err(e) => {
+                if self.debug {
+                    logger::error(&format!("{:?}", e));
+                }
+                Err(e)
+            }
+        }
+    }
+
+    /// Retrieves a list of successfully executed migrations from the database  greater tahn batch.
+    ///
+    /// This method:
+    /// - Queries the `migrations` table to fetch the names of migrations that have been executed.
+    ///
+    /// # Behavior
+    /// - Returns a vector of migration names that have been run.
+    /// - If the migrations table does not exist, it returns an empty vector without an error.
+    /// - Logs any errors encountered during the operation if debug mode is enabled.
+    ///
+    /// # Returns
+    /// - `Ok(Vec<String>)`: A vector containing the names of executed migrations.
+    /// - `Err(DbError)`: Error encountered while fetching the migrations.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use rustavel_core::db::schema::Schema;
+    ///
+    /// async fn run() {
+    ///     let s = Schema::new().await.unwrap();
+    ///     match s.get_ran_migrations().await {
+    ///         Ok(ran) => println!("Ran migrations: {:?}", ran),
+    ///         Err(e) => eprintln!("Error retrieving ran migrations: {:?}", e),
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// # Notes
+    /// - This method relies on the `fetch_strings` function to perform the retrieval.
+    /// - Ensure appropriate database permissions are granted to access the migrations table.
+
+    pub async fn get_ran_migrations_gt(&self, batch: i64) -> Result<Vec<String>, DbError> {
+        match self.client.fetch_strings_params(&self.generator.get_ran_gt(),&[&batch.to_string()]).await {
             // note if table not found we don't have error just empty vector
             Ok(ran) => Ok(ran),
             Err(e) => {

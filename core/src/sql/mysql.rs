@@ -53,9 +53,6 @@ impl SqlGenerator for MySqlGenerator {
         )
     }
 
-    fn get_migrations_listing(&self) -> String {
-        "SELECT `migration` FROM `migrations`".to_string()
-    }
 
     fn get_foreign_keys(&self, table_name: &str) -> String {
         format!(
@@ -443,6 +440,10 @@ impl SqlGenerator for MySqlGenerator {
     fn get_ran(&self) -> String {
         "SELECT `migration` FROM `migrations`".to_string()
     }
+    fn get_ran_gt(&self) -> String {
+        "SELECT `migration` FROM `migrations` WHERE `batch` > ?".to_string()
+    }
+
     fn get_next_batch_number(&self) -> String {
         "SELECT MAX(batch) AS 'batch' FROM `migrations`".to_string()
     }
@@ -452,6 +453,6 @@ impl SqlGenerator for MySqlGenerator {
     }
 
     fn rem_migrated_table(&self) -> String {
-        "DELETE FROM `migrations` WHERE  `name` = ?".to_string()
+        "DELETE FROM `migrations` WHERE  `migration` = ?".to_string()
     }
 }

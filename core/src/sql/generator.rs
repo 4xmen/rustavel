@@ -6,8 +6,6 @@ pub trait SqlGenerator: Debug + Sync + Send {
     fn get_tables(&self) -> String;
     fn get_views(&self) -> String;
     fn get_column_listing(&self, table_name: &str) -> String;
-
-    fn get_migrations_listing(&self) -> String;
     fn get_foreign_keys(&self, table_name: &str) -> String;
     fn drop_table(&self, table_name: &str) -> String;
     fn drop_view(&self, view_name: &str) -> String;
@@ -40,6 +38,8 @@ pub trait SqlGenerator: Debug + Sync + Send {
     ) -> String;
 
     fn get_ran(&self) -> String;
+    fn get_ran_gt(&self) -> String;
+
     fn get_next_batch_number(&self) -> String;
 
     fn add_migrated_table(&self) -> String;

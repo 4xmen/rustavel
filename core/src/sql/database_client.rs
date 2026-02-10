@@ -15,6 +15,7 @@ pub trait DatabaseClient: Send + Sync + Debug {
     async fn execute_params(&self, sql: &str, params: &[&str]) -> Result<(), DbError>;
 
     async fn fetch_strings(&self, sql: &str) -> Result<Vec<String>, DbError>;
+    async fn fetch_strings_params(&self, sql: &str, params: &[&str]) -> Result<Vec<String>, DbError>;
     async fn fetch_numbers(&self, sql: &str) -> Result<Vec<i64>, DbError>;
 }
 
@@ -82,6 +83,25 @@ impl DatabaseClient for MySqlClient {
             })
             .collect())
     }
+
+    async fn fetch_strings_params(&self, sql: &str, params: &[&str]) -> Result<Vec<String>, DbError> {
+        let mut query = sqlx::query(sql);
+
+            for param in params {
+                query = query.bind(*param);
+            }
+
+            let rows = query.fetch_all(&self.pool).await?;
+
+
+        Ok(rows
+            .into_iter()
+            .map(|row| {
+                // dbg!(&row);
+                row.get::<String, _>(0)
+            })
+            .collect())
+    }
 }
 
 #[derive(Debug)]
@@ -131,6 +151,25 @@ impl DatabaseClient for SqliteClient {
         Ok(rows
             .into_iter()
             .map(|row| row.get::<i64, _>(0))
+            .collect())
+    }
+
+    async fn fetch_strings_params(&self, sql: &str, params: &[&str]) -> Result<Vec<String>, DbError> {
+        let mut query = sqlx::query(sql);
+
+        for param in params {
+            query = query.bind(*param);
+        }
+
+        let rows = query.fetch_all(&self.pool).await?;
+
+
+        Ok(rows
+            .into_iter()
+            .map(|row| {
+                // dbg!(&row);
+                row.get::<String, _>(0)
+            })
             .collect())
     }
 

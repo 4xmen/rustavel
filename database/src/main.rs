@@ -1,3 +1,4 @@
+// use std::process::exit;
 use clap::Parser;
 use migrator::run_migrations;
 use tokio::runtime::Runtime;
@@ -9,9 +10,9 @@ mod migrations;
 #[derive(Parser, Debug)]
 #[command(name = "migration")]
 struct Cli {
-    /// Run migrations downward
-    #[arg(long)]
-    down: bool,
+    /// rollback step count
+    #[arg(long, default_value_t = 0)]
+    rollback: i64,
 
     /// Run migrations in passive mode ( Effective just in up mode)
     #[arg(long)]
@@ -30,8 +31,9 @@ fn main() {
 
     let rt = Runtime::new().expect("failed to create tokio runtime");
     rt.block_on(async {
-        let up = !cli.down;
-        run_migrations(up, cli.passive, cli.fresh)
+
+        println!("Running database migrations{}",cli.rollback);
+        run_migrations(cli.rollback, cli.passive, cli.fresh)
             .await.unwrap_or_else(|e|{
             logger::error(&format!("{:?}", e));
         });

@@ -30,9 +30,9 @@ enum Commands {
     //// app key generate
     KeyGenerate,
     Migrate {
-        /// Run migrations down
-        #[arg(long)]
-        down: bool,
+        /// rollback step count
+        #[arg(long, default_value_t = 0)]
+        rollback: i64,
 
         ///  Drop all tables and re-run all migrations
         #[arg(long)]
@@ -89,7 +89,7 @@ fn main() {
             }
 
         }
-        Commands::Migrate  { down, fresh, passive } => {
+        Commands::Migrate  { rollback, fresh, passive } => {
 
             if CONFIG.app.env == "production" {
                 if !confirm("Are you sure you want to run migration in production mode?") {
@@ -98,12 +98,15 @@ fn main() {
                     std::process::exit(0);
                 }
             }
-            let mut args = vec!["run", "--package", "rustavel-db", "--bin", "database"];
-            if down || fresh || passive {
+            let mut args  = vec!["run", "--package", "rustavel-db", "--bin", "database"];
+            if rollback > 0 || fresh || passive {
                 args.push("--");
             }
-            if down {
-                args.push("--down");
+            let rollback_str = rollback.to_string();
+
+            if rollback != 0 {
+                args.push("--rollback");
+                args.push(&rollback_str);
             }
             if fresh {
                 args.push("--fresh");
