@@ -4,6 +4,7 @@ members = [
     "core",
     "artisan",
     "database",
+    "macros",
     #    "graveyard", # uncomment this workspace carfully this not for production
 ]
 resolver = "2"
