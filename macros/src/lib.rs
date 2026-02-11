@@ -1,3 +1,4 @@
+
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::quote;
@@ -10,18 +11,52 @@ use std::collections::HashSet;
 use syn::{Type, TypePath};
 
 
+
+
+
 // Define an enum for the validation rules
 // This enum represents all supported rules, making it easy to extend later by adding new variants
 // Each variant can hold parameters if needed (e.g., Min holds the min value as u32)
 #[derive(Debug, Clone)]
 enum Rule {
+    // general
     Required,
     Nullable,
-    Min(u32),
-    Max(u32),
+    Min(i64),
+    Max(i64),
+    Size(i64),
+    // string
     Email,
     Confirmed(String), // The other field name for confirmation (e.g., "password_confirmation")
-                       // Add more rules here in the future, e.g., Regex(String), Unique(String), etc.
+    Url,
+    EndsWith(String),
+    StartsWith(String),
+    Ip,
+    Ascii,
+    Alphanumeric,
+    HexColor,
+    LowerCase,
+    UpperCase,
+    In(String),
+    NotIn(String),
+    // db
+    Unique(String),
+    Exists(String),
+    // files
+    File,
+    Image,
+    MimeTypes(String),
+    Extensions(String),
+    // date & times
+    Date,
+    DateTime,
+    Time,
+    After(String),
+    Before(String),
+    // other
+    Array,
+    Json,
+
 }
 
 // Implement a way to display the rule for testing purposes
@@ -32,8 +67,33 @@ impl Rule {
             Rule::Nullable => "nullable".to_string(),
             Rule::Min(val) => format!("min:{}", val),
             Rule::Max(val) => format!("max:{}", val),
+            Rule::Size(val) => format!("size:{}", val),
             Rule::Email => "email".to_string(),
             Rule::Confirmed(field) => format!("confirmed:{}", field),
+            Rule::Url => "url".to_string(),
+            Rule::Ip => "ip".to_string(),
+            Rule::Ascii => "ascii".to_string(),
+            Rule::Alphanumeric => "alphanumeric".to_string(),
+            Rule::HexColor => "hex_color".to_string(),
+            Rule::LowerCase => "lowercase".to_string(),
+            Rule::UpperCase => "uppercase".to_string(),
+            Rule::In(val) => format!("in:{}", val),
+            Rule::NotIn(val) => format!("notin:{}", val),
+            Rule::Unique(map) => format!("unique:{}", map), // map: table_name,field or table_name,field,except_field
+            Rule::Exists(map) => format!("exists:{}", map), // map: table,field
+            Rule::File => "file".to_string(),
+            Rule::Image => "image".to_string(),
+            Rule::MimeTypes(types) => format!("mimetypes:{}", types),
+            Rule::Extensions(types) => format!("extensions:{}", types),
+            Rule::Date => "date".to_string(),
+            Rule::DateTime => "datetime".to_string(),
+            Rule::Time => "time".to_string(),
+            Rule::After(date) => format!("after:{}", date),
+            Rule::Before(date) => format!("before:{}", date),
+            Rule::Array => "array".to_string(),
+            Rule::Json => "json".to_string(),
+            Rule::StartsWith(prefix) => format!("starts_with:{}", prefix),
+            Rule::EndsWith(suffix) => format!("ends_with:{}", suffix),
         }
     }
 }
@@ -83,7 +143,7 @@ pub fn laravel_validate(input: TokenStream) -> TokenStream {
                         let field_name = field.ident.as_ref().unwrap().to_string();
                         let rules_str: Vec<String> = rules.iter().map(|r| r.as_str()).collect();
                         rules_display.push_str(&format!(
-                            "{}: {}\\n",
+                            "{}: {}\n",
                             field_name,
                             rules_str.join("|")
                         ));
@@ -171,17 +231,61 @@ fn parse_single_rule(raw: &str, span: Span, fields_name: &HashSet<String>) -> Re
         let param = parts[1].trim();
 
         match name {
+            "starts_with" => {
+                Ok(Rule::StartsWith(param.to_string()))
+            },
+            "ends_with" => {
+                Ok(Rule::EndsWith(param.to_string()))
+            }
+            "in" => {
+                Ok(Rule::In(param.to_string()))
+            },
+            "notin" => {
+                Ok(Rule::NotIn(param.to_string()))
+            },
+            "mimetypes" => {
+                Ok(Rule::MimeTypes(param.to_string()))
+            }
+            "extensions" => {
+                Ok(Rule::Extensions(param.to_string()))
+            }
+            "after" => {
+                if is_valid_datetime(param) {
+                    Ok(Rule::After(param.to_string()))
+                }else {
+                    Err(Error::new(span, format!("Invalid rule format: '{}'", param)))
+                }
+            }
+            "before" => {
+                if is_valid_datetime(param) {
+                    Ok(Rule::Before(param.to_string()))
+                }else {
+                    Err(Error::new(span, format!("Invalid rule format: '{}'", param)))
+                }
+            }
+            "unique" => {
+                Ok(Rule::Unique(param.to_string()))
+            },
+            "exists" => {
+                Ok(Rule::Exists(param.to_string()))
+            }
             "min" => {
-                let val: u32 = param
+                let val: i64 = param
                     .parse()
                     .map_err(|_| Error::new(span, format!("Invalid min value: '{}'", param)))?;
                 Ok(Rule::Min(val))
             }
             "max" => {
-                let val: u32 = param
+                let val: i64 = param
                     .parse()
                     .map_err(|_| Error::new(span, format!("Invalid max value: '{}'", param)))?;
                 Ok(Rule::Max(val))
+            }
+            "size" => {
+                let val: i64 = param
+                    .parse()
+                    .map_err(|_| Error::new(span, format!("Invalid size value: '{}'", param)))?;
+                Ok(Rule::Size(val))
             }
             "confirmed" => {
                 if param.is_empty() {
@@ -206,6 +310,20 @@ fn parse_single_rule(raw: &str, span: Span, fields_name: &HashSet<String>) -> Re
             "required" => Ok(Rule::Required),
             "nullable" => Ok(Rule::Nullable),
             "email" => Ok(Rule::Email),
+            "json" => Ok(Rule::Json),
+            "image" => Ok(Rule::Image),
+            "file" => Ok(Rule::File),
+            "ip" => Ok(Rule::Ip),
+            "ascii" => Ok(Rule::Ascii),
+            "alphanumeric" => Ok(Rule::Alphanumeric),
+            "hex_color" => Ok(Rule::HexColor),
+            "lowercase" => Ok(Rule::LowerCase),
+            "uppercase" => Ok(Rule::UpperCase),
+            "date" => Ok(Rule::Date),
+            "datetime" => Ok(Rule::DateTime),
+            "time" => Ok(Rule::Time),
+            "url" => Ok(Rule::Url),
+            "array" => Ok(Rule::Array),
             _ => Err(Error::new(span, format!("Unsupported rule: '{}'", raw))),
         }
     }
@@ -218,4 +336,71 @@ fn is_option_type(ty: &Type) -> bool {
         }
     }
     false
+}
+
+/// Returns `true` if `s` matches one of the supported date or
+/// date‑time formats, otherwise `false`.
+///
+/// Supported separators: `-` or `/` between year, month and day.
+/// Month and day may be 1 or 2 digits (no leading zero required).
+/// Time part (optional) is separated from the date by a single space
+/// and consists of hour, minute and optional second, each 1‑2 digits.
+///
+/// Examples of valid strings:
+/// * `2025-31-01`
+/// * `2025/1/31`
+/// * `2025-01-31 20:21:01`
+/// * `2025/1/31 1:1:11`
+fn is_valid_datetime(s: &str) -> bool {
+    // Split date and optional time
+    let mut parts = s.splitn(2, ' ');
+    let date_part = parts.next().unwrap();
+    let time_part = parts.next();
+
+    // ---------- date validation ----------
+    // Accept '-' or '/' as separator, but it must be the same for the whole date.
+    let sep = if date_part.contains('-') { '-' } else if date_part.contains('/') { '/' } else { return false };
+    let date_fields: Vec<&str> = date_part.split(sep).collect();
+    if date_fields.len() != 3 {
+        return false;
+    }
+
+    // Year: 1‑4 digits (we only care about format, not range)
+    if !date_fields[0].chars().all(|c| c.is_ascii_digit()) {
+        return false;
+    }
+
+    // Month and day: 1‑2 digits, no leading zeros required
+    for f in &date_fields[1..] {
+        if f.is_empty() || f.len() > 2 || !f.chars().all(|c| c.is_ascii_digit()) {
+            return false;
+        }
+    }
+
+    // ---------- time validation (optional) ----------
+    if let Some(t) = time_part {
+        // Time must be separated from date by exactly one space
+        // and contain 2 or 3 fields separated by ':'
+        let time_fields: Vec<&str> = t.split(':').collect();
+        if time_fields.len() < 2 || time_fields.len() > 3 {
+            return false;
+        }
+
+        // Hour and minute: 1‑2 digits
+        for f in &time_fields[0..2] {
+            if f.is_empty() || f.len() > 2 || !f.chars().all(|c| c.is_ascii_digit()) {
+                return false;
+            }
+        }
+
+        // Optional seconds: same rules if present
+        if time_fields.len() == 3 {
+            let sec = time_fields[2];
+            if sec.is_empty() || sec.len() > 2 || !sec.chars().all(|c| c.is_ascii_digit()) {
+                return false;
+            }
+        }
+    }
+
+    true
 }
