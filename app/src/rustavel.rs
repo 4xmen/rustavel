@@ -10,6 +10,7 @@ use rustavel_core::state::AppState;
 // use crate::http::controllers::test_controller::register;
 // use axum::Router;
 // use axum::routing::post;
+use axum::extract::DefaultBodyLimit;
 
 #[tokio::main]
 async fn main() {
@@ -28,7 +29,9 @@ async fn main() {
     let state = AppState { routes: routes_map };
 
     // take type annotation
-    let app = built.router.with_state(state);
+    let app = built.router
+        .layer(DefaultBodyLimit::max(CONFIG.app.max_upload_size))
+        .with_state(state);
 
     //
     // let app: Router<AppState> = Router::new()
