@@ -7,6 +7,9 @@ mod routes;
 use rustavel_core::config::CONFIG;
 use rustavel_core::logger;
 use rustavel_core::state::AppState;
+// use crate::http::controllers::test_controller::register;
+// use axum::Router;
+// use axum::routing::post;
 
 #[tokio::main]
 async fn main() {
@@ -26,6 +29,11 @@ async fn main() {
 
     // take type annotation
     let app = built.router.with_state(state);
+
+    //
+    // let app: Router<AppState> = Router::new()
+    //     .with_state(state)
+    //     .route("/test", post(register));
 
     let app_start_point = format!("{}:{}", CONFIG.app.host, CONFIG.app.port);
 

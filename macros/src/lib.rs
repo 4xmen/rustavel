@@ -163,9 +163,27 @@ pub fn laravel_validate(input: TokenStream) -> TokenStream {
     let struct_name = &ast.ident;
     let lit = LitStr::new(&rules_display, Span::call_site());
     let r#gen = quote! {
-    impl #struct_name {
-        pub fn display_parsed_rules() -> &'static str {
-                #lit
+        // use macros_core::LaravelValidator;
+        // use macros_core::ValidationErrors;
+
+    // impl #struct_name {
+    //     pub fn display_parsed_rules() -> &'static str {
+    //             #lit
+    //         }
+    //     }
+
+
+
+
+        impl macros_core::LaravelValidator for #struct_name {
+            fn validate(&self) -> Result<(), macros_core::ValidationErrors> {
+                let mut errors = macros_core::ValidationErrors::new();
+
+                if errors.is_empty() {
+                    Ok(())
+                } else {
+                    Err(errors)
+                }
             }
         }
     };

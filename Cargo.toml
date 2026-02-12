@@ -4,7 +4,7 @@ members = [
     "core",
     "artisan",
     "database",
-    "macros",
+    "macros", "macros-core",
     #    "graveyard", # uncomment this workspace carfully this not for production
 ]
 resolver = "2"
@@ -15,10 +15,11 @@ resolver = "2"
 tokio = { version = "1.49.0", features = ["full"] }
 futures = "0.3"
 
-# ── Web Framework / HTTP ──────────────────────────
+# ── Web Framework / HTTP / FORM ──────────────────────────
 axum = { version = "0.8", features = ["ws", "macros"] }
 axum-extra = { version = "0.12.5", features = ["routing", "typed-routing"] }
 tower = "0.5.2" # middleware / layers
+axum-params = "0.4"
 
 # ── Templates / Views + Code genrate ─────────────────────────────
 minijinja = { version = "1", features = ["loader"] } # Jinja-like templates
