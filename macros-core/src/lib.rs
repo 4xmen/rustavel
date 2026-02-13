@@ -13,11 +13,11 @@ impl ValidationErrors {
         }
     }
 
-    pub fn add(&mut self, field: &str, message: String) {
+    pub fn add(&mut self, field: impl Into<String>, message: impl Into<String>) {
         self.errors
-            .entry(field.to_string())
+            .entry(field.into())
             .or_default()
-            .push(message);
+            .push(message.into());
     }
 
     pub fn is_empty(&self) -> bool {
@@ -28,5 +28,10 @@ impl ValidationErrors {
 pub trait LaravelValidator : Sync + Send {
     fn validate(&self) -> Result<(), ValidationErrors>;
 }
+
+pub fn is_valid_email(value: &str) -> bool {
+    value.contains("@") // so simple
+}
+
 
 

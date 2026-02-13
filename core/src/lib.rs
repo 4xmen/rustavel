@@ -8,3 +8,4 @@ pub mod mvc;
 
 pub mod db;
 pub mod http;
+pub mod localization;

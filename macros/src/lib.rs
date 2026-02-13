@@ -1,18 +1,40 @@
+//! # CheckMate: Laravel-inspired Validation DSL for Rust
+//!
+//! CheckMate is a compile-time, type-safe, macro-generated validation DSL
+//! for Rust, inspired by Laravel's `FormRequest` concept while respecting
+//! Rust's idioms and type system.
+//!
+//! Unlike Laravel's runtime-only rule arrays, CheckMate generates Rust code
+//! to enforce validation rules at compile time wherever possible, reducing
+//! runtime errors and boilerplate.
+//!
+//! Key features and motivations:
+//! - Handle culturally specific inputs, such as Persian and Arabic numerals,
+//!   without runtime overhead.
+//! - Provide compile-time type safety for strings, numbers, and custom rules.
+//! - Offer a familiar Laravel-like DSL for Rust developers, while remaining
+//!   idiomatic to Rust.
+//! - Generate ergonomic validation code via macros, minimizing boilerplate.
+//! - Support future extensions with async/database/file rules in a modular way.
+//! - WIP: Extractor integration planned for seamless web framework usage.
+//!
+//! CheckMate aims to provide a solid foundation for safe, expressive, and
+//! culturally-aware input validation in Rust projects, filling gaps that
+//! existing validators do not address.
+//! CheckMate: check/validate، smart
+
+
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::quote;
 use quote::spanned::Spanned;
+use std::collections::HashSet;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{Attribute, DeriveInput, Field, LitStr, parse_macro_input};
 use syn::{Error, Result};
-use std::collections::HashSet;
 use syn::{Type, TypePath};
-
-
-
-
 
 // Define an enum for the validation rules
 // This enum represents all supported rules, making it easy to extend later by adding new variants
@@ -56,7 +78,6 @@ enum Rule {
     // other
     Array,
     Json,
-
 }
 
 // Implement a way to display the rule for testing purposes
@@ -78,7 +99,7 @@ impl Rule {
             Rule::LowerCase => "lowercase".to_string(),
             Rule::UpperCase => "uppercase".to_string(),
             Rule::In(val) => format!("in:{}", val),
-            Rule::NotIn(val) => format!("notin:{}", val),
+            Rule::NotIn(val) => format!("not_in:{}", val),
             Rule::Unique(map) => format!("unique:{}", map), // map: table_name,field or table_name,field,except_field
             Rule::Exists(map) => format!("exists:{}", map), // map: table,field
             Rule::File => "file".to_string(),
@@ -96,10 +117,48 @@ impl Rule {
             Rule::EndsWith(suffix) => format!("ends_with:{}", suffix),
         }
     }
+
+    fn expand(
+        &self,
+        field_ident: &syn::Ident,
+        field_ty: &Type,
+        field_name: &str,
+    ) -> proc_macro2::TokenStream {
+        match self {
+            Rule::Email => {
+                quote! {
+                if !macros_core::is_valid_email(&self.#field_ident) {
+                    errors.add(#field_name, "email");
+                }
+            }
+            }
+            Rule::Min(val) => {
+                if is_string_type(field_ty) {
+                    quote! {
+                if self.#field_ident.len() < #val as usize {
+                    errors.add(#field_name, "min");
+                }
+                     }
+                } else if is_numeric_type(field_ty) {
+                    quote! {
+                if self.#field_ident < #val {
+                    errors.add(#field_name, "min");
+                }
+                     }
+                } else {
+                    quote! {
+                compile_error!("min rule not supported for this type");
+                    }
+                }
+            }
+            _ => quote! {},
+        }
+    }
+
 }
 
-#[proc_macro_derive(LaravelValidate, attributes(validating))]
-pub fn laravel_validate(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(CheckMate, attributes(validating))]
+pub fn mate_validate(input: TokenStream) -> TokenStream {
     // Parse the input tokens into a syntax tree (DeriveInput represents the struct)
     let mut ast = parse_macro_input!(input as DeriveInput);
 
@@ -107,8 +166,10 @@ pub fn laravel_validate(input: TokenStream) -> TokenStream {
     let mut rules_display = String::new();
 
     // Check if the derive is on a struct (we assume it is, but in full version, add error handling)
+    let mut validations = Vec::new();
 
     if let syn::Data::Struct(data_struct) = &mut ast.data {
+
         // collect all fields name required in safe validation like confirm
         let field_names: HashSet<String> = data_struct
             .fields
@@ -135,21 +196,28 @@ pub fn laravel_validate(input: TokenStream) -> TokenStream {
                                         field.ident.as_ref().unwrap()
                                     ),
                                 )
-                                    .to_compile_error()
-                                    .into();
+                                .to_compile_error()
+                                .into();
                             }
                         }
-                        // For display, format as "field: rule1|rule2|..."
-                        let field_name = field.ident.as_ref().unwrap().to_string();
-                        let rules_str: Vec<String> = rules.iter().map(|r| r.as_str()).collect();
-                        rules_display.push_str(&format!(
-                            "{}: {}\n",
-                            field_name,
-                            rules_str.join("|")
-                        ));
+
+                        let field_ident = field.ident.as_ref().unwrap();
+                        let field_name = field_ident.to_string();
+                        let field_ty = &field.ty;
+
+                        // runtime validation code generation
+                        for rule in &rules {
+                            validations.push(rule.expand(field_ident, field_ty, &field_name));
+                        }
+
+                        // let rules_str: Vec<String> = rules.iter().map(|r| r.as_str()).collect();
+                        // rules_display.push_str(&format!(
+                        //     "{}: {}\n",
+                        //     field_name,
+                        //     rules_str.join("|")
+                        // ));
                     }
                     Err(err) => {
-                        // If parsing fails, return the compile error
                         return err.to_compile_error().into();
                     }
                 }
@@ -161,10 +229,8 @@ pub fn laravel_validate(input: TokenStream) -> TokenStream {
     // This is static (no &self needed) since rules are compile-time known
     // In tests, we can call Struct::display_parsed_rules()
     let struct_name = &ast.ident;
-    let lit = LitStr::new(&rules_display, Span::call_site());
+    // let lit = LitStr::new(&rules_display, Span::call_site());
     let r#gen = quote! {
-        // use macros_core::LaravelValidator;
-        // use macros_core::ValidationErrors;
 
     // impl #struct_name {
     //     pub fn display_parsed_rules() -> &'static str {
@@ -174,10 +240,13 @@ pub fn laravel_validate(input: TokenStream) -> TokenStream {
 
 
 
-
-        impl macros_core::LaravelValidator for #struct_name {
-            fn validate(&self) -> Result<(), macros_core::ValidationErrors> {
+        impl  #struct_name {
+            async fn validate(&self) -> Result<(), macros_core::ValidationErrors> {
                 let mut errors = macros_core::ValidationErrors::new();
+
+                #(#validations)*
+
+                 println!("{:?}", self);
 
                 if errors.is_empty() {
                     Ok(())
@@ -249,44 +318,34 @@ fn parse_single_rule(raw: &str, span: Span, fields_name: &HashSet<String>) -> Re
         let param = parts[1].trim();
 
         match name {
-            "starts_with" => {
-                Ok(Rule::StartsWith(param.to_string()))
-            },
-            "ends_with" => {
-                Ok(Rule::EndsWith(param.to_string()))
-            }
-            "in" => {
-                Ok(Rule::In(param.to_string()))
-            },
-            "notin" => {
-                Ok(Rule::NotIn(param.to_string()))
-            },
-            "mimetypes" => {
-                Ok(Rule::MimeTypes(param.to_string()))
-            }
-            "extensions" => {
-                Ok(Rule::Extensions(param.to_string()))
-            }
+            "starts_with" => Ok(Rule::StartsWith(param.to_string())),
+            "ends_with" => Ok(Rule::EndsWith(param.to_string())),
+            "in" => Ok(Rule::In(param.to_string())),
+            "not_in" => Ok(Rule::NotIn(param.to_string())),
+            "mimetypes" => Ok(Rule::MimeTypes(param.to_string())),
+            "extensions" => Ok(Rule::Extensions(param.to_string())),
             "after" => {
                 if is_valid_datetime(param) {
                     Ok(Rule::After(param.to_string()))
-                }else {
-                    Err(Error::new(span, format!("Invalid rule format: '{}'", param)))
+                } else {
+                    Err(Error::new(
+                        span,
+                        format!("Invalid rule format: '{}'", param),
+                    ))
                 }
             }
             "before" => {
                 if is_valid_datetime(param) {
                     Ok(Rule::Before(param.to_string()))
-                }else {
-                    Err(Error::new(span, format!("Invalid rule format: '{}'", param)))
+                } else {
+                    Err(Error::new(
+                        span,
+                        format!("Invalid rule format: '{}'", param),
+                    ))
                 }
             }
-            "unique" => {
-                Ok(Rule::Unique(param.to_string()))
-            },
-            "exists" => {
-                Ok(Rule::Exists(param.to_string()))
-            }
+            "unique" => Ok(Rule::Unique(param.to_string())),
+            "exists" => Ok(Rule::Exists(param.to_string())),
             "min" => {
                 let val: i64 = param
                     .parse()
@@ -377,7 +436,13 @@ fn is_valid_datetime(s: &str) -> bool {
 
     // ---------- date validation ----------
     // Accept '-' or '/' as separator, but it must be the same for the whole date.
-    let sep = if date_part.contains('-') { '-' } else if date_part.contains('/') { '/' } else { return false };
+    let sep = if date_part.contains('-') {
+        '-'
+    } else if date_part.contains('/') {
+        '/'
+    } else {
+        return false;
+    };
     let date_fields: Vec<&str> = date_part.split(sep).collect();
     if date_fields.len() != 3 {
         return false;
@@ -421,4 +486,28 @@ fn is_valid_datetime(s: &str) -> bool {
     }
 
     true
+}
+
+fn is_string_type(ty: &Type) -> bool {
+    if let Type::Path(type_path) = ty {
+        if let Some(seg) = type_path.path.segments.last() {
+            return seg.ident == "String";
+        }
+    }
+    false
+}
+
+fn is_numeric_type(ty: &Type) -> bool {
+    if let Type::Path(type_path) = ty {
+        if let Some(seg) = type_path.path.segments.last() {
+            let ident = seg.ident.to_string();
+            return matches!(
+                ident.as_str(),
+                "i8" | "i16" | "i32" | "i64" |
+                "u8" | "u16" | "u32" | "u64" |
+                "f32" | "f64"
+            );
+        }
+    }
+    false
 }

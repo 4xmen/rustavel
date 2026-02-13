@@ -1,7 +1,6 @@
 use crate::http::middleware::log_middleware;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use rustavel_core::config::CONFIG;
 use rustavel_core::routing::{BuiltRoutes, Route};
 use rustavel_core::state::AppState; // import AppState
 use crate::http::controllers::test_controller::register;

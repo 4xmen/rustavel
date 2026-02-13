@@ -6,7 +6,7 @@ use axum::{
     Json,
 };
 use serde::de::DeserializeOwned;
-use macros_core::{LaravelValidator, ValidationErrors};
+use macros_core::{LaravelValidator};
 
 pub struct ValidatedJson<T>(pub T);
 
