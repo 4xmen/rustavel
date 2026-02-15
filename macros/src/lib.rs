@@ -656,7 +656,7 @@ impl Rule {
             }
             Rule::Min(val) => {
                 let is_option = is_option_type(field_ty);
-
+            
                 if is_string_type(field_ty) {
                     if is_option {
                         quote! {
@@ -677,14 +677,14 @@ impl Rule {
                     if is_option {
                         quote! {
                             if let Some(value) = self.#field_ident {
-                                if value < #val {
+                                if macros_core::convert_to_i64(value) < #val  {
                                     errors.add(#field_name, format!("{} must be greater than or equal to {}",&#field_name,#val));
                                 }
                             }
                         }
                     } else {
                         quote! {
-                            if self.#field_ident < #val {
+                            if macros_core::convert_to_i64(self.#field_ident) < #val  {
                                 errors.add(#field_name, format!("{} must be greater than or equal to {}",&#field_name,#val));
                             }
                         }
@@ -698,10 +698,10 @@ impl Rule {
                     .into();
                 }
             }
-
+            
             Rule::Max(val) => {
                 let is_option = is_option_type(field_ty);
-
+            
                 if is_string_type(field_ty) {
                     if is_option {
                         quote! {
@@ -722,7 +722,7 @@ impl Rule {
                 } else if is_numeric_type(field_ty) {
                     if is_option {
                         quote! {
-                            if let Some(value) = self.#field_ident {
+                            if let macros_core::convert_to_i64(Some(value)) = self.#field_ident {
                                 if value < #val {
                                    errors.add(#field_name, format!("{} must be less than or equal to {}",&#field_name,#val));
                                 }
@@ -730,7 +730,7 @@ impl Rule {
                         }
                     } else {
                         quote! {
-                            if self.#field_ident > #val {
+                            if macros_core::convert_to_i64(self.#field_ident) > #val {
                                 errors.add(#field_name, format!("{} must be less than or equal to {}",&#field_name,#val));
                             }
                         }
@@ -744,10 +744,10 @@ impl Rule {
                     .into();
                 }
             }
-
+            
             Rule::Size(val) => {
                 let is_option = is_option_type(field_ty);
-
+            
                 if is_string_type(field_ty) {
                     if is_option {
                         quote! {
@@ -768,7 +768,7 @@ impl Rule {
                     if is_option {
                         quote! {
                             if let Some(value) = &self.#field_ident {
-
+            
                                 let num_digits = value.to_string().chars().count();
                                 if num_digits != #val as usize {
                                     errors.add(#field_name, format!("The entered number must contain exactly {} digits.",#val));
@@ -1346,3 +1346,5 @@ impl Rule {
         }
     }
 }
+
+

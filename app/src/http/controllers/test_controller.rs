@@ -2,7 +2,7 @@ use axum::{extract::State, http::StatusCode, response::IntoResponse};
 use axum_params::Params;
 use macros::CheckMate;
 use rustavel_core::localization::digits::apply_normalized_string;
-// use rustavel_core::localization::numbers::apply_normalize_number;
+use rustavel_core::localization::numbers::apply_normalize_number;
 use rustavel_core::facades::datetime::*;
 use rustavel_core::state::AppState;
 use serde::{Deserialize, Serialize};
@@ -19,9 +19,11 @@ pub struct RegPayload {
     #[validating("required|alphanumeric")]
     pub code: String,
     pub path: String,
-    // #[serde(deserialize_with = "apply_normalize_number")]
+    #[serde(deserialize_with = "apply_normalize_number")]
     #[validating("required|min:18|max:900|size:2")]
-    pub age: i64,
+    pub age: u16,
+    #[serde(deserialize_with = "apply_normalize_number")]
+    pub height: f64,
 
     #[serde(
         deserialize_with = "deserialize_date",

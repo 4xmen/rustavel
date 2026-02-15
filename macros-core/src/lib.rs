@@ -319,3 +319,11 @@ pub fn is_before_option_date_ex(value: Date, target: &str) -> Option<bool> {
     }
 
 }
+
+// Helper function to convert any numeric type to i64
+pub fn convert_to_i64<T>(value: T) -> i64
+where
+    T: Into<i64> + Copy, // Make sure T can be converted to i64
+{
+    value.into() // Convert to i64 using the Into trait
+}
