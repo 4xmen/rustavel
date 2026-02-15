@@ -7,7 +7,7 @@ use time::macros::{ format_description};
 use time::{
     Date,
     PrimitiveDateTime,
-    format_description::{self, FormatItem},
+    format_description::{ FormatItem},
 };
 
 // use serde_json::de::IoRead;
@@ -235,7 +235,7 @@ pub fn is_before(value: &str, target: &str) -> bool {
 
 pub fn is_after_option(value: &str, target: &str) -> Option<bool> {
     let mut target_temp = target.to_string();
-    let mut value_temp = target.to_string();
+    let mut value_temp = value.to_string();
     // 2010-11-11
     if target_temp.len() == 10 {
         target_temp = format!("{} 00:00:00", target);
@@ -278,11 +278,19 @@ pub fn is_after_option_date_ex(value: Date, target: &str) -> Option<bool> {
 
 
 pub fn is_before_option(value: &str, target: &str) -> Option<bool> {
-    let value_date = PrimitiveDateTime::parse(value, &*DATETIME_FORMAT).ok()?;
-    let target_date = PrimitiveDateTime::parse(target, &*DATETIME_FORMAT).ok()?;
+    let mut target_temp = target.to_string();
+    let mut value_temp = value.to_string();
+    // 2010-11-11
+    if target_temp.len() == 10 {
+        target_temp = format!("{} 00:00:00", target);
+    }
+    if value_temp.len() == 10 {
+        value_temp = format!("{} 00:00:00", target);
+    }
+    let value_date = PrimitiveDateTime::parse(&value_temp, &*DATETIME_FORMAT).ok()?;
+    let target_date = PrimitiveDateTime::parse(&target_temp, &*DATETIME_FORMAT).ok()?;
     Some(value_date < target_date)
 }
-
 
 
 pub fn is_before_option_datetime_ex(value: PrimitiveDateTime, target: &str) -> Option<bool> {

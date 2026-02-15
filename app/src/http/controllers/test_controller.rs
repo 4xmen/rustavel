@@ -36,7 +36,7 @@ pub struct RegPayload {
     #[validating("required|datetime|after:2020-01-01")]
     pub published: PrimitiveDateTime,
 
-    #[validating("nullable|date|after:2020-01-01")]
+    #[validating("nullable|date|after:2020-01-01|before:2000-03-12")]
     pub omg: Option<String>,
 
     #[validating("nullable|min:10|confirmed:pass_confirm")]
@@ -45,7 +45,7 @@ pub struct RegPayload {
 
 }
 
-// #[axum::debug_handler]
+#[axum::debug_handler]
 pub async fn register(
     State(_state): State<AppState>,
     Params(payload, _): Params<RegPayload>,
