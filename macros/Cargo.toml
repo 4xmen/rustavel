@@ -10,5 +10,5 @@ proc-macro = true
 syn = "2"
 quote = "1"
 proc-macro2 = "1"
-regex.workspace = true
+serde.workspace = true
 macros-core= {path = "../macros-core"}

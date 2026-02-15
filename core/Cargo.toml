@@ -19,3 +19,4 @@ terminal_size.workspace = true
 ansi-str.workspace = true
 futures.workspace = true
 macros-core= {path = "../macros-core"}
+time.workspace = true

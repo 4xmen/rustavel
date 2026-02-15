@@ -25,10 +25,11 @@ axum-params = "0.4"
 minijinja = { version = "1", features = ["loader"] } # Jinja-like templates
 
 # ── Database / Persistence ────────────────────────
-sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls-ring-webpki", "mysql", "sqlite", "postgres", "macros"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls-ring-webpki", "mysql", "sqlite", "postgres", "macros",  "time"] }
 
 # ── Serialization / Data ──────────────────────────
 serde = { version = "1", features = ["derive"] }
+serde_json = "1.0"
 
 # ── CLI / Config ──────────────────────────────────
 clap = { version = "4.5.56", features = ["derive"] }
@@ -39,7 +40,7 @@ once_cell = "1.21.3"     # lazy statics
 async-trait = "0.1.89"   # async in traits
 
 # ── Time / Date ───────────────────────────────────
-jiff = "0.2.18" # modern time handling
+time = { version = "0.3", features = ["macros", "parsing", "formatting", "local-offset", "serde"] } # modern time handling
 
 # ── String and utilty  ─────────────────────────
 regex = "1.12.2" # str

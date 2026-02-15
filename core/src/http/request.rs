@@ -6,14 +6,14 @@ use axum::{
     Json,
 };
 use serde::de::DeserializeOwned;
-use macros_core::{LaravelValidator};
+use macros_core::{CheckMateValidator};
 
 pub struct ValidatedJson<T>(pub T);
 
 impl<S, T> FromRequest<S, Body> for ValidatedJson<T>
 where
     S: Send + Sync,
-    T: DeserializeOwned + LaravelValidator,
+    T: DeserializeOwned + CheckMateValidator,
 {
     type Rejection = Response;
 

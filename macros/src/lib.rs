@@ -23,8 +23,6 @@
 //! existing validators do not address.
 //! CheckMate: check/validate، smart
 
-
-
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::quote;
@@ -34,7 +32,7 @@ use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{Attribute, DeriveInput, Field, LitStr, parse_macro_input};
 use syn::{Error, Result};
-use syn::{Type, TypePath};
+use syn::{GenericArgument, PathArguments, Type, TypePath};
 
 // Define an enum for the validation rules
 // This enum represents all supported rules, making it easy to extend later by adding new variants
@@ -80,96 +78,18 @@ enum Rule {
     Json,
 }
 
-// Implement a way to display the rule for testing purposes
-impl Rule {
-    fn as_str(&self) -> String {
-        match self {
-            Rule::Required => "required".to_string(),
-            Rule::Nullable => "nullable".to_string(),
-            Rule::Min(val) => format!("min:{}", val),
-            Rule::Max(val) => format!("max:{}", val),
-            Rule::Size(val) => format!("size:{}", val),
-            Rule::Email => "email".to_string(),
-            Rule::Confirmed(field) => format!("confirmed:{}", field),
-            Rule::Url => "url".to_string(),
-            Rule::Ip => "ip".to_string(),
-            Rule::Ascii => "ascii".to_string(),
-            Rule::Alphanumeric => "alphanumeric".to_string(),
-            Rule::HexColor => "hex_color".to_string(),
-            Rule::LowerCase => "lowercase".to_string(),
-            Rule::UpperCase => "uppercase".to_string(),
-            Rule::In(val) => format!("in:{}", val),
-            Rule::NotIn(val) => format!("not_in:{}", val),
-            Rule::Unique(map) => format!("unique:{}", map), // map: table_name,field or table_name,field,except_field
-            Rule::Exists(map) => format!("exists:{}", map), // map: table,field
-            Rule::File => "file".to_string(),
-            Rule::Image => "image".to_string(),
-            Rule::MimeTypes(types) => format!("mimetypes:{}", types),
-            Rule::Extensions(types) => format!("extensions:{}", types),
-            Rule::Date => "date".to_string(),
-            Rule::DateTime => "datetime".to_string(),
-            Rule::Time => "time".to_string(),
-            Rule::After(date) => format!("after:{}", date),
-            Rule::Before(date) => format!("before:{}", date),
-            Rule::Array => "array".to_string(),
-            Rule::Json => "json".to_string(),
-            Rule::StartsWith(prefix) => format!("starts_with:{}", prefix),
-            Rule::EndsWith(suffix) => format!("ends_with:{}", suffix),
-        }
-    }
-
-    fn expand(
-        &self,
-        field_ident: &syn::Ident,
-        field_ty: &Type,
-        field_name: &str,
-    ) -> proc_macro2::TokenStream {
-        match self {
-            Rule::Email => {
-                quote! {
-                if !macros_core::is_valid_email(&self.#field_ident) {
-                    errors.add(#field_name, "email");
-                }
-            }
-            }
-            Rule::Min(val) => {
-                if is_string_type(field_ty) {
-                    quote! {
-                if self.#field_ident.len() < #val as usize {
-                    errors.add(#field_name, "min");
-                }
-                     }
-                } else if is_numeric_type(field_ty) {
-                    quote! {
-                if self.#field_ident < #val {
-                    errors.add(#field_name, "min");
-                }
-                     }
-                } else {
-                    quote! {
-                compile_error!("min rule not supported for this type");
-                    }
-                }
-            }
-            _ => quote! {},
-        }
-    }
-
-}
-
 #[proc_macro_derive(CheckMate, attributes(validating))]
 pub fn mate_validate(input: TokenStream) -> TokenStream {
     // Parse the input tokens into a syntax tree (DeriveInput represents the struct)
     let mut ast = parse_macro_input!(input as DeriveInput);
 
     // We'll collect all the parsed rules for each field in a String for display in tests
-    let mut rules_display = String::new();
+    // let mut rules_display = String::new();
 
     // Check if the derive is on a struct (we assume it is, but in full version, add error handling)
     let mut validations = Vec::new();
 
     if let syn::Data::Struct(data_struct) = &mut ast.data {
-
         // collect all fields name required in safe validation like confirm
         let field_names: HashSet<String> = data_struct
             .fields
@@ -488,26 +408,710 @@ fn is_valid_datetime(s: &str) -> bool {
     true
 }
 
+/// If the given type is `Option<T>`, returns `Some(&T)`.
+/// Otherwise returns `None`.
+fn extract_option_inner_type(ty: &Type) -> Option<&Type> {
+    if let Type::Path(type_path) = ty {
+        if let Some(segment) = type_path.path.segments.last() {
+            if segment.ident == "Option" {
+                if let PathArguments::AngleBracketed(ref args) = segment.arguments {
+                    if let Some(GenericArgument::Type(inner_ty)) = args.args.first() {
+                        return Some(inner_ty);
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Returns `true` if the given type is `String` or `Option<String>`.
 fn is_string_type(ty: &Type) -> bool {
+    let ty = extract_option_inner_type(ty).unwrap_or(ty);
+
     if let Type::Path(type_path) = ty {
         if let Some(seg) = type_path.path.segments.last() {
+            println!("{}",seg.ident);
             return seg.ident == "String";
         }
     }
+
     false
 }
 
+/// Returns `true` if the given type is a supported numeric primitive
+/// (i8, i16, i32, i64, u8, u16, u32, u64, f32, f64)
+/// or an `Option` wrapping one of those types.
 fn is_numeric_type(ty: &Type) -> bool {
+    let ty = extract_option_inner_type(ty).unwrap_or(ty);
+
     if let Type::Path(type_path) = ty {
         if let Some(seg) = type_path.path.segments.last() {
             let ident = seg.ident.to_string();
+
             return matches!(
                 ident.as_str(),
-                "i8" | "i16" | "i32" | "i64" |
-                "u8" | "u16" | "u32" | "u64" |
-                "f32" | "f64"
+                "i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64" | "f32" | "f64"
             );
         }
     }
+
     false
+}
+
+// Implement a way to display the rule for testing purposes
+impl Rule {
+    fn as_str(&self) -> String {
+        match self {
+            Rule::Required => "required".to_string(),
+            Rule::Nullable => "nullable".to_string(),
+            Rule::Min(val) => format!("min:{}", val),
+            Rule::Max(val) => format!("max:{}", val),
+            Rule::Size(val) => format!("size:{}", val),
+            Rule::Email => "email".to_string(),
+            Rule::Confirmed(field) => format!("confirmed:{}", field),
+            Rule::Url => "url".to_string(),
+            Rule::Ip => "ip".to_string(),
+            Rule::Ascii => "ascii".to_string(),
+            Rule::Alphanumeric => "alphanumeric".to_string(),
+            Rule::HexColor => "hex_color".to_string(),
+            Rule::LowerCase => "lowercase".to_string(),
+            Rule::UpperCase => "uppercase".to_string(),
+            Rule::In(val) => format!("in:{}", val),
+            Rule::NotIn(val) => format!("not_in:{}", val),
+            Rule::Unique(map) => format!("unique:{}", map), // map: table_name,field or table_name,field,except_field
+            Rule::Exists(map) => format!("exists:{}", map), // map: table,field
+            Rule::File => "file".to_string(),
+            Rule::Image => "image".to_string(),
+            Rule::MimeTypes(types) => format!("mimetypes:{}", types),
+            Rule::Extensions(types) => format!("extensions:{}", types),
+            Rule::Date => "date".to_string(),
+            Rule::DateTime => "datetime".to_string(),
+            Rule::Time => "time".to_string(),
+            Rule::After(date) => format!("after:{}", date),
+            Rule::Before(date) => format!("before:{}", date),
+            Rule::Array => "array".to_string(),
+            Rule::Json => "json".to_string(),
+            Rule::StartsWith(prefix) => format!("starts_with:{}", prefix),
+            Rule::EndsWith(suffix) => format!("ends_with:{}", suffix),
+        }
+    }
+
+    /// expand rule validator code generate
+    /// depends on filed type
+    fn expand(
+        &self,
+        field_ident: &syn::Ident,
+        field_ty: &Type,
+        field_name: &str,
+    ) -> proc_macro2::TokenStream {
+        match self {
+            Rule::Required => {
+                if is_option_type(field_ty) {
+                    quote! {
+                        if self.#field_ident.is_none() {
+                            errors.add(#field_name, "required");
+                        }
+                    }
+                } else if is_string_type(field_ty) {
+                    quote! {
+                        if self.#field_ident.is_empty() {
+                            errors.add(#field_name, "required");
+                        }
+                    }
+                } else {
+                    quote! {}
+                }
+            }
+
+            Rule::Email => {
+                if !is_string_type(field_ty) {
+                    return Error::new_spanned(
+                        field_name,
+                        format!(" email must be string  `{}`", field_name),
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+                let is_option = is_option_type(field_ty);
+                if !is_option {
+                    quote! {
+                    if !macros_core::is_valid_email(&self.#field_ident) {
+                        errors.add(#field_name, "email");
+                    }
+                    }
+                } else {
+                    quote! {
+                        if let Some(value) = (&self.#field_ident).as_ref() {
+                            if !macros_core::is_valid_email(value) {
+                                errors.add(#field_name, "email");
+                            }
+                        }
+                    }
+                }
+            }
+            Rule::Url => {
+                if !is_string_type(field_ty) {
+                    return Error::new_spanned(
+                        field_name,
+                        format!(" url must be string  `{}`", field_name),
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+                let is_option = is_option_type(field_ty);
+                if !is_option {
+                    quote! {
+                    if !macros_core::is_valid_url(&self.#field_ident) {
+                        errors.add(#field_name, "url");
+                    }
+                    }
+                } else {
+                    quote! {
+                        if let Some(value) = (&self.#field_ident).as_ref() {
+                            if !macros_core::is_valid_url(value) {
+                                errors.add(#field_name, "url");
+                            }
+                        }
+                    }
+                }
+            }
+            Rule::Min(val) => {
+                let is_option = is_option_type(field_ty);
+
+                if is_string_type(field_ty) {
+                    if is_option {
+                        quote! {
+                            if let Some(value) = &self.#field_ident {
+                                if value.len() < #val as usize {
+                                    errors.add(#field_name, "min");
+                                }
+                            }
+                        }
+                    } else {
+                        quote! {
+                            if self.#field_ident.len() < #val as usize {
+                                errors.add(#field_name, "min");
+                            }
+                        }
+                    }
+                } else if is_numeric_type(field_ty) {
+                    if is_option {
+                        quote! {
+                            if let Some(value) = self.#field_ident {
+                                if value < #val {
+                                    errors.add(#field_name, "min");
+                                }
+                            }
+                        }
+                    } else {
+                        quote! {
+                            if self.#field_ident < #val {
+                                errors.add(#field_name, "min");
+                            }
+                        }
+                    }
+                } else {
+                    return Error::new_spanned(
+                        field_name,
+                        format!("unsupported type for `min` rule:  `{}`", field_name),
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+            }
+
+            Rule::Max(val) => {
+                let is_option = is_option_type(field_ty);
+
+                if is_string_type(field_ty) {
+                    if is_option {
+                        quote! {
+                            if let Some(value) = &self.#field_ident {
+                                if value.len() > #val as usize {
+                                    errors.add(#field_name, "max");
+                                }
+                            }
+                        }
+                    } else {
+                        quote! {
+                            if self.#field_ident.len() > #val as usize {
+                                errors.add(#field_name, "max");
+                            }
+                        }
+                    }
+                } else if is_numeric_type(field_ty) {
+                    if is_option {
+                        quote! {
+                            if let Some(value) = self.#field_ident {
+                                if value < #val {
+                                    errors.add(#field_name, "max");
+                                }
+                            }
+                        }
+                    } else {
+                        quote! {
+                            if self.#field_ident > #val {
+                                errors.add(#field_name, "max");
+                            }
+                        }
+                    }
+                } else {
+                    return Error::new_spanned(
+                        field_name,
+                        format!("unsupported type for `max` rule:  `{}`", field_name),
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+            }
+
+            Rule::Size(val) => {
+                let is_option = is_option_type(field_ty);
+
+                if is_string_type(field_ty) {
+                    if is_option {
+                        quote! {
+                            if let Some(value) = &self.#field_ident {
+                                if value.len() != #val as usize {
+                                    errors.add(#field_name, "size");
+                                }
+                            }
+                        }
+                    } else {
+                        quote! {
+                            if self.#field_ident.len() != #val as usize {
+                                errors.add(#field_name, "size");
+                            }
+                        }
+                    }
+                } else if is_numeric_type(field_ty) {
+                    if is_option {
+                        quote! {
+                            if let Some(value) = &self.#field_ident {
+                                if *value != #val {
+                                    errors.add(#field_name, "size");
+                                }
+                            }
+                        }
+                    } else {
+                        quote! {
+                            if self.#field_ident != #val {
+                                errors.add(#field_name, "size");
+                            }
+                        }
+                    }
+                } else {
+                    return Error::new_spanned(
+                        field_name,
+                        format!(" invalid data type for size  `{}`", field_name),
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+            }
+
+            Rule::StartsWith(prefix) => {
+                let is_option = is_option_type(field_ty);
+
+                if is_string_type(field_ty) {
+                    if is_option {
+                        quote! {
+                            if let Some(value) = &self.#field_ident {
+                                if !value.starts_with(#prefix) {
+                                    errors.add(#field_name, "starts_with");
+                                }
+                            }
+                        }
+                    } else {
+                        quote! {
+                            if !self.#field_ident.starts_with(#prefix) {
+                                errors.add(#field_name, "starts_with");
+                            }
+                        }
+                    }
+                } else {
+                    return Error::new_spanned(
+                        field_name,
+                        format!(" starts_with must be string  `{}`", field_name),
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+            }
+
+            Rule::EndsWith(suffix) => {
+                let is_option = is_option_type(field_ty);
+
+                if is_string_type(field_ty) {
+                    if is_option {
+                        quote! {
+                            if let Some(value) = &self.#field_ident {
+                                if !value.ends_with(#suffix) {
+                                    errors.add(#field_name, "ends_with");
+                                }
+                            }
+                        }
+                    } else {
+                        quote! {
+                            if !self.#field_ident.ends_with(#suffix) {
+                                errors.add(#field_name, "ends_with");
+                            }
+                        }
+                    }
+                } else {
+                    return Error::new_spanned(
+                        field_name,
+                        format!(" ends with must be string  `{}`", field_name),
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+            }
+            Rule::Ascii => {
+                if !is_string_type(field_ty) {
+                    return Error::new_spanned(
+                        field_name,
+                        format!(" ascii must be string  `{}`", field_name),
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+                let is_option = is_option_type(field_ty);
+                if !is_option {
+                    quote! {
+                    if !macros_core::is_valid_ascii(&self.#field_ident) {
+                        errors.add(#field_name, "ascii");
+                    }
+                    }
+                } else {
+                    quote! {
+                        if let Some(value) = (&self.#field_ident).as_ref() {
+                            if !macros_core::is_valid_ascii(value) {
+                                errors.add(#field_name, "ascii");
+                            }
+                        }
+                    }
+                }
+            }
+            Rule::Alphanumeric => {
+                if !is_string_type(field_ty) {
+                    return Error::new_spanned(
+                        field_name,
+                        format!(" alphanumeric must be string  `{}`", field_name),
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+                let is_option = is_option_type(field_ty);
+                if !is_option {
+                    quote! {
+                    if !macros_core::is_valid_ascii_alphanumeric(&self.#field_ident) {
+                        errors.add(#field_name, "alphanumeric");
+                    }
+                    }
+                } else {
+                    quote! {
+                        if let Some(value) = (&self.#field_ident).as_ref() {
+                            if !macros_core::is_valid_ascii_alphanumeric(value) {
+                                errors.add(#field_name, "alphanumeric");
+                            }
+                        }
+                    }
+                }
+            }
+            Rule::HexColor => {
+                if !is_string_type(field_ty) {
+                    return Error::new_spanned(
+                        field_name,
+                        format!(" hex_color must be string  `{}`", field_name),
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+                let is_option = is_option_type(field_ty);
+                if !is_option {
+                    quote! {
+                    if !macros_core::is_valid_hex_color(&self.#field_ident) {
+                        errors.add(#field_name, "hex_color");
+                    }
+                    }
+                } else {
+                    quote! {
+                        if let Some(value) = (&self.#field_ident).as_ref() {
+                            if !macros_core::is_valid_hex_color(value) {
+                                errors.add(#field_name, "hex_color");
+                            }
+                        }
+                    }
+                }
+            }
+            Rule::LowerCase => {
+                if !is_string_type(field_ty) {
+                    return Error::new_spanned(
+                        field_name,
+                        format!(" lowercase must be string  `{}`", field_name),
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+                let is_option = is_option_type(field_ty);
+                if !is_option {
+                    quote! {
+                     if &self.#field_ident != &self.#field_ident.to_lowercase() {
+                            errors.add(#field_name, "lowercase");
+                     }
+                    }
+                } else {
+                    quote! {
+                        if let Some(value) = (&self.#field_ident).as_ref() {
+                            if value != &value.to_lowercase() {
+                                errors.add(#field_name, "lowercase");
+                            }
+                        }
+                    }
+                }
+            }
+
+            Rule::UpperCase => {
+                if !is_string_type(field_ty) {
+                    return Error::new_spanned(
+                        field_name,
+                        format!(" uppercase must be string  `{}`", field_name),
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+                let is_option = is_option_type(field_ty);
+                if !is_option {
+                    quote! {
+                     if &self.#field_ident != &self.#field_ident.to_uppercase() {
+                            errors.add(#field_name, "uppercase");
+                     }
+                    }
+                } else {
+                    quote! {
+                        if let Some(value) = (&self.#field_ident).as_ref() {
+                            if value != &value.to_uppercase() {
+                                errors.add(#field_name, "uppercase");
+                            }
+                        }
+                    }
+                }
+            }
+            // Rule::In(values) => {
+            //     quote! {
+            //         if let Some(value) = (&self.#field_ident).as_ref() {
+            //             let allowed = #values.split(',').collect::<Vec<_>>();
+            //             if !allowed.contains(&value.as_str()) {
+            //                 errors.add(#field_name, "in");
+            //             }
+            //         }
+            //     }
+            // }
+            // Rule::NotIn(values) => {
+            //     quote! {
+            //         if let Some(value) = (&self.#field_ident).as_ref() {
+            //             let blocked = #values.split(',').collect::<Vec<_>>();
+            //             if blocked.contains(&value.as_str()) {
+            //                 errors.add(#field_name, "not_in");
+            //             }
+            //         }
+            //     }
+            // }
+            Rule::Ip => {
+                if !is_string_type(field_ty) {
+                    return Error::new_spanned(
+                        field_name,
+                        format!(" ip must be string  `{}`", field_name),
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+                let is_option = is_option_type(field_ty);
+                if !is_option {
+                    quote! {
+                    if !macros_core::is_valid_ip(&self.#field_ident) {
+                        errors.add(#field_name, "ip");
+                    }
+                    }
+                } else {
+                    quote! {
+                        if let Some(value) = (&self.#field_ident).as_ref() {
+                            if !macros_core::is_valid_ip(value) {
+                                errors.add(#field_name, "ip");
+                            }
+                        }
+                    }
+                }
+            }
+            Rule::Date => {
+                if !is_string_type(field_ty) {
+                    return Error::new_spanned(
+                        field_name,
+                        format!(" date must be string  `{}`", field_name),
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+                let is_option = is_option_type(field_ty);
+                if !is_option {
+                    quote! {
+                    if !macros_core::is_valid_date(&self.#field_ident) {
+                        errors.add(#field_name, "date");
+                    }
+                    }
+                } else {
+                    quote! {
+                        if let Some(value) = (&self.#field_ident).as_ref() {
+                            if !macros_core::is_valid_date(value) {
+                                errors.add(#field_name, "date");
+                            }
+                        }
+                    }
+                }
+            }
+            Rule::DateTime => {
+                if !is_string_type(field_ty) {
+                    return Error::new_spanned(
+                        field_name,
+                        format!(" datetime must be string  `{}`", field_name),
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+                let is_option = is_option_type(field_ty);
+                if !is_option {
+                    quote! {
+                        if !macros_core::is_valid_datetime(&self.#field_ident) {
+                            errors.add(#field_name, "datetime");
+                        }
+                    }
+                } else {
+                    quote! {
+                        if let Some(value) = (&self.#field_ident).as_ref() {
+                            if !macros_core::is_valid_datetime(value) {
+                                errors.add(#field_name, "datetime");
+                            }
+                        }
+                    }
+                }
+            }
+            Rule::Time => {
+                if !is_string_type(field_ty) {
+                    return Error::new_spanned(
+                        field_name,
+                        format!(" time must be string  `{}`", field_name),
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+                let is_option = is_option_type(field_ty);
+                if !is_option {
+                    quote! {
+                        if !macros_core::is_valid_time(&self.#field_ident) {
+                            errors.add(#field_name, "time");
+                        }
+                    }
+                } else {
+                    quote! {
+                        if let Some(value) = (&self.#field_ident).as_ref() {
+                            if !macros_core::is_valid_time(value) {
+                                errors.add(#field_name, "time");
+                            }
+                        }
+                    }
+                }
+            }
+
+            Rule::After(date) => {
+                if !is_string_type(field_ty) {
+                    return Error::new_spanned(
+                        field_name,
+                        format!(" date must be string  `{}`", field_name),
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+                let is_option = is_option_type(field_ty);
+                if !is_option {
+                    quote! {
+                    match macros_core::is_after_option(&self.#field_ident, #date) {
+                                None => errors.add(#field_name, "date"),
+                                Some(true) => (),
+                                Some(false) => errors.add(#field_name, "after"),
+                            }
+                    }
+                } else {
+                    quote! {
+                        if let Some(value) = (&self.#field_ident).as_ref() {
+                            match macros_core::is_after_option(value, #date) {
+                                None => errors.add(#field_name, "date"),
+                                Some(true) => (),
+                                Some(false) => errors.add(#field_name, "after"),
+                         }
+                        }
+                    }
+                }
+            }
+
+            Rule::Before(date) => {
+                if !is_string_type(field_ty) {
+                    return Error::new_spanned(
+                        field_name,
+                        format!(" date must be string  `{}`", field_name),
+                    )
+                        .to_compile_error()
+                        .into();
+                }
+                let is_option = is_option_type(field_ty);
+                if !is_option {
+                    quote! {
+                    match macros_core::is_before_option(&self.#field_ident, #date) {
+                                None => errors.add(#field_name, "date"),
+                                Some(true) => (),
+                                Some(false) => errors.add(#field_name, "after"),
+                            }
+                    }
+                } else {
+                    quote! {
+                        if let Some(value) = (&self.#field_ident).as_ref() {
+                            match macros_core::is_before_option(value, #date) {
+                                None => errors.add(#field_name, "date"),
+                                Some(true) => (),
+                                Some(false) => errors.add(#field_name, "before"),
+                         }
+                        }
+                    }
+                }
+            }
+            Rule::Json => {
+                if !is_string_type(field_ty) {
+                    return Error::new_spanned(
+                        field_name,
+                        format!(" json must be string  `{}`", field_name),
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+                let is_option = is_option_type(field_ty);
+                if !is_option {
+                    quote! {
+                    if !macros_core::is_valid_json(&self.#field_ident) {
+                        errors.add(#field_name, "json");
+                    }
+                    }
+                } else {
+                    quote! {
+                        if let Some(value) = (&self.#field_ident).as_ref() {
+                            if !macros_core::is_valid_json(value) {
+                                errors.add(#field_name, "json");
+                            }
+                        }
+                    }
+                }
+            }
+            _ => quote! {},
+        }
+    }
 }

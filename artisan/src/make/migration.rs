@@ -1,13 +1,12 @@
 use clap::Args;
 use minijinja::{Environment, Error as TemplateError};
 use illuminate_string::Str;
-use jiff::Zoned;
-use jiff::fmt::strtime::format;
 use std::fs;
 use std::io;
 use std::path::{ PathBuf};
 use std::time::Instant;
 use rustavel_core::facades::terminal_ui::{operation,Status};
+use rustavel_core::facades::datetime::now_compact;
 
 const MIGRATION_TEMPLATE: &str = include_str!("templates/migration.rs.j2");
 
@@ -79,14 +78,10 @@ pub fn migrate(args: &NewMigArgs) -> Result<bool, MigrationError> {
 
     let start = Instant::now();
 
-    let now = Zoned::now();
-
-    let timestamp = format("%Y_%m_%d_%H%M", &now)
-        .unwrap_or_else(|_| "2025_01_01_0000".into());
 
     let final_name = format!(
         "m_{}_{}",
-        timestamp,
+        now_compact(),
         Str::snake(&args.name, "_")
     );
 
