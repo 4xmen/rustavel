@@ -26,8 +26,10 @@
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::quote;
+use quote::format_ident;
 use quote::spanned::Spanned;
 use std::collections::HashSet;
+// use std::process::id;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{Attribute, DeriveInput, Field, LitStr, parse_macro_input};
@@ -38,6 +40,7 @@ use syn::{GenericArgument, PathArguments, Type, TypePath};
 // This enum represents all supported rules, making it easy to extend later by adding new variants
 // Each variant can hold parameters if needed (e.g., Min holds the min value as u32)
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum Rule {
     // general
     Required,
@@ -166,7 +169,7 @@ pub fn mate_validate(input: TokenStream) -> TokenStream {
 
                 #(#validations)*
 
-                 println!("{:?}", self);
+                 // println!("{:?}", self);
 
                 if errors.is_empty() {
                     Ok(())
@@ -431,7 +434,6 @@ fn is_string_type(ty: &Type) -> bool {
 
     if let Type::Path(type_path) = ty {
         if let Some(seg) = type_path.path.segments.last() {
-            println!("{}",seg.ident);
             return seg.ident == "String";
         }
     }
@@ -458,9 +460,64 @@ fn is_numeric_type(ty: &Type) -> bool {
 
     false
 }
+/// Returns `true` if the given type is a supported date|time primitive
+/// (PrimitiveDateTime, Date)
+/// or an `Option` wrapping one of those types.
+fn is_datetime_types(ty: &Type) -> bool {
+    let ty = extract_option_inner_type(ty).unwrap_or(ty);
+
+    if let Type::Path(type_path) = ty {
+        if let Some(seg) = type_path.path.segments.last() {
+            let ident = seg.ident.to_string();
+
+            return matches!(ident.as_str(), "PrimitiveDateTime" | "Date");
+        }
+    }
+
+    false
+}
+
+/// Returns `true` if the given type is `PrimitiveDateTime` or `Option<PrimitiveDateTime>`.
+fn is_datetime_type(ty: &Type) -> bool {
+    let ty = extract_option_inner_type(ty).unwrap_or(ty);
+
+    if let Type::Path(type_path) = ty {
+        if let Some(seg) = type_path.path.segments.last() {
+            return seg.ident == "PrimitiveDateTime";
+        }
+    }
+
+    false
+}
+/// Returns `true` if the given type is `Date` or `Option<Date>`.
+fn is_date_type(ty: &Type) -> bool {
+    let ty = extract_option_inner_type(ty).unwrap_or(ty);
+
+    if let Type::Path(type_path) = ty {
+        if let Some(seg) = type_path.path.segments.last() {
+            return seg.ident == "Date";
+        }
+    }
+
+    false
+}
+
+/// Returns `true` if the given type is `Time` or `Option<Dime>`.
+fn is_time_type(ty: &Type) -> bool {
+    let ty = extract_option_inner_type(ty).unwrap_or(ty);
+
+    if let Type::Path(type_path) = ty {
+        if let Some(seg) = type_path.path.segments.last() {
+            return seg.ident == "Time";
+        }
+    }
+
+    false
+}
 
 // Implement a way to display the rule for testing purposes
 impl Rule {
+    #[allow(dead_code)]
     fn as_str(&self) -> String {
         match self {
             Rule::Required => "required".to_string(),
@@ -524,11 +581,32 @@ impl Rule {
                 }
             }
 
+            Rule::Confirmed(val) => {
+                let confirm = format_ident!("{}",val);
+                if is_option_type(field_ty) {
+                    quote! {
+                        if let Some(value) = (&self.#field_ident).as_ref() {
+                            if let Some(value2) = (&self.#confirm).as_ref() {
+                                if value != value2 {
+                                    errors.add(#field_name, format!("{} not confirmed",&#field_name));
+                                }
+                            }
+                        }
+                    }
+                }else{
+
+                    quote! {
+                        if &self.#field_ident != &self.#confirm{
+                            errors.add(#field_name, format!("{} not confirmed",&#field_name));
+                        }
+                    }
+               }
+            }
             Rule::Email => {
                 if !is_string_type(field_ty) {
                     return Error::new_spanned(
                         field_name,
-                        format!(" email must be string  `{}`", field_name),
+                        format!("Email must be string  `{}`", field_name),
                     )
                     .to_compile_error()
                     .into();
@@ -537,14 +615,14 @@ impl Rule {
                 if !is_option {
                     quote! {
                     if !macros_core::is_valid_email(&self.#field_ident) {
-                        errors.add(#field_name, "email");
+                        errors.add(#field_name, format!("Email is invalid `{}`",&self.#field_ident));
                     }
                     }
                 } else {
                     quote! {
                         if let Some(value) = (&self.#field_ident).as_ref() {
                             if !macros_core::is_valid_email(value) {
-                                errors.add(#field_name, "email");
+                               errors.add(#field_name, format!("Email is invalid `{}`",&value));
                             }
                         }
                     }
@@ -554,7 +632,7 @@ impl Rule {
                 if !is_string_type(field_ty) {
                     return Error::new_spanned(
                         field_name,
-                        format!(" url must be string  `{}`", field_name),
+                        format!("Url must be string  `{}`", field_name),
                     )
                     .to_compile_error()
                     .into();
@@ -563,14 +641,14 @@ impl Rule {
                 if !is_option {
                     quote! {
                     if !macros_core::is_valid_url(&self.#field_ident) {
-                        errors.add(#field_name, "url");
+                        errors.add(#field_name, format!("Url is invalid `{}`",&self.#field_ident));
                     }
                     }
                 } else {
                     quote! {
                         if let Some(value) = (&self.#field_ident).as_ref() {
                             if !macros_core::is_valid_url(value) {
-                                errors.add(#field_name, "url");
+                                errors.add(#field_name, format!("Email is invalid `{}`",&value));
                             }
                         }
                     }
@@ -584,14 +662,14 @@ impl Rule {
                         quote! {
                             if let Some(value) = &self.#field_ident {
                                 if value.len() < #val as usize {
-                                    errors.add(#field_name, "min");
+                                    errors.add(#field_name, format!("String length must be at least `{}` characters",&#val));
                                 }
                             }
                         }
                     } else {
                         quote! {
                             if self.#field_ident.len() < #val as usize {
-                                errors.add(#field_name, "min");
+                                 errors.add(#field_name, format!("String length must be at least `{}` characters",&#val));
                             }
                         }
                     }
@@ -600,14 +678,14 @@ impl Rule {
                         quote! {
                             if let Some(value) = self.#field_ident {
                                 if value < #val {
-                                    errors.add(#field_name, "min");
+                                    errors.add(#field_name, format!("{} must be greater than or equal to {}",&#field_name,#val));
                                 }
                             }
                         }
                     } else {
                         quote! {
                             if self.#field_ident < #val {
-                                errors.add(#field_name, "min");
+                                errors.add(#field_name, format!("{} must be greater than or equal to {}",&#field_name,#val));
                             }
                         }
                     }
@@ -629,6 +707,7 @@ impl Rule {
                         quote! {
                             if let Some(value) = &self.#field_ident {
                                 if value.len() > #val as usize {
+                                    errors.add(#field_name, format!("String length must not exceed {} characters.",&#val));
                                     errors.add(#field_name, "max");
                                 }
                             }
@@ -636,7 +715,7 @@ impl Rule {
                     } else {
                         quote! {
                             if self.#field_ident.len() > #val as usize {
-                                errors.add(#field_name, "max");
+                                errors.add(#field_name, format!("String length must not exceed {} characters.",&#val));
                             }
                         }
                     }
@@ -645,14 +724,14 @@ impl Rule {
                         quote! {
                             if let Some(value) = self.#field_ident {
                                 if value < #val {
-                                    errors.add(#field_name, "max");
+                                   errors.add(#field_name, format!("{} must be less than or equal to {}",&#field_name,#val));
                                 }
                             }
                         }
                     } else {
                         quote! {
                             if self.#field_ident > #val {
-                                errors.add(#field_name, "max");
+                                errors.add(#field_name, format!("{} must be less than or equal to {}",&#field_name,#val));
                             }
                         }
                     }
@@ -674,14 +753,14 @@ impl Rule {
                         quote! {
                             if let Some(value) = &self.#field_ident {
                                 if value.len() != #val as usize {
-                                    errors.add(#field_name, "size");
+                                    errors.add(#field_name, format!("String length must equal {} characters.",&#val));
                                 }
                             }
                         }
                     } else {
                         quote! {
                             if self.#field_ident.len() != #val as usize {
-                                errors.add(#field_name, "size");
+                                errors.add(#field_name, format!("String length must equal {} characters.",&#val));
                             }
                         }
                     }
@@ -689,22 +768,25 @@ impl Rule {
                     if is_option {
                         quote! {
                             if let Some(value) = &self.#field_ident {
-                                if *value != #val {
-                                    errors.add(#field_name, "size");
+
+                                let num_digits = value.to_string().chars().count();
+                                if num_digits != #val as usize {
+                                    errors.add(#field_name, format!("The entered number must contain exactly {} digits.",#val));
                                 }
                             }
                         }
                     } else {
                         quote! {
-                            if self.#field_ident != #val {
-                                errors.add(#field_name, "size");
+                            let num_digits = self.#field_ident.to_string().chars().count();
+                            if num_digits != #val as usize {
+                                errors.add(#field_name, format!("The entered number must contain exactly {} digits.",#val));
                             }
                         }
                     }
                 } else {
                     return Error::new_spanned(
                         field_name,
-                        format!(" invalid data type for size  `{}`", field_name),
+                        format!("invalid data type for size  `{}`", field_name),
                     )
                     .to_compile_error()
                     .into();
@@ -719,14 +801,14 @@ impl Rule {
                         quote! {
                             if let Some(value) = &self.#field_ident {
                                 if !value.starts_with(#prefix) {
-                                    errors.add(#field_name, "starts_with");
+                                    errors.add(#field_name, format!("String must start with :{}",&#prefix));
                                 }
                             }
                         }
                     } else {
                         quote! {
                             if !self.#field_ident.starts_with(#prefix) {
-                                errors.add(#field_name, "starts_with");
+                               errors.add(#field_name, format!("String must start with :{}",&#prefix));
                             }
                         }
                     }
@@ -748,14 +830,14 @@ impl Rule {
                         quote! {
                             if let Some(value) = &self.#field_ident {
                                 if !value.ends_with(#suffix) {
-                                    errors.add(#field_name, "ends_with");
+                                    errors.add(#field_name, format!("String must end with :{}",&#suffix));
                                 }
                             }
                         }
                     } else {
                         quote! {
                             if !self.#field_ident.ends_with(#suffix) {
-                                errors.add(#field_name, "ends_with");
+                                 errors.add(#field_name, format!("String must end with :{}",&#suffix));
                             }
                         }
                     }
@@ -781,14 +863,14 @@ impl Rule {
                 if !is_option {
                     quote! {
                     if !macros_core::is_valid_ascii(&self.#field_ident) {
-                        errors.add(#field_name, "ascii");
+                        errors.add(#field_name, format!("Input must contain only ASCII characters. Invalid value: {}",&self.#field_ident));
                     }
                     }
                 } else {
                     quote! {
                         if let Some(value) = (&self.#field_ident).as_ref() {
                             if !macros_core::is_valid_ascii(value) {
-                                errors.add(#field_name, "ascii");
+                                errors.add(#field_name, format!("Input must contain only ASCII characters. Invalid value: {}",&value));
                             }
                         }
                     }
@@ -798,7 +880,7 @@ impl Rule {
                 if !is_string_type(field_ty) {
                     return Error::new_spanned(
                         field_name,
-                        format!(" alphanumeric must be string  `{}`", field_name),
+                        format!("alphanumeric must be string  `{}`", field_name),
                     )
                     .to_compile_error()
                     .into();
@@ -807,14 +889,14 @@ impl Rule {
                 if !is_option {
                     quote! {
                     if !macros_core::is_valid_ascii_alphanumeric(&self.#field_ident) {
-                        errors.add(#field_name, "alphanumeric");
+                        errors.add(#field_name, format!("Input must contain only Alphanumeric characters. Invalid value: {}",&self.#field_ident));
                     }
                     }
                 } else {
                     quote! {
                         if let Some(value) = (&self.#field_ident).as_ref() {
                             if !macros_core::is_valid_ascii_alphanumeric(value) {
-                                errors.add(#field_name, "alphanumeric");
+                                errors.add(#field_name, format!("Input must contain only Alphanumeric characters. Invalid value: {}",&value));
                             }
                         }
                     }
@@ -833,14 +915,14 @@ impl Rule {
                 if !is_option {
                     quote! {
                     if !macros_core::is_valid_hex_color(&self.#field_ident) {
-                        errors.add(#field_name, "hex_color");
+                        errors.add(#field_name, format!("The provided value {} is not a valid hexadecimal color code",&self.#field_ident));
                     }
                     }
                 } else {
                     quote! {
                         if let Some(value) = (&self.#field_ident).as_ref() {
                             if !macros_core::is_valid_hex_color(value) {
-                                errors.add(#field_name, "hex_color");
+                                errors.add(#field_name, format!("The provided value {} is not a valid hexadecimal color code",&value));
                             }
                         }
                     }
@@ -859,14 +941,14 @@ impl Rule {
                 if !is_option {
                     quote! {
                      if &self.#field_ident != &self.#field_ident.to_lowercase() {
-                            errors.add(#field_name, "lowercase");
+                            errors.add(#field_name, format!("The input value {} must be in lowercase",&self.#field_ident));
                      }
                     }
                 } else {
                     quote! {
                         if let Some(value) = (&self.#field_ident).as_ref() {
                             if value != &value.to_lowercase() {
-                                errors.add(#field_name, "lowercase");
+                                errors.add(#field_name, format!("The input value {} must be in lowercase",&value));
                             }
                         }
                     }
@@ -886,14 +968,14 @@ impl Rule {
                 if !is_option {
                     quote! {
                      if &self.#field_ident != &self.#field_ident.to_uppercase() {
-                            errors.add(#field_name, "uppercase");
+                            errors.add(#field_name, format!("The input value {} must be in uppercase",&self.#field_ident));
                      }
                     }
                 } else {
                     quote! {
                         if let Some(value) = (&self.#field_ident).as_ref() {
                             if value != &value.to_uppercase() {
-                                errors.add(#field_name, "uppercase");
+                               errors.add(#field_name, format!("The input value {} must be in uppercase",&value));
                             }
                         }
                     }
@@ -932,159 +1014,308 @@ impl Rule {
                 if !is_option {
                     quote! {
                     if !macros_core::is_valid_ip(&self.#field_ident) {
-                        errors.add(#field_name, "ip");
+                        errors.add(#field_name, format!("The provided value {} is not a valid IP address.",&self.#field_ident));
                     }
                     }
                 } else {
                     quote! {
                         if let Some(value) = (&self.#field_ident).as_ref() {
                             if !macros_core::is_valid_ip(value) {
-                                errors.add(#field_name, "ip");
+                                errors.add(#field_name, format!("The provided value {} is not a valid IP address.",&value));
                             }
                         }
                     }
                 }
             }
             Rule::Date => {
-                if !is_string_type(field_ty) {
+                let is_option = is_option_type(field_ty);
+                if !is_string_type(field_ty) && !is_datetime_types(field_ty) {
                     return Error::new_spanned(
                         field_name,
-                        format!(" date must be string  `{}`", field_name),
+                        format!(" date must be string or date  `{}`", field_name),
                     )
                     .to_compile_error()
                     .into();
                 }
-                let is_option = is_option_type(field_ty);
-                if !is_option {
-                    quote! {
-                    if !macros_core::is_valid_date(&self.#field_ident) {
-                        errors.add(#field_name, "date");
-                    }
-                    }
-                } else {
-                    quote! {
-                        if let Some(value) = (&self.#field_ident).as_ref() {
-                            if !macros_core::is_valid_date(value) {
-                                errors.add(#field_name, "date");
+                if is_string_type(field_ty) {
+                    if !is_option {
+                        quote! {
+                            if !macros_core::is_valid_date(&self.#field_ident) {
+                                errors.add(#field_name, format!("The provided value {} is not a valid date. The required format is YYYY-MM-DD.",&self.#field_ident));
+                            }
+                        }
+                    } else {
+                        quote! {
+                            if let Some(value) = (&self.#field_ident).as_ref() {
+                                if !macros_core::is_valid_date(value) {
+                                    errors.add(#field_name, format!("The provided value {} is not a valid date. The required format is YYYY-MM-DD.",&value));
+                                }
                             }
                         }
                     }
+                } else {
+                    quote! {}
                 }
             }
             Rule::DateTime => {
-                if !is_string_type(field_ty) {
+                let is_option = is_option_type(field_ty);
+                if !is_string_type(field_ty) && !is_datetime_types(field_ty) {
                     return Error::new_spanned(
                         field_name,
-                        format!(" datetime must be string  `{}`", field_name),
+                        format!(" datetime must be string or datetime  `{}`", field_name),
                     )
                     .to_compile_error()
                     .into();
                 }
-                let is_option = is_option_type(field_ty);
-                if !is_option {
-                    quote! {
-                        if !macros_core::is_valid_datetime(&self.#field_ident) {
-                            errors.add(#field_name, "datetime");
+                if is_string_type(field_ty) {
+                    if !is_option {
+                        quote! {
+                            if !macros_core::is_valid_datetime(&self.#field_ident) {
+                                errors.add(#field_name, format!("The provided value {} is not a valid date‑time. The required format is YYYY‑MM‑DD HH:MM:SS",&self.#field_ident));
+                            }
                         }
-                    }
-                } else {
-                    quote! {
-                        if let Some(value) = (&self.#field_ident).as_ref() {
-                            if !macros_core::is_valid_datetime(value) {
-                                errors.add(#field_name, "datetime");
+                    } else {
+                        quote! {
+                            if let Some(value) = (&self.#field_ident).as_ref() {
+                                if !macros_core::is_valid_datetime(value) {
+                                   errors.add(#field_name, format!("The provided value {} is not a valid date‑time. The required format is YYYY‑MM‑DD HH:MM:SS",&value));
+                                }
                             }
                         }
                     }
+                } else {
+                    quote! {}
                 }
             }
             Rule::Time => {
-                if !is_string_type(field_ty) {
+                if !is_string_type(field_ty) && !is_time_type(field_ty) {
                     return Error::new_spanned(
                         field_name,
-                        format!(" time must be string  `{}`", field_name),
+                        format!(" time must be string or time `{}`", field_name),
                     )
                     .to_compile_error()
                     .into();
                 }
                 let is_option = is_option_type(field_ty);
                 if !is_option {
-                    quote! {
-                        if !macros_core::is_valid_time(&self.#field_ident) {
-                            errors.add(#field_name, "time");
-                        }
-                    }
-                } else {
-                    quote! {
-                        if let Some(value) = (&self.#field_ident).as_ref() {
-                            if !macros_core::is_valid_time(value) {
+                    if is_string_type(field_ty) {
+                        quote! {
+                            if !macros_core::is_valid_time(&self.#field_ident) {
                                 errors.add(#field_name, "time");
                             }
                         }
+                    } else {
+                        quote! {}
+                    }
+                } else {
+                    if is_string_type(field_ty) {
+                        quote! {
+                            if let Some(value) = (&self.#field_ident).as_ref() {
+                                if !macros_core::is_valid_time(value) {
+                                    errors.add(#field_name, "time");
+                                }
+                            }
+                        }
+                    } else {
+                        quote! {}
                     }
                 }
             }
 
             Rule::After(date) => {
-                if !is_string_type(field_ty) {
+                // check is date|time or string
+                if !is_string_type(field_ty) && !is_datetime_types(field_ty) {
                     return Error::new_spanned(
                         field_name,
-                        format!(" date must be string  `{}`", field_name),
+                        format!("date must be string or date|time `{}`", field_name),
                     )
                     .to_compile_error()
                     .into();
                 }
                 let is_option = is_option_type(field_ty);
+                // non option dates
                 if !is_option {
-                    quote! {
-                    match macros_core::is_after_option(&self.#field_ident, #date) {
-                                None => errors.add(#field_name, "date"),
-                                Some(true) => (),
-                                Some(false) => errors.add(#field_name, "after"),
+                    // compare string date
+                    if is_string_type(field_ty) {
+                        quote! {
+                        match macros_core::is_after_option(&self.#field_ident, #date) {
+                                    None => errors.add(#field_name, format!("Date|time formats invalid: {},{}",&self.#field_ident,&#date)),
+                                    Some(true) => (),
+                                    Some(false) => errors.add(#field_name,format!("The provided value {} must be later than {}",
+                                    &self.#field_ident, &#date)),
+                                }
+                        }
+                    } else {
+                        // compare datetime
+                        if is_datetime_type(field_ty) {
+                            quote! {
+                                match macros_core::is_after_option_datetime_ex(self.#field_ident, #date) {
+                                        None => errors.add(#field_name, format!("Datetime formats invalid: {},{}",&self.#field_ident,&#date.to_string())),
+                                        Some(true) => (),
+                                        Some(false) => errors.add(#field_name,
+                                        format!("The provided value {} must be later than {}",
+                                            &self.#field_ident.to_string(), &#date)),
+                                }
                             }
+                            // compare date
+                        } else if is_date_type(field_ty) {
+                            quote! {
+                                match macros_core::is_after_option_date_ex(self.#field_ident, #date) {
+                                        None => errors.add(#field_name, format!("Date formats invalid: {},{}",&self.#field_ident,&#date.to_string())),
+                                        Some(true) => (),
+                                        Some(false) => errors.add(#field_name,
+                                        format!("The provided value {} must be later than {}",
+                                            &self.#field_ident.to_string(),& #date)),
+                               }
+                            }
+                        } else {
+                            quote! {}
+                        }
                     }
                 } else {
-                    quote! {
-                        if let Some(value) = (&self.#field_ident).as_ref() {
-                            match macros_core::is_after_option(value, #date) {
-                                None => errors.add(#field_name, "date"),
-                                Some(true) => (),
-                                Some(false) => errors.add(#field_name, "after"),
-                         }
+                    if is_string_type(field_ty) {
+                        // compare strings
+                        quote! {
+                            if let Some(value) = (&self.#field_ident).as_ref() {
+                                match macros_core::is_after_option(value, #date) {
+                                    None => errors.add(#field_name, format!("Date|time formats invalid: {},{}",&value,&#date)),
+                                    Some(true) => (),
+                                    Some(false) => errors.add(#field_name,
+                                        format!("The provided value {} must be later than {}"
+                                            ,&value.to_string(), &#date)),
+                                }
+                            }
+                        }
+                    } else {
+                        // compare date time
+                        if is_datetime_type(field_ty) {
+                            quote! {
+                            if let Some(value) = (self.#field_ident).as_ref() {
+                                match macros_core::is_after_option_datetime_ex(value, #date) {
+                                    None => errors.add(#field_name, format!("Datetime formats invalid: {},{}",&value,&#date)),
+                                    Some(true) => (),
+                                    Some(false)  => errors.add(#field_name,
+                                        format!("The provided value {} must be later than {}",
+                                            &value, &#date)),
+                                }
+                            }
+                            }
+                        } else if is_date_type(field_ty) {
+                            quote! {
+                            if let Some(value) = (self.#field_ident).as_ref() {
+                                match macros_core::is_after_option_date_ex(value, #date) {
+                                    None => errors.add(#field_name, format!("Date formats invalid: {},{}",&value,&#date)),
+                                    Some(true) => (),
+                                    Some(false)  => errors.add(#field_name,
+                                        format!("The provided value {} must be later than {}",
+                                            &value.to_string(), &#date)),
+                                }
+                            }
+                            }
+                        } else {
+                            quote! {}
+                        }
+                    }
+                }
+            }
+            Rule::Before(date) => {
+                // check is date|time or string
+                if !is_string_type(field_ty) && !is_datetime_types(field_ty) {
+                    return Error::new_spanned(
+                        field_name,
+                        format!("date must be string or date|time `{}`", field_name),
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+                let is_option = is_option_type(field_ty);
+                // non option dates
+                if !is_option {
+                    // compare string date
+                    if is_string_type(field_ty) {
+                        quote! {
+                        match macros_core::is_before_option(&self.#field_ident, #date) {
+                                    None => errors.add(#field_name, format!("Date|time formats invalid: {},{}",&self.#field_ident,&#date)),
+                                    Some(true) => (),
+                                    Some(false) => errors.add(#field_name,format!("The provided value {} must be earlier than {}",
+                                    &self.#field_ident, &#date)),
+                                }
+                        }
+                    } else {
+                        // compare datetime
+                        if is_datetime_type(field_ty) {
+                            quote! {
+                                match macros_core::is_before_option_datetime_ex(self.#field_ident, #date) {
+                                        None => errors.add(#field_name, format!("Datetime formats invalid: {},{}",&self.#field_ident,&#date.to_string())),
+                                        Some(true) => (),
+                                        Some(false) => errors.add(#field_name,
+                                        format!("The provided value {} must be earlier than {}",
+                                            &self.#field_ident.to_string(), &#date)),
+                                }
+                            }
+                            // compare date
+                        } else if is_date_type(field_ty) {
+                            quote! {
+                                match macros_core::is_before_option_date_ex(self.#field_ident, #date) {
+                                        None => errors.add(#field_name, format!("Date formats invalid: {},{}",&self.#field_ident,&#date.to_string())),
+                                        Some(true) => (),
+                                        Some(false) => errors.add(#field_name,
+                                        format!("The provided value {} must be earlier than {}",
+                                            &self.#field_ident.to_string(),& #date)),
+                               }
+                            }
+                        } else {
+                            quote! {}
+                        }
+                    }
+                } else {
+                    if is_string_type(field_ty) {
+                        // compare strings
+                        quote! {
+                            if let Some(value) = (&self.#field_ident).as_ref() {
+                                match macros_core::is_before_option(value, #date) {
+                                    None => errors.add(#field_name, format!("Date|time formats invalid: {},{}",&value,&#date)),
+                                    Some(true) => (),
+                                    Some(false) => errors.add(#field_name,
+                                        format!("The provided value {} must be earlier than {}"
+                                            ,&value.to_string(), &#date)),
+                                }
+                            }
+                        }
+                    } else {
+                        // compare date time
+                        if is_datetime_type(field_ty) {
+                            quote! {
+                            if let Some(value) = (self.#field_ident).as_ref() {
+                                match macros_core::is_before_option_datetime_ex(value, #date) {
+                                    None => errors.add(#field_name, format!("Datetime formats invalid: {},{}",&value,&#date)),
+                                    Some(true) => (),
+                                    Some(false)  => errors.add(#field_name,
+                                        format!("The provided value {} must be earlier than {}",
+                                            &value, &#date)),
+                                }
+                            }
+                            }
+                        } else if is_date_type(field_ty) {
+                            quote! {
+                            if let Some(value) = (self.#field_ident).as_ref() {
+                                match macros_core::is_before    _option_date_ex(value, #date) {
+                                    None => errors.add(#field_name, format!("Date formats invalid: {},{}",&value,&#date)),
+                                    Some(true) => (),
+                                    Some(false)  => errors.add(#field_name,
+                                        format!("The provided value {} must be earlier than {}",
+                                            &value.to_string(), &#date)),
+                                }
+                            }
+                            }
+                        } else {
+                            quote! {}
                         }
                     }
                 }
             }
 
-            Rule::Before(date) => {
-                if !is_string_type(field_ty) {
-                    return Error::new_spanned(
-                        field_name,
-                        format!(" date must be string  `{}`", field_name),
-                    )
-                        .to_compile_error()
-                        .into();
-                }
-                let is_option = is_option_type(field_ty);
-                if !is_option {
-                    quote! {
-                    match macros_core::is_before_option(&self.#field_ident, #date) {
-                                None => errors.add(#field_name, "date"),
-                                Some(true) => (),
-                                Some(false) => errors.add(#field_name, "after"),
-                            }
-                    }
-                } else {
-                    quote! {
-                        if let Some(value) = (&self.#field_ident).as_ref() {
-                            match macros_core::is_before_option(value, #date) {
-                                None => errors.add(#field_name, "date"),
-                                Some(true) => (),
-                                Some(false) => errors.add(#field_name, "before"),
-                         }
-                        }
-                    }
-                }
-            }
+
             Rule::Json => {
                 if !is_string_type(field_ty) {
                     return Error::new_spanned(

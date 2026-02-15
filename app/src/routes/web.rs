@@ -1,8 +1,10 @@
 use crate::http::controllers::todo_controller;
+use crate::http::controllers::test_controller;
 use crate::http::middleware::log_middleware;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use rustavel_core::routing::{BuiltRoutes, Route};
+
 
 pub fn web_routes() -> BuiltRoutes<AppState> {
     let mut route = Route::new();
@@ -11,7 +13,7 @@ pub fn web_routes() -> BuiltRoutes<AppState> {
     route.get("/about", hello).name("about");
     // route.get("/about2",hello).name("about");
     route
-        .any("/test", hello)
+        .any("/test", test_controller::register)
         .name("test")
         .middleware(log_middleware::log_request);
 

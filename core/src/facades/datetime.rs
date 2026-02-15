@@ -12,11 +12,12 @@ use time::{
     Date,
     OffsetDateTime,
     PrimitiveDateTime,
+    Time,
     error::Parse,
     format_description::FormatItem,
     format_description::well_known::Rfc2822,
     macros::format_description,
-    format_description::parse
+    // format_description::parse
 };
 
 use serde::{Deserializer, Deserialize};
@@ -34,6 +35,13 @@ const YMD: &[FormatItem<'static>] =
 /// Example: `2026-02-14 13:45:22`
 const YMD_HMS: &[FormatItem<'static>] =
     format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
+
+
+/// Format: `HH:MM:SS`
+/// Example: `13:45:22`
+const HMS: &[FormatItem<'static>] =
+    format_description!("[hour]:[minute]:[second]");
+
 
 /// Format: `YYYY_MM_DD_HHMM`
 /// Example: `2026_02_14_1345`
@@ -163,10 +171,7 @@ where
 
     let s = s.trim();
 
-
-    let format = format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
-
-    PrimitiveDateTime::parse(s, &format)
+    PrimitiveDateTime::parse(s, &YMD_HMS)
         .map_err(Error::custom)  // show 400 error
 }
 
@@ -174,9 +179,57 @@ pub fn serialize_datetime<S>(date: &PrimitiveDateTime, serializer: S) -> Result<
 where
     S: serde::Serializer,
 {
-    let format = format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
     let s = date
-        .format(&format)
+        .format(&YMD_HMS)
+        .map_err(serde::ser::Error::custom)?;
+    serializer.serialize_str(&s)
+}
+
+pub fn deserialize_date<'de, D>(deserializer: D) -> Result<Date, D::Error>
+where
+    D: Deserializer<'de>,
+{
+
+    let s: String = String::deserialize(deserializer)?;
+
+
+    let s = s.trim();
+
+    Date::parse(s, &YMD)
+        .map_err(Error::custom)  // show 400 error
+}
+
+pub fn serialize_date<S>(date: &Date, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    let s = date
+        .format(&YMD)
+        .map_err(serde::ser::Error::custom)?;
+    serializer.serialize_str(&s)
+}
+
+
+pub fn deserialize_time<'de, D>(deserializer: D) -> Result<Time, D::Error>
+where
+    D: Deserializer<'de>,
+{
+
+    let s: String = String::deserialize(deserializer)?;
+
+
+    let s = s.trim();
+
+    Time::parse(s, &HMS)
+        .map_err(Error::custom)  // show 400 error
+}
+
+pub fn serialize_time<S>(time: &Time, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    let s = time
+        .format(&HMS)
         .map_err(serde::ser::Error::custom)?;
     serializer.serialize_str(&s)
 }

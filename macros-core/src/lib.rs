@@ -2,15 +2,16 @@ use std::collections::HashMap;
 use serde::Serialize;
 use regex::Regex;
 use once_cell::sync::Lazy;
-use time::macros::datetime;
+use time::macros::{ format_description};
 
 use time::{
+    Date,
     PrimitiveDateTime,
     format_description::{self, FormatItem},
 };
 
-use serde_json::de::IoRead;
-use serde_json::Deserializer;
+// use serde_json::de::IoRead;
+// use serde_json::Deserializer;
 use std::net::IpAddr;
 
 pub static EMAIL_REGEX: Lazy<Regex> = Lazy::new(|| {
@@ -26,9 +27,12 @@ pub static HEX_REGEX: Lazy<Regex> = Lazy::new(|| {
 });
 
 
-static DATE_FORMAT: Lazy<Vec<FormatItem>> = Lazy::new(|| {
-    format_description::parse("[year]-[month]-[day]").unwrap()
-});
+pub static DATETIME_FORMAT : &[FormatItem<'static>] =
+format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
+
+pub static DATE_FORMAT : &[FormatItem<'static>] =
+format_description!("[year]-[month]-[day]");
+
 #[derive(Debug,Serialize)]
 pub struct ValidationErrors {
     pub errors: HashMap<String, Vec<String>>,
@@ -177,123 +181,133 @@ pub fn is_valid_json(value: &str) -> bool {
 }
 /// Validate if the given string is a valid date (YYYY-MM-DD).
 pub fn is_valid_date(value: &str) -> bool {
-    is_valid_php_datetime("Y-m-d",value)
+    match PrimitiveDateTime::parse(&format!("{value} 00:00:00"), &DATETIME_FORMAT) {
+        Ok(_) => {
+            true
+        }
+        Err(e) => {
+            print!("{:?}",e);
+            false
+        }
+    }
 }
 
 /// Validate if the given string is a valid datetime (YYYY-MM-DD HH:MM:SS).
 pub fn is_valid_datetime(value: &str) -> bool {
-    is_valid_php_datetime("Y-m-d H:i:s",value)
+    match PrimitiveDateTime::parse(&value, &DATETIME_FORMAT) {
+        Ok(_) => {
+            true
+        }
+        Err(e) => {
+            print!("{:?}",e);
+            false
+        }
+    }
 }
 
 /// Validate if the given string is a valid time (HH:MM:SS).
 pub fn is_valid_time(value: &str) -> bool {
-    is_valid_php_datetime("H:i:s",value)
+    match PrimitiveDateTime::parse(&format!("2010-10-10 {value}"), &DATETIME_FORMAT) {
+        Ok(_) => {
+            true
+        }
+        Err(e) => {
+            print!("{:?}",e);
+            false
+        }
+    }
 }
 
 /// Validate if `value` is after the given date (YYYY-MM-DD).
 pub fn is_after(value: &str, target: &str) -> bool {
-    let value_date = PrimitiveDateTime::parse(value, &*DATE_FORMAT).unwrap();
-    let target_date = PrimitiveDateTime::parse(target, &*DATE_FORMAT).unwrap();
+    let value_date = PrimitiveDateTime::parse(value, &*DATETIME_FORMAT).unwrap();
+    let target_date = PrimitiveDateTime::parse(target, &*DATETIME_FORMAT).unwrap();
     value_date > target_date
 }
 
 /// Validate if `value` is before the given date (YYYY-MM-DD).
 pub fn is_before(value: &str, target: &str) -> bool {
-    let value_date = PrimitiveDateTime::parse(value, &*DATE_FORMAT).unwrap();
-    let target_date = PrimitiveDateTime::parse(target, &*DATE_FORMAT).unwrap();
+    let value_date = PrimitiveDateTime::parse(value, &*DATETIME_FORMAT).unwrap();
+    let target_date = PrimitiveDateTime::parse(target, &*DATETIME_FORMAT).unwrap();
     value_date < target_date
 }
 
 
 pub fn is_after_option(value: &str, target: &str) -> Option<bool> {
-    let value_date = PrimitiveDateTime::parse(value, &*DATE_FORMAT).ok()?;
-    let target_date = PrimitiveDateTime::parse(target, &*DATE_FORMAT).ok()?;
+    let mut target_temp = target.to_string();
+    let mut value_temp = target.to_string();
+    // 2010-11-11
+    if target_temp.len() == 10 {
+        target_temp = format!("{} 00:00:00", target);
+    }
+    if value_temp.len() == 10 {
+        value_temp = format!("{} 00:00:00", target);
+    }
+    let value_date = PrimitiveDateTime::parse(&value_temp, &*DATETIME_FORMAT).ok()?;
+    let target_date = PrimitiveDateTime::parse(&target_temp, &*DATETIME_FORMAT).ok()?;
     Some(value_date > target_date)
 }
 
+pub fn is_after_option_datetime_ex(value: PrimitiveDateTime, target: &str) -> Option<bool> {
+
+    match PrimitiveDateTime::parse(&format!("{target} 00:00:00"), &DATETIME_FORMAT) {
+        Ok(target_date) => {
+            Some(value > target_date)
+        }
+        Err(e) => {
+            print!("{:?}",e);
+            None
+        }
+    }
+
+}
+pub fn is_after_option_date_ex(value: Date, target: &str) -> Option<bool> {
+
+    match Date::parse(target, &DATE_FORMAT) {
+        Ok(target_date) => {
+            Some(value > target_date)
+        }
+        Err(e) => {
+            print!("{:?}",e);
+            None
+        }
+    }
+
+}
+
+
 
 pub fn is_before_option(value: &str, target: &str) -> Option<bool> {
-    let value_date = PrimitiveDateTime::parse(value, &*DATE_FORMAT).ok()?;
-    let target_date = PrimitiveDateTime::parse(target, &*DATE_FORMAT).ok()?;
+    let value_date = PrimitiveDateTime::parse(value, &*DATETIME_FORMAT).ok()?;
+    let target_date = PrimitiveDateTime::parse(target, &*DATETIME_FORMAT).ok()?;
     Some(value_date < target_date)
 }
 
 
-/// Validates a datetime string using a PHP-style format.
-///
-/// # Arguments
-/// - `php_format`: PHP-style format string (e.g. "Y/m/d H:i:s")
-/// - `input`: datetime string to validate
-///
-/// # Returns
-/// - `true` if parsing succeeds
-/// - `false` if parsing fails
-///
-/// # Example
-/// ```
-/// # use macros_core::is_valid_php_datetime;
-/// assert!(is_valid_php_datetime("Y/m/d H:i:s", "2026/02/14 13:45:22"));
-/// assert!(!is_valid_php_datetime("Y/m/d H:i:s", "invalid"));
-/// ```
-pub fn is_valid_php_datetime(
-    php_format: &str,
-    input: &str,
-) -> bool {
-    // Convert PHP format to time format string
-    let converted = match convert_php_to_time_format(php_format) {
-        Some(f) => f,
-        None => return false,
-    };
 
-    // Parse format description inside same scope
-    let format = match format_description::parse(&converted) {
-        Ok(f) => f,
-        Err(_) => return false,
-    };
+pub fn is_before_option_datetime_ex(value: PrimitiveDateTime, target: &str) -> Option<bool> {
 
-    PrimitiveDateTime::parse(input, &format).is_ok()
-}
-
-
-/// Converts a limited subset of PHP date format tokens
-/// into `time` crate format description.
-///
-/// This does NOT support all PHP tokens.
-/// Only common numeric tokens are handled.
-fn convert_php_to_time_format(php_format: &str) -> Option<String> {
-    let mut converted = String::new();
-
-    for ch in php_format.chars() {
-        match ch {
-            // Year
-            'Y' => converted.push_str("[year]"),
-            'y' => converted.push_str("[year repr:last_two]"),
-
-            // Month
-            'm' => converted.push_str("[month]"),
-            'n' => converted.push_str("[month padding:none]"),
-
-            // Day
-            'd' => converted.push_str("[day]"),
-            'j' => converted.push_str("[day padding:none]"),
-
-            // Hour (24h)
-            'H' => converted.push_str("[hour]"),
-            'G' => converted.push_str("[hour padding:none]"),
-
-            // Minute
-            'i' => converted.push_str("[minute]"),
-
-            // Second
-            's' => converted.push_str("[second]"),
-
-            // Allowed literal characters
-            '/' | '-' | ':' | ' ' => converted.push(ch),
-
-            // Anything else → unsupported
-            _ => return None,
+    match PrimitiveDateTime::parse(&format!("{target} 00:00:00"), &DATETIME_FORMAT) {
+        Ok(target_date) => {
+            Some(value < target_date)
+        }
+        Err(e) => {
+            print!("{:?}",e);
+            None
         }
     }
 
-    Some(converted)
+}
+pub fn is_before_option_date_ex(value: Date, target: &str) -> Option<bool> {
+
+    match Date::parse(target, &DATE_FORMAT) {
+        Ok(target_date) => {
+            Some(value < target_date)
+        }
+        Err(e) => {
+            print!("{:?}",e);
+            None
+        }
+    }
+
 }
