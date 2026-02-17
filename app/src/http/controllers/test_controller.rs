@@ -12,7 +12,8 @@ use time::{Date, PrimitiveDateTime};
 
 #[derive(Debug, Serialize, Deserialize, CheckMate)]
 pub struct RegPayload {
-    #[validating("required|email|min:12|max:180")]
+    id: u64,
+    #[validating("required|min:12|max:180")]
     pub title: String,
     pub description: String,
     #[serde(deserialize_with = "apply_normalized_string")]
@@ -45,15 +46,25 @@ pub struct RegPayload {
     pub pass: Option<String>,
     pub pass_confirm: Option<String>,
 
+    #[validating("required|not_in:admin,user,guest")]
+    role: String,
+    #[validating("required|array")]
+    items: Vec<String>,
+
+    #[validating("required|email|exists:users,email")]
+    email: String,
 }
 
-#[axum::debug_handler]
+// #[axum::debug_handler]
 pub async fn register(
     State(_state): State<AppState>,
     Params(payload, _): Params<RegPayload>,
 ) -> impl IntoResponse {
     let x = payload.validate().await;
-    println!("{:#?}", x);
 
+    println!("{:#?}", x);
+    // println!("{:#?}", payload);
+
+    // println!("{}", test);
     (StatusCode::OK, "hello world2")
 }

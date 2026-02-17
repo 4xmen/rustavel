@@ -5,6 +5,7 @@ use crate::db::table::{
 };
 use crate::logger;
 use std::string::String;
+use axum::Form;
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -454,5 +455,9 @@ impl SqlGenerator for MySqlGenerator {
 
     fn rem_migrated_table(&self) -> String {
         "DELETE FROM `migrations` WHERE  `migration` = ?".to_string()
+    }
+
+    fn record_exists(&self,table: &str,column: &str) -> String{
+        format!("SELECT COUNT(*) AS 'count' FROM `{}` WHERE `{}` = ?", table, column)
     }
 }

@@ -44,5 +44,7 @@ pub trait SqlGenerator: Debug + Sync + Send {
 
     fn add_migrated_table(&self) -> String;
     fn rem_migrated_table(&self) -> String;
+    
+    fn record_exists(&self,table: &str,column: &str) -> String;
 
 }

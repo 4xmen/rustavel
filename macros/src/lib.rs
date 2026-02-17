@@ -25,8 +25,8 @@
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
-use quote::quote;
 use quote::format_ident;
+use quote::quote;
 use quote::spanned::Spanned;
 use std::collections::HashSet;
 // use std::process::id;
@@ -460,6 +460,49 @@ fn is_numeric_type(ty: &Type) -> bool {
 
     false
 }
+
+/// Returns `true` if the given type is either a `Vec<String>` or `HashMap<String, String>`
+/// or an `Option` wrapping one of those types.
+fn is_string_collection_type(ty: &Type) -> bool {
+    let ty = extract_option_inner_type(ty).unwrap_or(ty);
+
+    if let Type::Path(type_path) = ty {
+        if let Some(seg) = type_path.path.segments.last() {
+            let ident = seg.ident.to_string();
+
+            // Check for Vec<String>
+            if ident == "Vec" {
+                if let syn::PathArguments::AngleBracketed(ref args) = seg.arguments {
+                    if let Some(syn::GenericArgument::Type(syn::Type::Path(inner_path))) =
+                        args.args.first()
+                    {
+                        if inner_path.path.is_ident("String") {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            // Check for HashMap<String, String>
+            if ident == "HashMap" {
+                if let syn::PathArguments::AngleBracketed(ref args) = seg.arguments {
+                    if let (
+                        Some(syn::GenericArgument::Type(syn::Type::Path(key_path))),
+                        Some(syn::GenericArgument::Type(syn::Type::Path(value_path))),
+                    ) = (args.args.get(0), args.args.get(1))
+                    {
+                        if key_path.path.is_ident("String") && value_path.path.is_ident("String") {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    false
+}
+
 /// Returns `true` if the given type is a supported date|time primitive
 /// (PrimitiveDateTime, Date)
 /// or an `Option` wrapping one of those types.
@@ -580,9 +623,8 @@ impl Rule {
                     quote! {}
                 }
             }
-
             Rule::Confirmed(val) => {
-                let confirm = format_ident!("{}",val);
+                let confirm = format_ident!("{}", val);
                 if is_option_type(field_ty) {
                     quote! {
                         if let Some(value) = (&self.#field_ident).as_ref() {
@@ -593,14 +635,13 @@ impl Rule {
                             }
                         }
                     }
-                }else{
-
+                } else {
                     quote! {
                         if &self.#field_ident != &self.#confirm{
                             errors.add(#field_name, format!("{} not confirmed",&#field_name));
                         }
                     }
-               }
+                }
             }
             Rule::Email => {
                 if !is_string_type(field_ty) {
@@ -656,7 +697,7 @@ impl Rule {
             }
             Rule::Min(val) => {
                 let is_option = is_option_type(field_ty);
-            
+
                 if is_string_type(field_ty) {
                     if is_option {
                         quote! {
@@ -698,10 +739,9 @@ impl Rule {
                     .into();
                 }
             }
-            
             Rule::Max(val) => {
                 let is_option = is_option_type(field_ty);
-            
+
                 if is_string_type(field_ty) {
                     if is_option {
                         quote! {
@@ -744,10 +784,9 @@ impl Rule {
                     .into();
                 }
             }
-            
             Rule::Size(val) => {
                 let is_option = is_option_type(field_ty);
-            
+
                 if is_string_type(field_ty) {
                     if is_option {
                         quote! {
@@ -768,7 +807,7 @@ impl Rule {
                     if is_option {
                         quote! {
                             if let Some(value) = &self.#field_ident {
-            
+
                                 let num_digits = value.to_string().chars().count();
                                 if num_digits != #val as usize {
                                     errors.add(#field_name, format!("The entered number must contain exactly {} digits.",#val));
@@ -792,7 +831,6 @@ impl Rule {
                     .into();
                 }
             }
-
             Rule::StartsWith(prefix) => {
                 let is_option = is_option_type(field_ty);
 
@@ -821,7 +859,6 @@ impl Rule {
                     .into();
                 }
             }
-
             Rule::EndsWith(suffix) => {
                 let is_option = is_option_type(field_ty);
 
@@ -954,7 +991,6 @@ impl Rule {
                     }
                 }
             }
-
             Rule::UpperCase => {
                 if !is_string_type(field_ty) {
                     return Error::new_spanned(
@@ -981,26 +1017,44 @@ impl Rule {
                     }
                 }
             }
-            // Rule::In(values) => {
-            //     quote! {
-            //         if let Some(value) = (&self.#field_ident).as_ref() {
-            //             let allowed = #values.split(',').collect::<Vec<_>>();
-            //             if !allowed.contains(&value.as_str()) {
-            //                 errors.add(#field_name, "in");
-            //             }
-            //         }
-            //     }
-            // }
-            // Rule::NotIn(values) => {
-            //     quote! {
-            //         if let Some(value) = (&self.#field_ident).as_ref() {
-            //             let blocked = #values.split(',').collect::<Vec<_>>();
-            //             if blocked.contains(&value.as_str()) {
-            //                 errors.add(#field_name, "not_in");
-            //             }
-            //         }
-            //     }
-            // }
+            Rule::In(values) => {
+                if is_option_type(field_ty) {
+                    quote! {
+                        if let Some(value) = (&self.#field_ident).as_ref() {
+                            let allowed = #values.split(',').collect::<Vec<_>>();
+                            if !allowed.contains(&value.as_str()) {
+                                errors.add(#field_name, format!("The provided value `{}` must be one of the allowed options: {}",&value,&#values));
+                            }
+                        }
+                    }
+                } else {
+                    quote! {
+                        let allowed = #values.split(',').collect::<Vec<_>>();
+                        if !allowed.contains(&self.#field_ident.as_str()) {
+                           errors.add(#field_name, format!("The provided value `{}` must be one of the allowed options: {}",&self.#field_ident ,&#values));
+                        }
+                    }
+                }
+            }
+            Rule::NotIn(values) => {
+                if is_option_type(field_ty) {
+                    quote! {
+                        if let Some(value) = (&self.#field_ident).as_ref() {
+                            let allowed = #values.split(',').collect::<Vec<_>>();
+                            if allowed.contains(&value.as_str()) {
+                                errors.add(#field_name, format!("The provided value `{}` not must be one of the allowed options: {}",&value,&#values));
+                            }
+                        }
+                    }
+                } else {
+                    quote! {
+                        let allowed = #values.split(',').collect::<Vec<_>>();
+                        if allowed.contains(&self.#field_ident.as_str()) {
+                           errors.add(#field_name, format!("The provided value `{}` must not be one of the allowed options: {}",&self.#field_ident ,&#values));
+                        }
+                    }
+                }
+            }
             Rule::Ip => {
                 if !is_string_type(field_ty) {
                     return Error::new_spanned(
@@ -1121,7 +1175,6 @@ impl Rule {
                     }
                 }
             }
-
             Rule::After(date) => {
                 // check is date|time or string
                 if !is_string_type(field_ty) && !is_datetime_types(field_ty) {
@@ -1314,8 +1367,6 @@ impl Rule {
                     }
                 }
             }
-
-
             Rule::Json => {
                 if !is_string_type(field_ty) {
                     return Error::new_spanned(
@@ -1342,9 +1393,94 @@ impl Rule {
                     }
                 }
             }
+            Rule::Array => {
+                if !is_string_collection_type(field_ty) {
+                    return Error::new_spanned(
+                        field_name,
+                        format!(
+                            " Array must be Vec<String> or HashMap<String, String>  `{}`",
+                            field_name
+                        ),
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+                quote! {}
+            }
+            Rule::Exists(meta) => {
+                let mut tokens = TokenStream::new();
+                let mut wanted_token = TokenStream::new();
+
+                let db = meta.split(',').collect::<Vec<_>>();
+                if db.len() != 2 {
+                    return Error::new_spanned(
+                        field_name,
+                        format!("Exists must have to value like: table,column. Exm: users,email. Your meta: {} ", &meta),
+                    )
+                        .to_compile_error()
+                        .into();
+                }
+
+                let table = db.get(0).unwrap().to_string();
+                let column = db.get(1).unwrap().to_string();
+
+                let is_option = is_option_type(field_ty);
+                if is_string_type(field_ty) {
+                    if is_option {
+                        wanted_token = quote! {
+                            let mut wanted = "";
+                            if let Some(value) = self.#field_ident{
+                                wanted = value;
+                            }
+                        }
+                        .into();
+                    } else {
+                        wanted_token = quote! {
+                            let wanted = &self.#field_ident.clone();
+                        }
+                        .into();
+                    }
+                } else if is_numeric_type(field_ty) {
+                    if is_option {
+                        wanted_token = quote! {
+                            let mut wanted = "";
+                            if let Some(value) = self.#field_ident{
+                                wanted = value.to_string();
+                            }
+                        }
+                        .into();
+                    } else {
+                        wanted_token = quote! {
+                            let wanted = &self.#field_ident.to_string();
+                        }
+                        .into();
+                    }
+                } else {
+                    return Error::new_spanned(
+                        field_name,
+                        format!(
+                            "unsupported type requried numberic or string `{}`",
+                            field_name
+                        ),
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+
+                let db_token: TokenStream = quote! { 
+                    if !rustavel_core::db::get_static_schema()
+                    .await.exists_record(#table, #column, wanted).await {
+                        errors.add(#field_name, format!("The record not exists: {}", wanted));
+                    }
+                }
+                .into();
+
+                tokens.extend(wanted_token);
+                tokens.extend(db_token);
+                tokens.into()
+                
+            }
             _ => quote! {},
         }
     }
 }
-
-

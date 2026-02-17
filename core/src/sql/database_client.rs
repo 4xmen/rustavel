@@ -13,9 +13,9 @@ pub enum DbError {
 pub trait DatabaseClient: Send + Sync + Debug {
     async fn execute(&self, sql: &str) -> Result<(), DbError>;
     async fn execute_params(&self, sql: &str, params: &[&str]) -> Result<(), DbError>;
-
     async fn fetch_strings(&self, sql: &str) -> Result<Vec<String>, DbError>;
     async fn fetch_strings_params(&self, sql: &str, params: &[&str]) -> Result<Vec<String>, DbError>;
+    async fn fetch_count_params(&self, sql: &str, params: &[&str]) -> Result<i64, DbError>;
     async fn fetch_numbers(&self, sql: &str) -> Result<Vec<i64>, DbError>;
 }
 
@@ -102,6 +102,24 @@ impl DatabaseClient for MySqlClient {
             })
             .collect())
     }
+    
+    async fn fetch_count_params(
+        &self,
+        sql: &str,
+        params: &[&str],
+    ) -> Result<i64, DbError> {
+        let mut query = sqlx::query(sql);
+
+        for param in params {
+            query = query.bind(*param);
+        }
+
+        let row = query.fetch_one(&self.pool).await?;
+
+        let count: i64 = row.try_get(0)?;
+
+        Ok(count)
+    }
 }
 
 #[derive(Debug)]
@@ -171,6 +189,24 @@ impl DatabaseClient for SqliteClient {
                 row.get::<String, _>(0)
             })
             .collect())
+    }
+
+    async fn fetch_count_params(
+        &self,
+        sql: &str,
+        params: &[&str],
+    ) -> Result<i64, DbError> {
+        let mut query = sqlx::query(sql);
+
+        for param in params {
+            query = query.bind(*param);
+        }
+
+        let row = query.fetch_one(&self.pool).await?;
+
+        let count: i64 = row.try_get(0)?; 
+
+        Ok(count)
     }
 
 

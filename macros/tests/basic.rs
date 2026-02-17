@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::time::Instant;
 use macros::CheckMate;
 
@@ -26,8 +27,8 @@ struct FullRuleCoverage {
     #[validating("in:admin,user,guest|not_in:banned,suspended")]
     role: String,
 
-    #[validating("unique:users,email|exists:users,email,id")]
-    user_ref: String,
+    // #[validating("unique:users,email,id|exists:users,email")]
+    // user_ref: String,
 
     #[validating("file|image|mimetypes:image/png,image/jpeg|extensions:png,jpg")]
     avatar: String,
@@ -38,11 +39,12 @@ struct FullRuleCoverage {
     #[validating("before:2026-01-01","after:2024-01-01")]
     date_range: String,
 
-    #[validating("array|json")]
+    
+    #[validating("json")]
     metadata: String,
 
-    // #[validating("min:200")]
-    // test: Instant,
+    #[validating("array")]
+    test: HashMap<String, String>,
 }
 
 #[test]

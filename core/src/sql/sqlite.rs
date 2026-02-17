@@ -393,4 +393,8 @@ impl SqlGenerator for SqliteGenerator {
         "DELETE FROM migrations WHERE migration = ?".to_string()
     }
 
+    fn record_exists(&self, table: &str, column: &str) -> String {
+        format!("SELECT COUNT(*) AS 'count' FROM '{}' WHERE '{}' = ?", table, column)
+    }
+
 }

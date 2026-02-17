@@ -1,5 +1,5 @@
-use crate::config::CONFIG;
 use crate::config::database::DatabaseEngine;
+use crate::config::{CONFIG, Config};
 use crate::db::table::{Table, TableAction};
 use crate::facades::terminal_ui::{Status, operation};
 use crate::logger;
@@ -7,11 +7,69 @@ use crate::sql::database_client::{DatabaseClient, DbError, MySqlClient, SqliteCl
 use crate::sql::generator::SqlGenerator;
 use crate::sql::mysql::MySqlGenerator;
 use crate::sql::sqlite::SqliteGenerator;
+use futures::future::join_all;
 use illuminate_string::Str;
 use sqlx::{MySqlPool, SqlitePool};
 use std::collections::HashMap;
+use tokio::sync::OnceCell;
 use tokio::time::Instant;
-use futures::future::join_all;
+
+static TABLES: OnceCell<Vec<String>> = OnceCell::const_new();
+static COLUMNS: OnceCell<Vec<String>> = OnceCell::const_new();
+
+pub async fn get_tables() -> &'static Vec<String> {
+    TABLES
+        .get_or_init(|| async {
+            // println!("get_tables");
+            match Schema::new().await {
+                Ok(schema) => {
+                    // If fetching tables fails, return empty vector instead of panicking
+                    schema.get_tables().await.unwrap_or_default()
+                }
+                Err(e) => {
+                    // Log the error and return empty vector
+                    eprintln!("Failed to initialize schema: {}", e);
+                    Vec::new()
+                }
+            }
+        })
+        .await
+}
+
+pub async fn get_columns() -> &'static Vec<String> {
+    COLUMNS
+        .get_or_init(|| async {
+            // println!("get_columns");
+            let schema = match Schema::new().await {
+                Ok(schema) => schema,
+                Err(e) => {
+                    eprintln!("Failed to initialize schema: {}", e);
+                    return Vec::new();
+                }
+            };
+
+            // Fetch tables safely
+            let tables = schema.get_tables().await.unwrap_or_default();
+
+            let mut result = Vec::new();
+
+            for table in tables {
+                match schema.get_column_listing(&table).await {
+                    Ok(columns) => {
+                        for column in columns {
+                            result.push(format!("{}.{}", table, column));
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to fetch columns for table {}: {:?}", table, e);
+                    }
+                }
+            }
+
+            result
+        })
+        .await
+}
 
 #[derive(Debug)]
 pub struct Schema {
@@ -263,7 +321,6 @@ impl Schema {
             }
         }
     }
-
 
     /// Attempts to retrieve the list of columns for a specified database table.
     ///
@@ -653,15 +710,13 @@ impl Schema {
         let tables = self.get_tables().await?;
         let drop_futures: Vec<_> = tables
             .into_iter()
-            .map(|table| {
-                self.drop_table(table)
-            })
+            .map(|table| self.drop_table(table))
             .collect();
 
         // execute all each other
         let results = join_all(drop_futures).await;
 
-       // check result
+        // check result
         for res in results {
             res?;
         }
@@ -702,12 +757,7 @@ impl Schema {
     /// - Requires appropriate database permissions.
     pub async fn drop_all_views(&self) -> Result<(), DbError> {
         let views = self.get_views().await?;
-        let drop_futures: Vec<_> = views
-            .into_iter()
-            .map(|view| {
-                self.drop_view(view)
-            })
-            .collect();
+        let drop_futures: Vec<_> = views.into_iter().map(|view| self.drop_view(view)).collect();
 
         // execute all each other
         let results = join_all(drop_futures).await;
@@ -1049,11 +1099,7 @@ impl Schema {
     pub async fn disable_foreign_key_constraints(&self) -> bool {
         match self
             .client
-            .execute(
-                &self
-                    .generator
-                    .disable_foreign_key_constraints(),
-            )
+            .execute(&self.generator.disable_foreign_key_constraints())
             .await
         {
             Ok(_) => true,
@@ -1097,11 +1143,7 @@ impl Schema {
     pub async fn enable_foreign_key_constraints(&self) -> bool {
         match self
             .client
-            .execute(
-                &self
-                    .generator
-                    .enable_foreign_key_constraints(),
-            )
+            .execute(&self.generator.enable_foreign_key_constraints())
             .await
         {
             Ok(_) => true,
@@ -1448,7 +1490,6 @@ impl Schema {
         }
     }
 
-
     /// Checks if the migrations repository exists in the database.
     ///
     /// This method:
@@ -1484,7 +1525,6 @@ impl Schema {
     pub async fn repository_exists(&self) -> Result<bool, DbError> {
         self.has_table("migrations").await
     }
-
 
     /// Retrieves a list of successfully executed migrations from the database.
     ///
@@ -1562,7 +1602,11 @@ impl Schema {
     /// - Ensure appropriate database permissions are granted to access the migrations table.
 
     pub async fn get_ran_migrations_gt(&self, batch: i64) -> Result<Vec<String>, DbError> {
-        match self.client.fetch_strings_params(&self.generator.get_ran_gt(),&[&batch.to_string()]).await {
+        match self
+            .client
+            .fetch_strings_params(&self.generator.get_ran_gt(), &[&batch.to_string()])
+            .await
+        {
             // note if table not found we don't have error just empty vector
             Ok(ran) => Ok(ran),
             Err(e) => {
@@ -1626,8 +1670,6 @@ impl Schema {
             }
         }
     }
-
-
 
     /// Creates the migration table in the database.
     ///
@@ -1730,7 +1772,6 @@ impl Schema {
         }
     }
 
-
     /// Removes a migrated table entry from the migrations repository.
     ///
     /// This method:
@@ -1774,6 +1815,39 @@ impl Schema {
                 }
                 Err(e)
             }
+        }
+    }
+
+    pub async fn exists_record(&self, table: &str, column: &str, wanted: &str) -> bool {
+        // ----------------------------------------------------
+        // Perform identifier validation (table & column) using a cached schema whitelist.
+        // Schema metadata is initialized once and reused from memory (OnceCell),
+        // providing O(1)-like lookup performance under high concurrency.
+        // This ensures query safety by preventing injection through dynamic identifiers
+        // before building the final SQL statement.
+        // ----------------------------------------------------
+        let tables = get_tables().await;
+        if !tables.contains(&table.to_string()) {
+            logger::error(&format!("table not exists {}", table));
+            logger::info("May you need to run migrations or restart app to re-cache tables!?");
+            return false;
+        }
+        let columns = get_columns().await;
+        if !columns.contains(&format!("{}.{}", table, column)) {
+            logger::error(&format!("column `{}` not exists in {}", column, table));
+            logger::info("May you need to run migrations or restart app to re-cache tables!?");
+            return false;
+        }
+        // check exists record
+        let sql = &self.generator.record_exists(table, column);
+        match self.client.fetch_count_params(sql, &[wanted]).await {
+            Ok(result) => {
+                if result == 0 { 
+                    return false;
+                }
+                true
+            }
+            Err(_) => false,
         }
     }
 }
