@@ -397,4 +397,8 @@ impl SqlGenerator for SqliteGenerator {
         format!("SELECT COUNT(*) AS 'count' FROM '{}' WHERE '{}' = ?", table, column)
     }
 
+    fn record_exists_except(&self,table: &str,column: &str, except: &str) -> String{
+        format!("SELECT COUNT(*) AS 'count' FROM '{}' WHERE '{}' = ? AND '{}' <> ?", table, column,except)
+    }
+
 }

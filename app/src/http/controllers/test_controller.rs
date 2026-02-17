@@ -53,6 +53,9 @@ pub struct RegPayload {
 
     #[validating("required|email|exists:users,email")]
     email: String,
+
+    #[validating("required|email|unique:users,email,id")]
+    email2: String,
 }
 
 // #[axum::debug_handler]

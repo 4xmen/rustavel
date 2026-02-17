@@ -1805,7 +1805,7 @@ impl Schema {
     /// - This method utilizes a prepared statement for safe execution of the deletion.
     /// - Ensure appropriate database permissions are granted to modify the migrations table.
 
-    pub async fn rem_migrated_table(&mut self, migration_name: &str) -> Result<(), DbError> {
+    pub async fn rem_migrated_table(&self, migration_name: &str) -> Result<(), DbError> {
         let sql = &self.generator.rem_migrated_table();
         match self.client.execute_params(sql, &[migration_name]).await {
             Ok(_) => Ok(()),
@@ -1818,6 +1818,7 @@ impl Schema {
         }
     }
 
+    
     pub async fn exists_record(&self, table: &str, column: &str, wanted: &str) -> bool {
         // ----------------------------------------------------
         // Perform identifier validation (table & column) using a cached schema whitelist.
@@ -1847,7 +1848,55 @@ impl Schema {
                 }
                 true
             }
-            Err(_) => false,
+            Err(e) => {
+                if self.debug {
+                    logger::error(&format!("{:?}", e));
+                }
+                false
+            },
+        }
+    }
+    
+    pub async fn exists_record_except(&self, table: &str, column: &str, wanted: &str, except_col: &str, except_val: &str) -> bool {
+        // ----------------------------------------------------
+        // Perform identifier validation (table & column) using a cached schema whitelist.
+        // Schema metadata is initialized once and reused from memory (OnceCell),
+        // providing O(1)-like lookup performance under high concurrency.
+        // This ensures query safety by preventing injection through dynamic identifiers
+        // before building the final SQL statement.
+        // ----------------------------------------------------
+        let tables = get_tables().await;
+        if !tables.contains(&table.to_string()) {
+            logger::error(&format!("table not exists {}", table));
+            logger::info("May you need to run migrations or restart app to re-cache tables!?");
+            return false;
+        }
+        let columns = get_columns().await;
+        if !columns.contains(&format!("{}.{}", table, column)) {
+            logger::error(&format!("column `{}` not exists in {}", column, table));
+            logger::info("May you need to run migrations or restart app to re-cache tables!?");
+            return false;
+        }
+        if !columns.contains(&format!("{}.{}", table, except_col)) {
+            logger::error(&format!("column `{}` not exists in {}", column, table));
+            logger::info("May you need to run migrations or restart app to re-cache tables!?");
+            return false;
+        }
+        // check exists record
+        let sql = &self.generator.record_exists_except(table, column, except_col);
+        match self.client.fetch_count_params(sql, &[wanted, except_val]).await {
+            Ok(result) => {
+                if result == 0 { 
+                    return false;
+                }
+                true
+            }
+            Err(e) => {
+                if self.debug {
+                    logger::error(&format!("{:?}", e));
+                }
+                false
+            },
         }
     }
 }

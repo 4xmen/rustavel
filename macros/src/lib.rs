@@ -1467,7 +1467,7 @@ impl Rule {
                     .into();
                 }
 
-                let db_token: TokenStream = quote! { 
+                let db_token: TokenStream = quote! {
                     if !rustavel_core::db::get_static_schema()
                     .await.exists_record(#table, #column, wanted).await {
                         errors.add(#field_name, format!("The record not exists: {}", wanted));
@@ -1478,7 +1478,94 @@ impl Rule {
                 tokens.extend(wanted_token);
                 tokens.extend(db_token);
                 tokens.into()
-                
+
+            }
+            Rule::Unique(meta) => {
+                let mut tokens = TokenStream::new();
+                let mut wanted_token = TokenStream::new();
+
+                let db = meta.split(',').collect::<Vec<_>>();
+                let db_len = db.len();
+                if db_len < 2  || db_len > 3  {
+                    return Error::new_spanned(
+                        field_name,
+                        format!("Unique must have to value like: table,column or table,column,except_field. Exm: users,email or users,email,id . Your meta: {} ", &meta),
+                    ).to_compile_error()
+                        .into();
+                }
+                let table = db.get(0).unwrap().to_string();
+                let column = db.get(1).unwrap().to_string();
+
+
+                let is_option = is_option_type(field_ty);
+                if is_string_type(field_ty) {
+                    if is_option {
+                        wanted_token = quote! {
+                            let mut wanted = "";
+                            if let Some(value) = self.#field_ident{
+                                wanted = value;
+                            }
+                        }
+                            .into();
+                    } else {
+                        wanted_token = quote! {
+                            let wanted = &self.#field_ident.clone();
+                        }
+                            .into();
+                    }
+                } else if is_numeric_type(field_ty) {
+                    if is_option {
+                        wanted_token = quote! {
+                            let mut wanted = "";
+                            if let Some(value) = self.#field_ident{
+                                wanted = value.to_string();
+                            }
+                        }
+                            .into();
+                    } else {
+                        wanted_token = quote! {
+                            let wanted = &self.#field_ident.to_string();
+                        }
+                            .into();
+                    }
+                } else {
+                    return Error::new_spanned(
+                        field_name,
+                        format!(
+                            "unsupported type requried numberic or string `{}`",
+                            field_name
+                        ),
+                    )
+                        .to_compile_error()
+                        .into();
+                }
+
+                let mut db_token: TokenStream = TokenStream::new();
+                if db_len == 2  {
+                    db_token = quote!{
+                        if rustavel_core::db::get_static_schema()
+                        .await.exists_record(#table, #column, wanted).await {
+                            errors.add(#field_name, format!("The record exists: {}", wanted));
+                        }
+                    }.into();
+                } else if db_len == 3 {
+
+                    let except_val =  db.get(2).unwrap().to_string();
+                    let except = format_ident!("{}",&except_val);
+                    db_token = quote!{
+                        if rustavel_core::db::get_static_schema()
+                        .await.exists_record_except(#table, #column, wanted, #except_val,&macros_core::convert_to_string(&self.#except)).await {
+                            errors.add(#field_name, format!("The record exists: {}", wanted));
+                        }
+                    }.into();
+
+
+                }
+
+
+                tokens.extend(wanted_token);
+                tokens.extend(db_token);
+                tokens.into()
             }
             _ => quote! {},
         }

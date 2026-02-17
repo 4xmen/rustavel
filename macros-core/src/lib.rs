@@ -327,3 +327,11 @@ where
 {
     value.into() // Convert to i64 using the Into trait
 }
+// Helper function to convert any numeric type to sting
+
+pub fn convert_to_string<T>(value: T) -> String
+where
+    T: ToString,
+{
+    value.to_string()
+}

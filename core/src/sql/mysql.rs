@@ -460,4 +460,7 @@ impl SqlGenerator for MySqlGenerator {
     fn record_exists(&self,table: &str,column: &str) -> String{
         format!("SELECT COUNT(*) AS 'count' FROM `{}` WHERE `{}` = ?", table, column)
     }
+    fn record_exists_except(&self,table: &str,column: &str, except: &str) -> String{
+        format!("SELECT COUNT(*) AS 'count' FROM `{}` WHERE `{}` = ? AND `{}` <> ?", table, column, except)
+    }
 }
