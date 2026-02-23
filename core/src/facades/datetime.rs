@@ -160,6 +160,20 @@ pub fn parse_rfc2822(
 }
 
 
+/// Returns the current date and time as a PrimitiveDateTime.
+pub fn now_primitive() -> PrimitiveDateTime {
+    // Get the current time as an OffsetDateTime (which includes timezone info).
+    let current_time = OffsetDateTime::now_utc();
+    // Convert to PrimitiveDateTime by using date() and time().
+    PrimitiveDateTime::new(current_time.date(), current_time.time())
+}
+
+
+/// convert string to PrimitiveDateTime
+pub fn parse_to_primitive_datetime(datetime_str: &str) -> Result<PrimitiveDateTime, time::Error> {
+    // Parse the string into a PrimitiveDateTime.
+    Ok(PrimitiveDateTime::parse(datetime_str, &YMD_HMS)?)
+}
 
 pub fn deserialize_datetime<'de, D>(deserializer: D) -> Result<PrimitiveDateTime, D::Error>
 where

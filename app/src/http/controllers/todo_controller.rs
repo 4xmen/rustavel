@@ -4,9 +4,10 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse};
 use rustavel_core::state::AppState;
 use axum::Json;
+use time::PrimitiveDateTime;
 // use rustavel_core::sql::query::QueryDsl;
 use crate::models::Todo;
-
+use rustavel_core::facades::datetime::now_primitive;
 
 
 pub async fn index(State(_state): State<AppState>) -> impl IntoResponse {
@@ -16,16 +17,23 @@ pub async fn index(State(_state): State<AppState>) -> impl IntoResponse {
             id: 1,
             title: "create router".to_string(),
             done: true,
+            created_at: now_primitive(),
+            updated_at: now_primitive(),
+
         },
         Todo{
             id: 2,
             title: "create schema".to_string(),
             done: true,
+            created_at: now_primitive(),
+            updated_at: now_primitive(),
         },
         Todo{
             id: 3,
             title: "create controller".to_string(),
             done: false,
+            created_at: now_primitive(),
+            updated_at: now_primitive(),
         },
 
     );
