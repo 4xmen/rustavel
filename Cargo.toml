@@ -22,7 +22,7 @@ tower = "0.5.2" # middleware / layers
 axum-params = "0.4"
 
 # ── Templates / Views + Code genrate ─────────────────────────────
-minijinja = { version = "1", features = ["loader"] } # Jinja-like templates
+minijinja = { version = "2", features = ["loader"] } # Jinja-like templates
 
 # ── Database / Persistence ────────────────────────
 sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls-ring-webpki", "mysql", "sqlite", "postgres", "macros",  "time"] }
@@ -45,11 +45,11 @@ time = { version = "0.3", features = ["macros", "parsing", "formatting", "local-
 # ── String and utilty  ─────────────────────────
 regex = "1.12.2" # str
 illuminate-string = { git = "https://github.com/RustNSparks/illuminate-string.git", branch = "main" } #str
-rand = "0.8" #random
+rand = "0.10" #random
 
 # ── Terminal / UX ─────────────────────────
-colored = "2"
-terminal_size = "0.3"
+colored = "3"
+terminal_size = "0.4"
 ansi-str = "0.9"
 dialoguer = "0.12"
 
@@ -60,3 +60,4 @@ crc32fast = "1.5"        # cheap integrity hash
 # ── Encoding / Web ────────────────────────
 data-encoding = "2.10"    # binary encodings
 percent-encoding = "2.3" # URL encode/decode
+

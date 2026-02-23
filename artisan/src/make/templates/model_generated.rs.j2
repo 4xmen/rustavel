@@ -1,0 +1,24 @@
+/// this code generating by system
+/// if you want edit create backup from your modified code
+
+use rustavel_core::mvc::model::Model;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct {{name}} {
+    {{fields}}
+}
+
+impl Model for {{name}} {
+    type PrimaryKey = u64;
+
+    fn table() -> &'static str {
+        "{{table}}"
+    }
+    fn primary_key() -> &'static str {
+        "{{pkey}}"
+    }
+    fn columns() -> &'static [&'static str] {
+        &[{{field_list}}]
+    }
+}

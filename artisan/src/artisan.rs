@@ -9,6 +9,7 @@ use rustavel_core::config::CONFIG;
 use crate::make::migration::{NewMigArgs,migrate};
 use dialoguer::{theme::ColorfulTheme, Confirm};
 use rustavel_core::facades::terminal_ui::{TitleKind, title};
+
 fn confirm(message: &str) -> bool {
     Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt(message)
@@ -17,6 +18,7 @@ fn confirm(message: &str) -> bool {
         .unwrap()
 }
 use crate::general::lib::{generate_laravel_app_key, set_env_value};
+use crate::make::model::{model, NewModelArgs};
 
 #[derive(Parser)]
 #[command(name = "artisan")]
@@ -56,12 +58,14 @@ enum Commands {
 enum MakeCmd {
     /// Create a new migration file
     Migration(NewMigArgs),
+    Model(NewModelArgs)
 }
 
 
 
 
-fn main() {
+#[tokio::main]
+async fn main() {
 
     dotenv::dotenv().ok();
     let cli = Cli::parse();
@@ -143,12 +147,18 @@ fn main() {
 
             match kind {
                 MakeCmd::Migration(args) => {
-                    let _ = migrate(&args).unwrap_or_else(|e| {
+                    let _ = migrate(&args).await.unwrap_or_else(|e| {
                         println!("{:?}",e);
                         title(TitleKind::Error, &format!("migration error: {:?}", e));
                         false
                     });
                 },
+                MakeCmd::Model(args) => {
+                    let _ = model(&args).await.unwrap_or_else(|e| {
+                        println!("{:?}",e);
+                        title(TitleKind::Error, &format!("model error: {:?}", e));
+                    });
+                }
             }
         }
         // add another command here :)

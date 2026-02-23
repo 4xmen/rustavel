@@ -1482,7 +1482,7 @@ impl Rule {
             }
             Rule::Unique(meta) => {
                 let mut tokens = TokenStream::new();
-                let mut wanted_token = TokenStream::new();
+                let mut wanted_token2 = TokenStream::new();
 
                 let db = meta.split(',').collect::<Vec<_>>();
                 let db_len = db.len();
@@ -1500,7 +1500,7 @@ impl Rule {
                 let is_option = is_option_type(field_ty);
                 if is_string_type(field_ty) {
                     if is_option {
-                        wanted_token = quote! {
+                        wanted_token2 = quote! {
                             let mut wanted = "";
                             if let Some(value) = self.#field_ident{
                                 wanted = value;
@@ -1508,14 +1508,14 @@ impl Rule {
                         }
                             .into();
                     } else {
-                        wanted_token = quote! {
+                        wanted_token2 = quote! {
                             let wanted = &self.#field_ident.clone();
                         }
                             .into();
                     }
                 } else if is_numeric_type(field_ty) {
                     if is_option {
-                        wanted_token = quote! {
+                        wanted_token2 = quote! {
                             let mut wanted = "";
                             if let Some(value) = self.#field_ident{
                                 wanted = value.to_string();
@@ -1523,7 +1523,7 @@ impl Rule {
                         }
                             .into();
                     } else {
-                        wanted_token = quote! {
+                        wanted_token2 = quote! {
                             let wanted = &self.#field_ident.to_string();
                         }
                             .into();
@@ -1563,7 +1563,7 @@ impl Rule {
                 }
 
 
-                tokens.extend(wanted_token);
+                tokens.extend(wanted_token2);
                 tokens.extend(db_token);
                 tokens.into()
             }

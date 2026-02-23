@@ -1,5 +1,5 @@
 use crate::config::database::DatabaseEngine;
-use crate::config::{CONFIG, Config};
+use crate::config::{CONFIG};
 use crate::db::table::{Table, TableAction};
 use crate::facades::terminal_ui::{Status, operation};
 use crate::logger;

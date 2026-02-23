@@ -1,11 +1,11 @@
-use std::vec;
+// use std::vec;
 use axum::extract::{RawPathParams, RawQuery, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse};
 use rustavel_core::state::AppState;
-use crate::models::todo::Todo;
 use axum::Json;
-use rustavel_core::sql::query::QueryDsl;
+// use rustavel_core::sql::query::QueryDsl;
+use crate::models::Todo;
 
 
 
@@ -30,9 +30,10 @@ pub async fn index(State(_state): State<AppState>) -> impl IntoResponse {
 
     );
     (StatusCode::OK, Json(tasks))
+    // (StatusCode::OK, "so so")
 }
 pub async fn create(State(_state): State<AppState>) -> impl IntoResponse {
-    Todo::all();
+    // Todo::all();
     println!("so so...");
     (StatusCode::OK, "to create called")
 }

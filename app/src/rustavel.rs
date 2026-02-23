@@ -4,6 +4,7 @@ mod http;
 mod models;
 mod routes;
 
+
 use rustavel_core::config::CONFIG;
 use rustavel_core::logger;
 use rustavel_core::state::AppState;
@@ -40,12 +41,14 @@ async fn main() {
 
     let app_start_point = format!("{}:{}", CONFIG.app.host, CONFIG.app.port);
 
-    logger::success(&format!("Starting server on http://{}", app_start_point));
+    logger::info(&format!("Try server on http://{}", app_start_point));
 
-    let listener = tokio::net::TcpListener::bind(app_start_point)
+    let listener = tokio::net::TcpListener::bind(app_start_point.clone())
         .await
         .unwrap();
 
+    logger::success(&format!("Starting server on http://{}", app_start_point));
     axum::serve(listener, app).await.unwrap();
+
 }
 

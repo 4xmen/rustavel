@@ -13,12 +13,12 @@ impl Migration for {{  name }} {
                 table.id();
                 // add some rows you want here here
                 table.validate();
-            }).await;
+            });
         {% endif %}
         {% if is_table %}
         schema.table("{{ table }}", |table| {
                 // do what you want here
-            }).await;
+        });
         {% endif %}
         Ok(())
     }

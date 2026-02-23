@@ -1,5 +1,5 @@
 use clap::Args;
-use minijinja::{Environment, Error as TemplateError};
+use minijinja::{Environment};
 use illuminate_string::Str;
 use std::fs;
 use std::io;
@@ -7,27 +7,12 @@ use std::path::{ PathBuf};
 use std::time::Instant;
 use rustavel_core::facades::terminal_ui::{operation,Status};
 use rustavel_core::facades::datetime::now_compact;
+use rustavel_core::facades::file_content::FileContent;
+use crate::make::make_error::MakeError;
 
 const MIGRATION_TEMPLATE: &str = include_str!("templates/migration.rs.j2");
 
-#[derive(Debug)]
-#[allow(dead_code)]
-pub enum MigrationError {
-    Template(TemplateError),
-    Io(io::Error),
-}
 
-impl From<TemplateError> for MigrationError {
-    fn from(err: TemplateError) -> Self {
-        Self::Template(err)
-    }
-}
-
-impl From<io::Error> for MigrationError {
-    fn from(err: io::Error) -> Self {
-        Self::Io(err)
-    }
-}
 
 #[derive(Args, Debug)]
 #[command(about = "Create a new migration file")]
@@ -74,7 +59,7 @@ struct MigrationContext {
 /// 6. Write the rendered migration to disk.
 /// 7. Register the new migration in `database/src/migrations/mod.rs`.
 /// 8. Report the operation status and execution time.
-pub fn migrate(args: &NewMigArgs) -> Result<bool, MigrationError> {
+pub async fn migrate(args: &NewMigArgs) -> Result<bool, MakeError> {
 
     let start = Instant::now();
 
@@ -110,8 +95,7 @@ pub fn migrate(args: &NewMigArgs) -> Result<bool, MigrationError> {
         fs::create_dir_all(parent)?;
     }
 
-    fs::write(&target_path, rendered)?;
-
+    FileContent::put(&target_path.as_path().to_str().unwrap(), &rendered).await?;
 
     // It measures execution time, not disk flush time.
     operation(
@@ -182,8 +166,8 @@ pub fn register_new_migration(final_name: &str, struct_raw: &str) -> io::Result<
     let content = fs::read_to_string(&mod_rs_path)?;
 
     // Placeholders
-    let mod_placeholder = "// #[add-mig-mods] DO NOT REMOVE THIS COMMENT, OTHERWISE AUTOMATIC ADD WILL BREAK";
-    let trait_placeholder = "// #[add-mig-trait] DO NOT REMOVE THIS COMMENT, OTHERWISE AUTOMATIC ADD WILL BREAK";
+    let mod_placeholder = "// #[placeholder-add-mig-mods] DO NOT REMOVE THIS COMMENT, OTHERWISE AUTOMATIC ADD WILL BREAK";
+    let trait_placeholder = "// #[placeholder-add-mig-trait] DO NOT REMOVE THIS COMMENT, OTHERWISE AUTOMATIC ADD WILL BREAK";
 
     // Validate placeholders exist
     if !content.contains(mod_placeholder) {

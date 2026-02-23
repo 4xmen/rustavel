@@ -1,20 +1,19 @@
-use rand::RngCore;
 use data_encoding::BASE64;
 use std::fs;
-use rand::rngs::OsRng;
+use rand::rngs::SysRng;
 use std::path::PathBuf;
-
+use rand::TryRng;
 
 /// Generate a secure Laravel-style `APP_KEY` for the `.env` file.
 ///
 /// This function does:
-/// 1. Generate 32 random bytes using a cryptographically secure RNG (`OsRng`).
+/// 1. Generate 32 random bytes using a cryptographically secure RNG (`SysRng`).
 /// 2. Encode the bytes in Base64.
 /// 3. Prefix the result with `base64:` to match Laravel's expected format.
 /// 4. Return the complete string, ready to be written to `.env`.
 pub fn generate_laravel_app_key() -> String {
     let mut key = [0u8; 32];
-    OsRng.fill_bytes(&mut key);
+    SysRng.try_fill_bytes(&mut key).unwrap();
 
     format!("base64:{}", BASE64.encode(&key))
 }

@@ -2,6 +2,7 @@
 name = "rustavel-app"
 version = "0.1.0"
 edition = "2024"
+#build = "build.rs"
 
 [[bin]]
 name = "rustavel-app"
@@ -26,4 +27,6 @@ macros-core= {path = "../macros-core"}
 macros= {path = "../macros"}
 time.workspace =  true
 
+
 [dev-dependencies]
+
