@@ -83,13 +83,15 @@ Rustavel is organized as a Cargo workspace:
 
 ```
 
-├── app           # Application layer
-├── core          # Shared primitives and abstractions
-├── artisan       # CLI tooling
-├── database      # Migrations and schema-related code
-├── macros        # Project's macros
-├── macros-corde  # Project's macros standalone libs
-├── graveyard     # DEPRECATED libs 
+├── app                 # Application layer
+├── core                # Shared primitives and abstractions
+├── artisan             # CLI tooling
+├── database            # Migrations and schema-related code
+├── macros              # Project's macros
+├── macros-corde        # Project's macros standalone libs
+├── graveyard           # DEPRECATED libs 
+├── integration-tests   # integration tests of project
+
 ```
 
 Each crate has a clear responsibility and can evolve independently.

@@ -1,0 +1,9 @@
+[package]
+name = "integration-tests"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rustavel-core = { path = "../core" }
+tokio.workspace = true
+axum.workspace = true

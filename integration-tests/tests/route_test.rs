@@ -1,7 +1,7 @@
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use rustavel::core::routing::BuiltRoutes;
-use rustavel::core::routing::Route;
+use rustavel_core::routing::BuiltRoutes;
+use rustavel_core::routing::Route;
 
 #[derive(Clone, Debug)]
 struct Dummy;
@@ -18,10 +18,10 @@ fn simple_route_test() {
 #[test]
 fn group_route_test() {
     let mut route: Route<Dummy> = Route::<Dummy>::new();
-    route.group(|r| {
-        r.name("group").prefix("/group");
-        r.any("sub", sample_handler).name("sub");
-        r.any("/sub2", sample_handler).name("sub2");
+    route.group(|group| {
+        group.name("group").prefix("/group");
+        group.any("sub", sample_handler).name("sub");
+        group.any("/sub2", sample_handler).name("sub2");
     });
     let builder: BuiltRoutes<Dummy> = route.build().unwrap();
     // test / fixer
