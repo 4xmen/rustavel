@@ -231,7 +231,6 @@ where
 
     let s: String = String::deserialize(deserializer)?;
 
-
     let s = s.trim();
 
     Time::parse(s, &HMS)
@@ -247,3 +246,4 @@ where
         .map_err(serde::ser::Error::custom)?;
     serializer.serialize_str(&s)
 }
+

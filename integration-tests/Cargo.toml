@@ -5,5 +5,9 @@ edition = "2024"
 
 [dependencies]
 rustavel-core = { path = "../core" }
+macros= {path = "../macros"}
+macros-core= {path = "../macros-core"}
+serde.workspace = true
+time.workspace = true
 tokio.workspace = true
 axum.workspace = true
