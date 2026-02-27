@@ -1165,6 +1165,7 @@ dependencies = [
  "macros-core",
  "rustavel-core",
  "serde",
+ "serde_json",
  "time",
  "tokio",
 ]

@@ -22,6 +22,9 @@ use time::{
 
 use serde::{Deserializer, Deserialize};
 use serde::de::{Error};
+use crate::localization::digits::{apply_normalized_string, normalize_digits};
+use crate::localization::numbers::apply_normalize_number;
+
 /// =============================
 /// Precompiled Format Definitions
 /// =============================
@@ -181,11 +184,9 @@ where
 {
 
     let s: String = String::deserialize(deserializer)?;
+    let s = normalize_digits(s.trim());
 
-
-    let s = s.trim();
-
-    PrimitiveDateTime::parse(s, &YMD_HMS)
+    PrimitiveDateTime::parse(&s, &YMD_HMS)
         .map_err(Error::custom)  // show 400 error
 }
 
@@ -205,11 +206,9 @@ where
 {
 
     let s: String = String::deserialize(deserializer)?;
+    let s = normalize_digits(s.trim());
 
-
-    let s = s.trim();
-
-    Date::parse(s, &YMD)
+    Date::parse(&s, &YMD)
         .map_err(Error::custom)  // show 400 error
 }
 

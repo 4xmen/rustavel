@@ -19,6 +19,7 @@ pub fn normalize_digits(input: &str) -> String {
         '۷' | '٧' => '7',
         '۸' | '٨' => '8',
         '۹' | '٩' => '9',
+        '/' => '.', // float symbol
         _ => c,
     }).collect()
 }
