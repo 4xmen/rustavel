@@ -341,10 +341,17 @@ impl SqlGenerator for MySqlGenerator {
                 `{}_id` BIGINT(20) UNSIGNED {} {}",
                     column.name, nullable, def, column.name, nullable, def
                 );
-                footer_sql = format!(
-                    "INDEX `morph_{}_type_{}_id_index` (`{}_type`, `{}_id`)",
-                    column.name, column.name, column.name, column.name
-                )
+                if *action == TableAction::Alter {
+                    footer_sql = format!(
+                        "ADD INDEX `morph_{}_type_{}_id_index` (`{}_type`, `{}_id`)",
+                        column.name, column.name, column.name, column.name
+                    )
+                }else{
+                    footer_sql = format!(
+                        "INDEX `morph_{}_type_{}_id_index` (`{}_type`, `{}_id`)",
+                        column.name, column.name, column.name, column.name
+                    )
+                }
             }
             _ => {}
         }
@@ -369,6 +376,9 @@ impl SqlGenerator for MySqlGenerator {
                 column_sql = format!("CHANGE COLUMN `{}` {}", column.name, column_sql);
             } else {
                 column_sql = format!("ADD COLUMN {}", column_sql);
+            }
+            if column.index {
+                footer_sql = format!("ADD {}",footer_sql);
             }
         } else {
             if column.change {

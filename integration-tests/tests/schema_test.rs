@@ -22,7 +22,7 @@ async fn schema_create_and_drop_table_check_column() {
     schema.table(table_name.clone(), |table| {
         table.datetime("other");
         table.big_integer("another_ref").unsigned();
-        table.datetime("another_index").nullable().default_null();
+        table.datetime("another_index").index().nullable().default_null();
         table.foreign("another_ref").on(table_name.clone()).reference("id").cascade_on_delete();
     });
     schema.execute_migration("alter table",&a.into()).await.unwrap();
