@@ -1770,7 +1770,6 @@ dependencies = [
  "axum",
  "axum-extra",
  "axum-params",
- "clap",
  "dotenv",
  "macros",
  "macros-core",

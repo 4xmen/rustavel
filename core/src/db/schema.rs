@@ -704,6 +704,7 @@ impl Schema {
     /// - Extremely destructive operation - use with extreme caution.
     /// - Requires highest level of database permissions.
     /// - Permanently removes all data in all tables.
+    /// - sqlx don't let us use more than one query so we have to drop tables one by one
     pub async fn drop_all_tables(&self) -> Result<(), DbError> {
         self.disable_foreign_key_constraints().await;
 
@@ -1442,8 +1443,9 @@ impl Schema {
             let mut body = vec![];
             let mut foot = vec![];
             let mut post = vec![];
+            let mut spliter = String::new();
             for column in &table.columns {
-                let (b, f, p) = self.generator.column(&column, &table.name, &table.action);
+                let (b, f, p,s) = self.generator.column(&column, &table.name, &table.action);
                 body.push(b);
                 if !f.is_empty() {
                     foot.push(f);
@@ -1451,6 +1453,7 @@ impl Schema {
                 if !p.is_empty() {
                     post.push(p);
                 }
+                spliter = s;
             }
             for column in &table.drop_columns {
                 body.push(self.generator.drop_column(&column));
@@ -1463,20 +1466,19 @@ impl Schema {
                 }
             }
             body.append(&mut foot);
-            let sql = Str::implode(",\n", body);
+            let sql = Str::implode(&spliter, body);
             let sql = self.generator.table_sql(
                 &table.name,
                 &sql,
                 &Str::implode(";\n", post),
                 &table.action,
             );
-            // logger::info(&format!("Just4debug develop core: \n {}", sql));
+            logger::info(&format!("Just4debug develop core: \n {}", sql.trim()));
             // execute generated sql
             match self.client.execute(&sql).await {
                 Ok(_) => {
                     // logger::success(&format!("Updated table  : \n {}", &table.name));
                     operation(final_name, duration.elapsed(), Status::Done);
-
                     Ok(())
                 }
                 Err(e) => {
@@ -1485,6 +1487,7 @@ impl Schema {
                     Err(e)
                 }
             }
+
         } else {
             Err(DbError::InvalidTable)
         }

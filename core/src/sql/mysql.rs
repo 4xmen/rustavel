@@ -185,7 +185,7 @@ impl SqlGenerator for MySqlGenerator {
         column: &Column,
         table_name: &str,
         action: &TableAction,
-    ) -> (String, String, String) {
+    ) -> (String, String, String,String) {
         let mut column_sql = String::new();
         let mut footer_sql = String::new();
         let nullable = match column.nullable {
@@ -378,7 +378,7 @@ impl SqlGenerator for MySqlGenerator {
                 ));
             }
         }
-        (column_sql, footer_sql, String::new())
+        (column_sql, footer_sql, String::new(),String::from(",\n"))
     }
 
     fn foreign_key(&self, key: &ForeignKey, table_name: &str, action: &TableAction) -> String {

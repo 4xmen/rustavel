@@ -31,7 +31,7 @@ sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls-ring-webpki",
 
 # ── Serialization / Data ──────────────────────────
 serde = { version = "1", features = ["derive"] }
-serde_json = "1.0"
+serde_json = "1"
 
 # ── CLI / Config ──────────────────────────────────
 clap = { version = "4.5.56", features = ["derive"] }

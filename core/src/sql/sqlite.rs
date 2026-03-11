@@ -171,10 +171,11 @@ impl SqlGenerator for SqliteGenerator {
         column: &Column,
         table_name: &str,
         action: &TableAction,
-    ) -> (String, String, String) {
+    ) -> (String, String, String,String) {
         let mut column_sql = String::new();
         let mut footer_sql = String::new();
         let mut post_sql = String::new();
+        let mut spilter = String::from(",\n");
 
         let nullable = if column.nullable { "" } else { "NOT NULL" };
 
@@ -196,12 +197,12 @@ impl SqlGenerator for SqliteGenerator {
 
         match column.data_type {
             ColumnDataType::DTId => {
-                column_sql = "`id` integer NOT NULL".to_string();
-                footer_sql = "PRIMARY KEY(`id` AUTOINCREMENT)".to_string();
+                column_sql = "id integer NOT NULL".to_string();
+                footer_sql = "PRIMARY KEY(id AUTOINCREMENT)".to_string();
             }
 
             ColumnDataType::DTBoolean => {
-                column_sql = format!("`{}` boolean {} {}", column.name, nullable, def);
+                column_sql = format!("{} boolean {} {}", column.name, nullable, def);
             }
 
             ColumnDataType::DTTinyInteger
@@ -209,11 +210,11 @@ impl SqlGenerator for SqliteGenerator {
             | ColumnDataType::DTSmallInteger
             | ColumnDataType::DTMediumInteger
             | ColumnDataType::DTBigInteger => {
-                column_sql = format!("`{}` integer {} {}", column.name, nullable, def);
+                column_sql = format!("{} integer {} {}", column.name, nullable, def);
             }
 
             ColumnDataType::DTFloat | ColumnDataType::DTDouble => {
-                column_sql = format!("`{}` float {} {}", column.name, nullable, def);
+                column_sql = format!("{} float {} {}", column.name, nullable, def);
             }
 
             ColumnDataType::DTDecimal => {
@@ -222,7 +223,7 @@ impl SqlGenerator for SqliteGenerator {
                     _ => (&20, &6),
                 };
                 column_sql = format!(
-                    "`{}` decimal({},{}) {} {}",
+                    "{} decimal({},{}) {} {}",
                     column.name, p, s, nullable, def
                 );
             }
@@ -232,19 +233,19 @@ impl SqlGenerator for SqliteGenerator {
                     ColumnOption::Length(l) => l,
                     _ => 255,
                 };
-                column_sql = format!("`{}` varchar({}) {} {}", column.name, len, nullable, def);
+                column_sql = format!("{} varchar({}) {} {}", column.name, len, nullable, def);
             }
 
             ColumnDataType::DTText
             | ColumnDataType::DTTinyText
             | ColumnDataType::DTMediumText
             | ColumnDataType::DTLongText => {
-                column_sql = format!("`{}` text {} {}", column.name, nullable, def);
+                column_sql = format!("{} text {} {}", column.name, nullable, def);
             }
 
             ColumnDataType::DTJson => {
                 column_sql = format!(
-                    "`{}` json {} {} CHECK(json_valid(`{}`))",
+                    "{} json {} {} CHECK(json_valid({}))",
                     column.name, nullable, def, column.name
                 );
             }
@@ -253,15 +254,15 @@ impl SqlGenerator for SqliteGenerator {
             | ColumnDataType::DTDateTime
             | ColumnDataType::DTTime
             | ColumnDataType::DTTimestamp => {
-                column_sql = format!("`{}` datetime {} {}", column.name, nullable, def);
+                column_sql = format!("{} datetime {} {}", column.name, nullable, def);
             }
 
             ColumnDataType::DTTimestamps => {
-                column_sql = "`created_at` datetime, `updated_at` datetime".to_string();
+                column_sql = "created_at datetime, updated_at datetime".to_string();
             }
 
             ColumnDataType::DTSoftDelete => {
-                column_sql = "`deleted_at` datetime".to_string();
+                column_sql = "deleted_at datetime".to_string();
             }
 
             ColumnDataType::DTEnum | ColumnDataType::DTSet => {
@@ -275,20 +276,20 @@ impl SqlGenerator for SqliteGenerator {
                 };
 
                 column_sql = format!(
-                    "`{}` varchar {} {} CHECK(`{}` IN ({}))",
+                    "{} varchar {} {} CHECK({} IN ({}))",
                     column.name, nullable, def, column.name, values
                 );
             }
 
             ColumnDataType::DTMorph => {
                 column_sql = format!(
-                    "`{}_type` varchar(255) {} {}, `{}`_id integer {} {}",
+                    "{}_type varchar(255) {} {}, {}_id integer {} {}",
                     column.name, nullable, def, column.name, nullable, def
                 );
 
                 post_sql = format!(
-                    "CREATE INDEX `morph_{}_type_{}_id_index`
-                 ON `{}` (`{}_type`, `{}_id`)",
+                    "CREATE INDEX morph_{}_type_{}_id_index
+                 ON {} ({}_type, {}_id)",
                     column.name, column.name, table_name, column.name, column.name
                 );
             }
@@ -298,14 +299,14 @@ impl SqlGenerator for SqliteGenerator {
 
         if column.unique {
             post_sql = format!(
-                "CREATE UNIQUE INDEX `{}_{}_unique`
-             ON `{}` (`{}`)",
+                "CREATE UNIQUE INDEX {}_{}_unique
+             ON {} ({})",
                 table_name, column.name, table_name, column.name
             );
         } else if column.index {
             post_sql = format!(
-                "CREATE INDEX `{}_{}_index`
-             ON `{}` (`{}`)",
+                "CREATE INDEX {}_{}_index
+             ON {} ({})",
                 table_name, column.name, table_name, column.name
             );
         }
@@ -314,14 +315,15 @@ impl SqlGenerator for SqliteGenerator {
             if column.change {
                 logger::warn("SQLite does not support CHANGE COLUMN");
             } else {
-                column_sql = format!("ADD COLUMN {}", column_sql);
+                column_sql = format!("ALTER TABLE {} ADD COLUMN {};",table_name, column_sql);
+                spilter = String::from("\n");
             }
         }
 
-        (column_sql, footer_sql, post_sql)
+        (column_sql, footer_sql, post_sql,spilter)
     }
 
-    fn foreign_key(&self, key: &ForeignKey, _table_name: &str, _action: &TableAction) -> String {
+    fn foreign_key(&self, key: &ForeignKey, _table_name: &str, action: &TableAction) -> String {
         let update = if key.on_update {
             "on update cascade"
         } else {
@@ -334,10 +336,15 @@ impl SqlGenerator for SqliteGenerator {
             ""
         };
 
-        format!(
-            "FOREIGN KEY(\"{}\") REFERENCES \"{}\"(\"{}\") {} {} ",
-            key.column_name, key.foreign_table, key.column_name, update, delete
-        )
+        if *action == TableAction::Alter {
+            "-- SQLite does not support add foreign key on alter \n".to_string()
+        }else{
+            format!(
+                "FOREIGN KEY(\"{}\") REFERENCES \"{}\"(\"{}\") {} {} ",
+                key.column_name, key.foreign_table, key.referenced_column, update, delete
+            )
+        }
+
     }
     fn drop_column(&self, column_name: &str) -> String {
         format!(
@@ -356,14 +363,14 @@ impl SqlGenerator for SqliteGenerator {
         match action {
             TableAction::Create => {
                 format!(
-                    "CREATE TABLE `{}` ( {} ) \n ;\n {}",
+                    "CREATE TABLE {} ( {} ) \n ;\n {}",
                     table_name, body_sql, post_sql
                 )
             }
             TableAction::Alter => {
                 format!(
-                    "ALTER TABLE `{} \n {} ; \n {}`",
-                    table_name, body_sql, post_sql
+                    " {} ; \n {}",
+                    body_sql, post_sql
                 )
             }
             _ => "".to_string(),

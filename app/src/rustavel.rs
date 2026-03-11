@@ -25,8 +25,6 @@ async fn main() {
 
     let routes_map = Arc::new(built.names.clone());
 
-    // println!("route list: {:?}", built.names); check routes
-
     let state = AppState { routes: routes_map };
 
     // take type annotation
