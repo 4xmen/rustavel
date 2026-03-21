@@ -1,6 +1,5 @@
 use sqlx::Row;
 use std::fmt::Debug;
-
 #[derive(Debug)]
 pub enum DbError {
     Sqlx(sqlx::Error),
@@ -50,7 +49,11 @@ impl DatabaseClient for MySqlClient {
 
 
     async fn execute(&self, sql: &str) -> Result<(), DbError> {
-        sqlx::query(sql).execute(&self.pool).await?;
+        for single_sql in sql.split(";") {
+            if !single_sql.trim().is_empty() {
+                sqlx::query(single_sql).execute(&self.pool).await?;
+            }
+        }
         Ok(())
     }
 
@@ -146,7 +149,12 @@ impl DatabaseClient for SqliteClient {
     }
 
     async fn execute(&self, sql: &str) -> Result<(), DbError> {
-        sqlx::query(sql).execute(&self.pool).await?;
+        
+        for single_sql in sql.split(";") {
+            if !single_sql.trim().is_empty() {
+                sqlx::query(single_sql).execute(&self.pool).await?;
+            }
+        }
         Ok(())
     }
 

@@ -20,7 +20,6 @@ pub struct SerializePayload {
         serialize_with = "serialize_datetime"
     )]
     pub published: PrimitiveDateTime,
-
 }
 
 #[test]
