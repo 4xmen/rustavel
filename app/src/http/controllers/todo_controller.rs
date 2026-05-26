@@ -4,10 +4,13 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse};
 use rustavel_core::state::AppState;
 use axum::Json;
-use time::PrimitiveDateTime;
+use time::macros::{ datetime};
+
+// use time::PrimitiveDateTime;
 // use rustavel_core::sql::query::QueryDsl;
 use crate::models::Todo;
 use rustavel_core::facades::datetime::now_primitive;
+use rustavel_core::facades::datetime::TimeExt;
 
 
 pub async fn index(State(_state): State<AppState>) -> impl IntoResponse {
@@ -59,7 +62,10 @@ pub async fn update(State(_state): State<AppState>, params: RawPathParams) -> im
 }
 pub async fn show(State(_state): State<AppState>, params: RawPathParams) -> impl IntoResponse {
 
-    (StatusCode::OK, println!("to edit called id: {:?}", params))
+    let x = datetime!(2026-04-12 15:20:20);
+
+    println!("{},{}",x.diff_for_humans(),x.ldate("Y/m/d H:i:s"));
+    (StatusCode::OK, format!("to edit called id: {:?},{}", params,x.format_php("Y/m/d H:i:s w")))
 }
 
 

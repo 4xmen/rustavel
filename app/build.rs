@@ -1,5 +1,5 @@
 
-use std::env;
+// use std::env;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -52,5 +52,5 @@ fn main() {
     let mut file = File::create(&dest_path).expect("could not create all_models.rs");
     file.write_all(content.as_bytes()).expect("could not write to all_models.rs");
 
-    println!("cargo:warning=Generated content:\n{}", content);  // برای debug
+    println!("cargo:warning=Generated content:\n{}", content);  // 4 debug
 }
