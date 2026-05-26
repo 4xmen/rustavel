@@ -280,6 +280,7 @@ fn jdate_imp(dt: OffsetDateTime, format: &str) -> String {
     let hour = dt.hour();
     let minute = dt.minute();
     let second = dt.second();
+    let weekday = dt.weekday();
 
     let is_pm = hour >= 12;
 
@@ -289,6 +290,24 @@ fn jdate_imp(dt: OffsetDateTime, format: &str) -> String {
     while let Some(ch) = chars.next() {
         match ch {
             // Jalali date
+            'l' => out.push_str(match weekday {
+                Weekday::Monday => "دوشنبه",
+                Weekday::Tuesday => "سه‌شنبه",
+                Weekday::Wednesday => "چهارشنبه",
+                Weekday::Thursday => "پنجشنبه",
+                Weekday::Friday => "آدینه",
+                Weekday::Saturday => "شنبه",
+                Weekday::Sunday => "یکشنبه",
+            }),
+            'D' => out.push_str(match weekday {
+                Weekday::Monday => "۲ش",
+                Weekday::Tuesday => "۳ش",
+                Weekday::Wednesday => "۴ش",
+                Weekday::Thursday => "۵ش",
+                Weekday::Friday => "جمه",
+                Weekday::Saturday => "شنب",
+                Weekday::Sunday => "۱ش",
+            }),
             'Y' => out.push_str(&j.year.to_string()),
             'y' => out.push_str(&(j.year % 100).to_string()),
 
@@ -307,8 +326,8 @@ fn jdate_imp(dt: OffsetDateTime, format: &str) -> String {
             'i' => push_2(&mut out, minute),
             's' => push_2(&mut out, second),
 
-            'a' => out.push_str(if is_pm { "pm" } else { "am" }),
-            'A' => out.push_str(if is_pm { "PM" } else { "AM" }),
+            'a' => out.push_str(if is_pm { "ق‌ظ" } else { "ب‌ظ" }),
+            'A' => out.push_str(if is_pm { "صبح" } else { "عصر" }),
 
             // fallback
             other => out.push(other),
@@ -520,6 +539,7 @@ fn jalali_month_name(m: u8) -> &'static str {
         _ => "",
     }
 }
+
 
 #[inline]
 fn diff_for_humans_impl(datetime: OffsetDateTime) -> String {

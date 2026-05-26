@@ -64,7 +64,7 @@ pub async fn show(State(_state): State<AppState>, params: RawPathParams) -> impl
 
     let x = datetime!(2026-04-12 15:20:20);
 
-    println!("{},{}",x.diff_for_humans(),x.ldate("Y/m/d H:i:s"));
+    println!("{},{}",x.diff_for_humans(),x.ldate("Y/m/d H:i:s F l"));
     (StatusCode::OK, format!("to edit called id: {:?},{}", params,x.format_php("Y/m/d H:i:s w")))
 }
 
