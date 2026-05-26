@@ -10,6 +10,9 @@ pub struct AppConfig {
     pub timezone: String,
     pub key: String,
     pub max_upload_size: usize,
+    pub locate: String,
+    pub fallback_locate: String,
+    pub faker_locate: String,
 }
 
 impl Default for AppConfig {
@@ -23,6 +26,9 @@ impl Default for AppConfig {
             timezone: "UTC".into(),
             key: "".into(),
             max_upload_size: 2 * 1024 * 1024, // 2mb default axum limit
+            locate: "en".into(),
+            fallback_locate: "en".into(),
+            faker_locate: "en".into(),
         }
     }
 }
@@ -61,6 +67,18 @@ impl AppConfig {
 
         if let Ok(v) = env::var("APP_MAX_UPLOAD_SIZE") {
             cfg.max_upload_size = v.parse().expect("APP_MAX_UPLOAD_SIZE must be a number");
+        }
+
+        if let Ok(v) = env::var("APP_LOCATE") {
+            cfg.locate = v;
+        }
+
+        if let Ok(v) = env::var("APP_FALLBACK_LOCATE") {
+            cfg.fallback_locate = v;
+        }
+
+        if let Ok(v) = env::var("APP_FAKER_LOCATE") {
+            cfg.faker_locate = v;
         }
 
         cfg
