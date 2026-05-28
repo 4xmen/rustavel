@@ -8,7 +8,7 @@ use crate::sql::generator::SqlGenerator;
 use crate::sql::mysql::MySqlGenerator;
 use crate::sql::sqlite::SqliteGenerator;
 use futures::future::join_all;
-use illuminate_string::Str;
+use illuminate_str::Str;
 use sqlx::{MySqlPool, SqlitePool};
 use std::collections::HashMap;
 use tokio::sync::OnceCell;

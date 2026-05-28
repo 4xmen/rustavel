@@ -46,7 +46,7 @@ time = { version = "0.3", features = ["macros", "parsing", "formatting", "local-
 
 # ── String and utilty  ─────────────────────────
 regex = "1.12.2" # str
-illuminate-string = { git = "https://github.com/RustNSparks/illuminate-string.git", branch = "main" } #str
+illuminate-str = "0.3" #str
 rand = "0.10" #random
 
 # ── Terminal / UX ─────────────────────────
