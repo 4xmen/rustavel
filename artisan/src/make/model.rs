@@ -1,5 +1,5 @@
 use clap::Args;
-use illuminate_string::Str;
+use illuminate_str::Str;
 use minijinja::{context, Environment};
 use rustavel_core::facades::file_content::FileContent;
 use crate::make::make_error::MakeError;

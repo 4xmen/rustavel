@@ -14,20 +14,20 @@ resolver = "2"
 [workspace.dependencies]
 
 # ── Runtime / Async ───────────────────────────────
-tokio = { version = "1.49.0", features = ["full"] }
+tokio = { version = "1.52", features = ["full"] }
 futures = "0.3"
 
 # ── Web Framework / HTTP / FORM ──────────────────────────
 axum = { version = "0.8", features = ["ws", "macros"] }
-axum-extra = { version = "0.12.5", features = ["routing", "typed-routing"] }
-tower = "0.5.2" # middleware / layers
+axum-extra = { version = "0.12.6", features = ["routing", "typed-routing"] }
+tower = "0.5.3" # middleware / layers
 axum-params = "0.4"
 
 # ── Templates / Views + Code genrate ─────────────────────────────
 minijinja = { version = "2", features = ["loader"] } # Jinja-like templates
 
 # ── Database / Persistence ────────────────────────
-sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls-ring-webpki", "mysql", "sqlite", "postgres", "macros",  "time"] }
+sqlx = { version = "0.8.6", features = ["runtime-tokio", "tls-rustls-ring-webpki", "mysql", "sqlite", "postgres", "macros",  "time"] }
 
 # ── Serialization / Data ──────────────────────────
 serde = { version = "1", features = ["derive"] }

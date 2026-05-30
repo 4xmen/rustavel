@@ -1,6 +1,6 @@
 use clap::Args;
 use minijinja::{Environment};
-use illuminate_string::Str;
+use illuminate_str::Str;
 use std::fs;
 use std::io;
 use std::path::{ PathBuf};
