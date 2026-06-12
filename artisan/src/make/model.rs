@@ -4,6 +4,7 @@ use minijinja::{context, Environment};
 use tokio::time::Instant;
 use rustavel_core::facades::file_content::FileContent;
 use rustavel_core::facades::terminal_ui::{operation, Status};
+use crate::make::controller::{controller, NewControllerArgs};
 use crate::make::make_error::MakeError;
 use crate::make::migration::{migrate, NewMigArgs};
 
@@ -35,7 +36,7 @@ struct ModelContext {
 
 
 pub async fn model(args: &NewModelArgs) -> Result<(), MakeError> {
-    
+
     let start = Instant::now();
     let model_name = Str::ucfirst( &Str::singular(&args.name) );
 
@@ -65,10 +66,11 @@ pub async fn model(args: &NewModelArgs) -> Result<(), MakeError> {
     FileContent::put(model_path.to_str().unwrap(), &rendered).await?;
 
 
+    // check migration and create
     if args.has_migration {
         let migration_name = format!("{}Create", &model_name);
         let table = Str::plural_studly(&model_name,3).to_lowercase();
-        println!("Creating migration {}", table);
+        // println!("Creating migration {}", table);
         let mig_args = NewMigArgs{
             name: migration_name,
             create: Some(table),
@@ -77,6 +79,16 @@ pub async fn model(args: &NewModelArgs) -> Result<(), MakeError> {
             realpath: false,
         };
         _ = migrate(&mig_args).await?;
+    }
+
+    // check controller and create
+    if args.has_controller {
+        let controller_name = format!("{}Controller", &model_name);
+        let cont_args = NewControllerArgs{
+            name: controller_name,
+            model: Some(model_name.clone()),
+        };
+        _ = controller(&cont_args).await?;
     }
 
     // WIP: create controller
