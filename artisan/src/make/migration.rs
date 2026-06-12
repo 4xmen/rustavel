@@ -150,6 +150,8 @@ fn resolve_target_path(
 /// 3. Check duplicates for module and struct.
 /// 4. Append new module and struct before placeholders.
 pub fn register_new_migration(final_name: &str, struct_raw: &str) -> io::Result<()> {
+
+    let start = Instant::now();
     // Derive module and struct names
     let module_name = final_name; // same as file name without `.rs`
     let struct_name = format!(
@@ -212,6 +214,8 @@ pub fn register_new_migration(final_name: &str, struct_raw: &str) -> io::Result<
     fs::write(&mod_rs_path, new_content)?;
 
     // println!("✅ mod.rs updated: module '{}' registered", module_name);
+
+    operation(&format!("migration made: {:?}", module_name),start.elapsed(),Status::Done);
 
     Ok(())
 }

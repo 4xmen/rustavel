@@ -1,7 +1,9 @@
 use clap::Args;
 use illuminate_str::Str;
 use minijinja::{context, Environment};
+use tokio::time::Instant;
 use rustavel_core::facades::file_content::FileContent;
+use rustavel_core::facades::terminal_ui::{operation, Status};
 use crate::make::make_error::MakeError;
 use crate::make::migration::{migrate, NewMigArgs};
 
@@ -33,6 +35,8 @@ struct ModelContext {
 
 
 pub async fn model(args: &NewModelArgs) -> Result<(), MakeError> {
+    
+    let start = Instant::now();
     let model_name = Str::ucfirst( &Str::singular(&args.name) );
 
     let mut env = Environment::new();
@@ -79,5 +83,7 @@ pub async fn model(args: &NewModelArgs) -> Result<(), MakeError> {
     if args.has_migration {
         // create controller here
     }
+    operation(&format!("model and raw generated made: {:?}", model_name),start.elapsed(),Status::Done);
+
     Ok(())
 }
