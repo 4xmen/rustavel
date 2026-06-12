@@ -7,6 +7,10 @@ use std::process::Command as ProcessCommand;
 use rustavel_core::config::CONFIG;
 // use clap::Args;
 use crate::make::migration::{NewMigArgs,migrate};
+use crate::general::lib::{generate_laravel_app_key, set_env_value};
+use crate::make::model::{model, NewModelArgs};
+use crate::make::controller::{controller, NewControllerArgs};
+
 use dialoguer::{theme::ColorfulTheme, Confirm};
 use rustavel_core::facades::terminal_ui::{TitleKind, title};
 
@@ -17,8 +21,6 @@ fn confirm(message: &str) -> bool {
         .interact()
         .unwrap()
 }
-use crate::general::lib::{generate_laravel_app_key, set_env_value};
-use crate::make::model::{model, NewModelArgs};
 
 #[derive(Parser)]
 #[command(name = "artisan")]
@@ -58,7 +60,8 @@ enum Commands {
 enum MakeCmd {
     /// Create a new migration file
     Migration(NewMigArgs),
-    Model(NewModelArgs)
+    Model(NewModelArgs),
+    Controller(NewControllerArgs)
 }
 
 
@@ -157,6 +160,12 @@ async fn main() {
                     let _ = model(&args).await.unwrap_or_else(|e| {
                         println!("{:?}",e);
                         title(TitleKind::Error, &format!("model error: {:?}", e));
+                    });
+                },
+                MakeCmd::Controller(args) => {
+                    let _ = controller(&args).await.unwrap_or_else(|e| {
+                        println!("{:?}",e);
+                        title(TitleKind::Error, &format!("controller error: {:?}", e));
                     });
                 }
             }

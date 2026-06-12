@@ -1,0 +1,49 @@
+{% if has_model %}
+// main model
+use crate::models::{{model}};
+{% endif %}
+use axum::extract::{RawPathParams, RawQuery, State};
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
+use rustavel_core::state::AppState;
+
+pub async fn index(State(_state): State<AppState>) -> impl IntoResponse {
+    (StatusCode::OK, "{{model}} index")
+}
+
+pub async fn create(State(_state): State<AppState>) -> impl IntoResponse {
+    (StatusCode::OK, "to create {{model}} called")
+}
+
+pub async fn store(State(_state): State<AppState>, params: RawPathParams) -> impl IntoResponse {
+    (
+        StatusCode::OK,
+        println!("to store {{model}} called request: {:?}", params),
+    )
+}
+
+pub async fn edit(State(_state): State<AppState>, query: RawQuery) -> impl IntoResponse {
+    (StatusCode::OK, println!("to edit {{model}} called id: {:?}", query))
+}
+
+pub async fn update(
+    State(_state): State<AppState>,
+    query: RawQuery,
+    params: RawPathParams,
+) -> impl IntoResponse {
+    (
+        StatusCode::OK,
+        println!("to edit {{model}} called id and request: {:?}, {:?}", query, params),
+    )
+}
+
+pub async fn show(State(_state): State<AppState>, query: RawQuery) -> impl IntoResponse {
+    (StatusCode::OK, println!("to show {{model}} called id: {:?}", query))
+}
+
+pub async fn destroy(State(_state): State<AppState>, query: RawQuery) -> impl IntoResponse {
+    (
+        StatusCode::OK,
+        println!("to destroy {{model}} called id: {:?}", query),
+    )
+}
