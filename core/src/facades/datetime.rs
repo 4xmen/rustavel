@@ -26,8 +26,8 @@ use time::{
 use serde::{Deserializer, Deserialize};
 use serde::de::{Error};
 use crate::config::CONFIG;
-use crate::localization::digits::{apply_normalized_string, normalize_digits};
-use crate::localization::numbers::apply_normalize_number;
+use crate::localization::digits::{normalize_digits, /*apply_normalized_string */};
+// use crate::localization::numbers::apply_normalize_number;
 // use jalali_rs::gregorian_to_jalali;
 
 

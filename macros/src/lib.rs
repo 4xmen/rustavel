@@ -1409,7 +1409,9 @@ impl Rule {
             }
             Rule::Exists(meta) => {
                 let mut tokens = TokenStream::new();
-                let mut wanted_token = TokenStream::new();
+                // Safe: one of the branches will always assign wanted_token, else returns
+                #[allow(unused_assignments)]
+                let mut wanted_token: Option<TokenStream> = None;
 
                 let db = meta.split(',').collect::<Vec<_>>();
                 if db.len() != 2 {
@@ -1427,33 +1429,33 @@ impl Rule {
                 let is_option = is_option_type(field_ty);
                 if is_string_type(field_ty) {
                     if is_option {
-                        wanted_token = quote! {
+                        wanted_token = Some(quote! {
                             let mut wanted = "";
                             if let Some(value) = self.#field_ident{
                                 wanted = value;
                             }
                         }
-                        .into();
+                            .into());
                     } else {
-                        wanted_token = quote! {
+                        wanted_token =Some( quote! {
                             let wanted = &self.#field_ident.clone();
                         }
-                        .into();
+                            .into());
                     }
                 } else if is_numeric_type(field_ty) {
                     if is_option {
-                        wanted_token = quote! {
+                        wanted_token = Some(quote! {
                             let mut wanted = "";
                             if let Some(value) = self.#field_ident{
                                 wanted = value.to_string();
                             }
                         }
-                        .into();
+                            .into());
                     } else {
-                        wanted_token = quote! {
+                        wanted_token = Some(quote! {
                             let wanted = &self.#field_ident.to_string();
                         }
-                        .into();
+                            .into());
                     }
                 } else {
                     return Error::new_spanned(
@@ -1475,18 +1477,21 @@ impl Rule {
                 }
                 .into();
 
-                tokens.extend(wanted_token);
+                if let Some(tokens2) = wanted_token {
+                    tokens.extend(tokens2);
+                }
                 tokens.extend(db_token);
                 tokens.into()
-
             }
             Rule::Unique(meta) => {
                 let mut tokens = TokenStream::new();
-                let mut wanted_token2 = TokenStream::new();
+                // Safe: one of the branches will always assign wanted_token2, else returns
+                #[allow(unused_assignments)]
+                let mut wanted_token2: Option<TokenStream> = None;
 
                 let db = meta.split(',').collect::<Vec<_>>();
                 let db_len = db.len();
-                if db_len < 2  || db_len > 3  {
+                if db_len < 2 || db_len > 3 {
                     return Error::new_spanned(
                         field_name,
                         format!("Unique must have to value like: table,column or table,column,except_field. Exm: users,email or users,email,id . Your meta: {} ", &meta),
@@ -1496,37 +1501,44 @@ impl Rule {
                 let table = db.get(0).unwrap().to_string();
                 let column = db.get(1).unwrap().to_string();
 
-
                 let is_option = is_option_type(field_ty);
                 if is_string_type(field_ty) {
                     if is_option {
-                        wanted_token2 = quote! {
-                            let mut wanted = "";
-                            if let Some(value) = self.#field_ident{
-                                wanted = value;
+                        wanted_token2 = Some(
+                            quote! {
+                                let mut wanted = "";
+                                if let Some(value) = self.#field_ident{
+                                    wanted = value;
+                                }
                             }
-                        }
-                            .into();
+                            .into(),
+                        );
                     } else {
-                        wanted_token2 = quote! {
-                            let wanted = &self.#field_ident.clone();
-                        }
-                            .into();
+                        wanted_token2 = Some(
+                            quote! {
+                                let wanted = &self.#field_ident.clone();
+                            }
+                            .into(),
+                        );
                     }
                 } else if is_numeric_type(field_ty) {
                     if is_option {
-                        wanted_token2 = quote! {
-                            let mut wanted = "";
-                            if let Some(value) = self.#field_ident{
-                                wanted = value.to_string();
+                        wanted_token2 = Some(
+                            quote! {
+                                let mut wanted = "";
+                                if let Some(value) = self.#field_ident{
+                                    wanted = value.to_string();
+                                }
                             }
-                        }
-                            .into();
+                            .into(),
+                        );
                     } else {
-                        wanted_token2 = quote! {
-                            let wanted = &self.#field_ident.to_string();
-                        }
-                            .into();
+                        wanted_token2 = Some(
+                            quote! {
+                                let wanted = &self.#field_ident.to_string();
+                            }
+                            .into(),
+                        );
                     }
                 } else {
                     return Error::new_spanned(
@@ -1536,34 +1548,33 @@ impl Rule {
                             field_name
                         ),
                     )
-                        .to_compile_error()
-                        .into();
+                    .to_compile_error()
+                    .into();
                 }
 
                 let mut db_token: TokenStream = TokenStream::new();
-                if db_len == 2  {
-                    db_token = quote!{
+                if db_len == 2 {
+                    db_token = quote! {
                         if rustavel_core::db::get_static_schema()
                         .await.exists_record(#table, #column, wanted).await {
                             errors.add(#field_name, format!("The record exists: {}", wanted));
                         }
-                    }.into();
+                    }
+                    .into();
                 } else if db_len == 3 {
-
-                    let except_val =  db.get(2).unwrap().to_string();
-                    let except = format_ident!("{}",&except_val);
+                    let except_val = db.get(2).unwrap().to_string();
+                    let except = format_ident!("{}", &except_val);
                     db_token = quote!{
                         if rustavel_core::db::get_static_schema()
                         .await.exists_record_except(#table, #column, wanted, #except_val,&macros_core::convert_to_string(&self.#except)).await {
                             errors.add(#field_name, format!("The record exists: {}", wanted));
                         }
                     }.into();
-
-
                 }
 
-
-                tokens.extend(wanted_token2);
+                if let Some(tokens2) = wanted_token2 {
+                    tokens.extend(tokens2);
+                }
                 tokens.extend(db_token);
                 tokens.into()
             }
