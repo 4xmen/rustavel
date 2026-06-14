@@ -1784,7 +1784,9 @@ dependencies = [
  "async-trait",
  "clap",
  "dotenv",
+ "illuminate-str",
  "once_cell",
+ "rustavel-artisan",
  "rustavel-core",
  "tokio",
 ]

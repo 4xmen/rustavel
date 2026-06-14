@@ -1,13 +1,17 @@
+/// this code generating by system
+/// if you want edit create backup from your modified code
+
 use rustavel_core::mvc::model::Model;
 use serde::{Deserialize, Serialize};
-use time::PrimitiveDateTime;
+
 #[derive(Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Todo {
-    pub id: u64,
+    pub id: i64,
     pub title: String,
     pub done: bool,
-    pub created_at: PrimitiveDateTime,
-    pub updated_at: PrimitiveDateTime,
+    pub created_at: time::PrimitiveDateTime,
+    pub updated_at: time::PrimitiveDateTime,
+    pub deleted_at: Option<time::PrimitiveDateTime>,
 }
 
 impl Model for Todo {
@@ -20,7 +24,6 @@ impl Model for Todo {
         "id"
     }
     fn columns() -> &'static [&'static str] {
-        &["id", "title", "done", "created_at", "updated_at"]
+        &["id", "title", "done", "created_at", "updated_at", "deleted_at"]
     }
 }
-

@@ -1,11 +1,11 @@
-
-use std::time::Instant;
 use crate::migrations::get_all_migrations;
 use async_trait::async_trait;
+use illuminate_str::Str;
+use rustavel_artisan::general::generate_model::save_generated_model;
 use rustavel_core::db::schema::Schema;
-use rustavel_core::facades::terminal_ui::{*};
+use rustavel_core::facades::terminal_ui::*;
 use rustavel_core::sql::database_client::DbError;
-
+use std::time::Instant;
 #[async_trait]
 pub trait Migration: Send + Sync {
     async fn up(&self, schema: &mut Schema) -> Result<(), DbError>;
@@ -18,17 +18,15 @@ pub async fn run_migrations(rollback: i64, passive: bool, fresh: bool) -> Result
     let mut batch = 1;
     let mut schema = Schema::new().await?;
     let mut migrated_count = 0;
-    let mut start = Instant::now();
-    let migration_list : Vec<String> =  if !passive {
+    let migration_list: Vec<String> = if !passive {
         if fresh {
-            start = Instant::now();
+            let start = Instant::now();
             schema.drop_all_tables().await?;
-            operation( "Dropping all tables" ,start.elapsed(),Status::Done)
+            operation("Dropping all tables", start.elapsed(), Status::Done)
         }
         // check migration table
         if !schema.repository_exists().await? {
-            start = Instant::now();
-            title(TitleKind::Info,"Preparing database.");
+            title(TitleKind::Info, "Preparing database.");
             schema.create_migration_table().await?;
         }
         batch = schema.get_next_batch_number().await?;
@@ -38,21 +36,19 @@ pub async fn run_migrations(rollback: i64, passive: bool, fresh: bool) -> Result
     };
     let downs = schema.get_ran_migrations_gt(batch - (rollback + 1)).await?;
 
+    title(TitleKind::Info, "Running migrations.");
 
-
-    title(TitleKind::Info,"Running migrations.");
     for mig in migrations {
-        start = Instant::now();
+        let start = Instant::now();
         if rollback <= 0 {
             mig.up(&mut schema).await?;
             if !passive && !migration_list.contains(&mig.name().to_string()) {
                 // run migration
-                schema.execute_migration(mig.name(),&start.into()).await?;
+                schema.execute_migration(mig.name(), &start.into()).await?;
                 // add to table
-                schema.add_migrated_table(mig.name(),batch).await?;
+                schema.add_migrated_table(mig.name(), batch).await?;
 
                 migrated_count += 1;
-
             }
         } else {
             // println!("Rolling back {}, {:?}, {} , {}", mig.name(), downs, batch, batch - (rollback + 1));
@@ -65,8 +61,19 @@ pub async fn run_migrations(rollback: i64, passive: bool, fresh: bool) -> Result
         }
     }
 
-    if migrated_count == 0 {
-        title(TitleKind::Info,"Noting to migrate");
+    if passive {
+        for model_data in schema.to_struct().into_iter() {
+            save_generated_model(
+                Str::ucfirst(&Str::singular(&model_data.table)),
+                Some(model_data),
+            )
+            .await
+            .unwrap();
+        }
+    }
+
+    if migrated_count == 0 && !passive {
+        title(TitleKind::Info, "Noting to migrate");
     }
     Ok(())
 }

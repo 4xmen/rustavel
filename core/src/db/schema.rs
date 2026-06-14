@@ -1,6 +1,6 @@
+use crate::config::CONFIG;
 use crate::config::database::DatabaseEngine;
-use crate::config::{CONFIG};
-use crate::db::table::{Table, TableAction};
+use crate::db::table::{ColumnDataType, Table, TableAction};
 use crate::facades::terminal_ui::{Status, operation};
 use crate::logger;
 use crate::sql::database_client::{DatabaseClient, DbError, MySqlClient, SqliteClient};
@@ -16,6 +16,14 @@ use tokio::time::Instant;
 
 static TABLES: OnceCell<Vec<String>> = OnceCell::const_new();
 static COLUMNS: OnceCell<Vec<String>> = OnceCell::const_new();
+
+#[derive(Debug)]
+pub struct ModelData {
+    pub table: String,
+    pub columns: String,
+    pub primary_key: String,
+    pub model: String,
+}
 
 pub async fn get_tables() -> &'static Vec<String> {
     TABLES
@@ -1445,7 +1453,7 @@ impl Schema {
             let mut post = vec![];
             let mut spliter = String::new();
             for column in &table.columns {
-                let (b, f, p,s) = self.generator.column(&column, &table.name, &table.action);
+                let (b, f, p, s) = self.generator.column(&column, &table.name, &table.action);
                 body.push(b);
                 if !f.is_empty() {
                     foot.push(f);
@@ -1487,7 +1495,6 @@ impl Schema {
                     Err(e)
                 }
             }
-
         } else {
             Err(DbError::InvalidTable)
         }
@@ -1573,7 +1580,7 @@ impl Schema {
         }
     }
 
-    /// Retrieves a list of successfully executed migrations from the database  greater tahn batch.
+    /// Retrieves a list of successfully executed migrations from the database  greater than batch.
     ///
     /// This method:
     /// - Queries the `migrations` table to fetch the names of migrations that have been executed.
@@ -1821,7 +1828,6 @@ impl Schema {
         }
     }
 
-    
     pub async fn exists_record(&self, table: &str, column: &str, wanted: &str) -> bool {
         // ----------------------------------------------------
         // Perform identifier validation (table & column) using a cached schema whitelist.
@@ -1846,7 +1852,7 @@ impl Schema {
         let sql = &self.generator.record_exists(table, column);
         match self.client.fetch_count_params(sql, &[wanted]).await {
             Ok(result) => {
-                if result == 0 { 
+                if result == 0 {
                     return false;
                 }
                 true
@@ -1856,11 +1862,18 @@ impl Schema {
                     logger::error(&format!("{:?}", e));
                 }
                 false
-            },
+            }
         }
     }
-    
-    pub async fn exists_record_except(&self, table: &str, column: &str, wanted: &str, except_col: &str, except_val: &str) -> bool {
+
+    pub async fn exists_record_except(
+        &self,
+        table: &str,
+        column: &str,
+        wanted: &str,
+        except_col: &str,
+        except_val: &str,
+    ) -> bool {
         // ----------------------------------------------------
         // Perform identifier validation (table & column) using a cached schema whitelist.
         // Schema metadata is initialized once and reused from memory (OnceCell),
@@ -1886,10 +1899,16 @@ impl Schema {
             return false;
         }
         // check exists record
-        let sql = &self.generator.record_exists_except(table, column, except_col);
-        match self.client.fetch_count_params(sql, &[wanted, except_val]).await {
+        let sql = &self
+            .generator
+            .record_exists_except(table, column, except_col);
+        match self
+            .client
+            .fetch_count_params(sql, &[wanted, except_val])
+            .await
+        {
             Ok(result) => {
-                if result == 0 { 
+                if result == 0 {
                     return false;
                 }
                 true
@@ -1899,7 +1918,56 @@ impl Schema {
                     logger::error(&format!("{:?}", e));
                 }
                 false
-            },
+            }
         }
+    }
+
+    // pub fn final_tables(&self) -> &HashMap<String,Table> {
+    //     &self.tables
+    // }
+
+    pub fn to_struct(&self) -> Vec<ModelData> {
+        let mut has_id = false;
+        self.tables
+            .iter()
+            .map(|(table_name, table)| {
+                let mut cols = Vec::with_capacity(table.columns.len() * 2);
+
+                for column in &table.columns {
+                    // check by datatype fix columns name
+                    match column.data_type {
+                        ColumnDataType::DTMorph => {
+                            cols.push(format!("{}_type", column.name));
+                            cols.push(format!("{}_id", column.name));
+                        }
+                        ColumnDataType::DTTimestamps => {
+                            cols.push("created_at".to_owned());
+                            cols.push("updated_at".to_owned());
+                        }
+                        _ => {
+                            if ColumnDataType::DTId == column.data_type {
+                                has_id = true;
+                            }
+                            cols.push(column.name.clone());
+                        }
+                    }
+                }
+
+                ModelData {
+                    table: table_name.clone(),
+                    columns :cols
+                        .iter()
+                        .map(|c| format!("\"{}\"", c))
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    primary_key: if has_id {
+                        "id".to_owned()
+                    } else {
+                        "".to_owned()
+                    },
+                    model: table.to_struct(),
+                }
+            })
+            .collect()
     }
 }

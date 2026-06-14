@@ -1,6 +1,5 @@
 use crate::config::CONFIG;
 use crate::config::database::DatabaseEngine;
-use illuminate_str::Str;
 #[derive(Debug, Clone)]
 pub struct Table {
     pub name: String,
@@ -151,18 +150,12 @@ impl Table {
     /// this function convert table to rust struct
     /// note: maybe need move this function to schema
     pub fn to_struct(&self) -> String {
-        let mut result = "#[derive(Debug, sqlx::FromRow)]\n".to_string();
-        result += &format!(
-            "pub struct {} {{\n",
-            Str::ucfirst(&Str::singular(&self.name))
-        );
+        let mut result = "".to_string();
 
         for col in &self.columns {
             let field = Self::make_field(col);
             result += &format!("    {},\n", field);
         }
-
-        result += "}\n";
         result
     }
 
