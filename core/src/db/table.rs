@@ -105,6 +105,8 @@ pub struct ForeignKey {
 
 #[allow(dead_code)]
 impl Table {
+
+    /// create new instance of table
     pub fn new(table_name: &str) -> Self {
         Self {
             name: table_name.to_string(),
@@ -116,11 +118,13 @@ impl Table {
         }
     }
 
+    /// add comment to table
     pub fn table_comment(&mut self, comment: impl Into<String>) -> &mut Self {
         self.comment = comment.into();
         self
     }
 
+    /// create new column
     fn column(
         &mut self,
         name: impl Into<String>,
@@ -145,6 +149,8 @@ impl Table {
         }
     }
 
+    /// this function convert table to rust struct
+    /// note: maybe need move this function to schema
     pub fn to_struct(&self) -> String {
         let name = self.name.clone();
         let mut result = "#[derive(Debug, sqlx::FromRow)]\n".to_string();
@@ -159,6 +165,7 @@ impl Table {
         result
     }
 
+    /// make field datatype of table
     fn make_field(column: &Column) -> String {
         // map ColumnDataType -> Rust type
         let mut rust_type = match column.data_type {
@@ -178,12 +185,12 @@ impl Table {
             | ColumnDataType::DTMediumText
             | ColumnDataType::DTLongText => "String".to_string(),
             ColumnDataType::DTJson => "serde_json::Value".to_string(),
-            ColumnDataType::DTDate => "chrono::NaiveDate".to_string(),
+            ColumnDataType::DTDate => "time::Date".to_string(),
             ColumnDataType::DTDateTime
             | ColumnDataType::DTTimestamp
-            | ColumnDataType::DTTimestamps => "chrono::NaiveDateTime".to_string(),
-            ColumnDataType::DTTime => "chrono::NaiveTime".to_string(),
-            ColumnDataType::DTSoftDelete => "Option<chrono::NaiveDateTime>".to_string(),
+            | ColumnDataType::DTTimestamps => "time::PrimitiveDateTime".to_string(),
+            ColumnDataType::DTTime => "time::Time".to_string(),
+            ColumnDataType::DTSoftDelete => "Option<time::PrimitiveDateTime>".to_string(),
             ColumnDataType::DTEnum | ColumnDataType::DTSet => "String".to_string(),
             ColumnDataType::DTMorph => "i64".to_string(),
             ColumnDataType::DTNone => "()".to_string(),
@@ -205,62 +212,77 @@ impl Table {
     }
 
     // --------------------------------------------------------------------------------------------
-
+    /// add id column id
     pub fn id(&mut self) -> ColumnBuilder<'_> {
         self.column("id", ColumnDataType::DTId, ColumnOption::None).unsigned()
     }
 
+    /// add boolean column
     pub fn boolean(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
         self.column(name, ColumnDataType::DTBoolean, ColumnOption::None)
     }
 
+    /// add string column
     pub fn string(&mut self, name: impl Into<String>, len: i32) -> ColumnBuilder<'_> {
         self.column(name, ColumnDataType::DTString, ColumnOption::Length(len))
     }
 
+    /// add text column
     pub fn text(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
         self.column(name, ColumnDataType::DTText, ColumnOption::None)
     }
 
+    /// add tiny text column
     pub fn tiny_text(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
         self.column(name, ColumnDataType::DTTinyText, ColumnOption::None)
     }
 
+    /// add medium text column
     pub fn medium_text(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
         self.column(name, ColumnDataType::DTMediumText, ColumnOption::None)
     }
+
+    /// add long text column
     pub fn long_text(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
         self.column(name, ColumnDataType::DTLongText, ColumnOption::None)
     }
 
+    /// add json  column
     pub fn json(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
         self.column(name, ColumnDataType::DTJson, ColumnOption::None)
     }
 
+    // add integer column
     pub fn integer(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
         self.column(name, ColumnDataType::DTInteger, ColumnOption::None)
     }
 
+    /// add tiny integer column
     pub fn tiny_integer(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
         self.column(name, ColumnDataType::DTTinyInteger, ColumnOption::None)
     }
 
+    /// add small integer column
     pub fn small_integer(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
         self.column(name, ColumnDataType::DTSmallInteger, ColumnOption::None)
     }
 
+    /// add medium integer column
     pub fn medium_integer(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
         self.column(name, ColumnDataType::DTMediumInteger, ColumnOption::None)
     }
 
+    /// add big integer column
     pub fn big_integer(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
         self.column(name, ColumnDataType::DTBigInteger, ColumnOption::None)
     }
 
+    /// add double column
     pub fn double(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
         self.column(name, ColumnDataType::DTDouble, ColumnOption::None)
     }
 
+    /// add float column
     pub fn float(&mut self, name: impl Into<String>, precision: i8) -> ColumnBuilder<'_> {
         self.column(
             name,
@@ -269,6 +291,7 @@ impl Table {
         )
     }
 
+    /// add decimal column
     pub fn decimal(&mut self, name: impl Into<String>, total: i8, place: i8) -> ColumnBuilder<'_> {
         self.column(
             name,
@@ -277,26 +300,32 @@ impl Table {
         )
     }
 
+    /// add date column
     pub fn date(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
         self.column(name, ColumnDataType::DTDate, ColumnOption::None)
     }
 
+    /// add datetime column
     pub fn datetime(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
         self.column(name, ColumnDataType::DTDateTime, ColumnOption::None)
     }
 
+    /// add time column
     pub fn time(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
         self.column(name, ColumnDataType::DTTime, ColumnOption::None)
     }
 
+    /// add timestamp column
     pub fn timestamp(&mut self, name: impl Into<String>) -> ColumnBuilder<'_> {
         self.column(name, ColumnDataType::DTTimestamp, ColumnOption::None)
     }
 
+    /// add timestamps columns (created_at, updated_at)
     pub fn timestamps(&mut self) -> ColumnBuilder<'_> {
         self.column("", ColumnDataType::DTTimestamps, ColumnOption::None)
     }
 
+    /// add soft delete column (deleted_at)
     pub fn soft_delete(&mut self) -> ColumnBuilder<'_> {
         self.column(
             "deleted_at",
@@ -305,6 +334,7 @@ impl Table {
         )
     }
 
+    /// add morph columns ({morph}_type, {morph}_id)
     pub fn morph(
         &mut self,
         name: impl Into<String>,
@@ -317,6 +347,7 @@ impl Table {
         )
     }
 
+    /// add nullable morph columns ({morph}_type, {morph}_id)
     pub fn nullable_morphs(
         &mut self,
         name: impl Into<String>,
@@ -329,6 +360,7 @@ impl Table {
         ).nullable()
     }
 
+    /// add enum column
     pub fn enums<I, S>(&mut self, name: impl Into<String>, values: I) -> ColumnBuilder<'_>
     where
         I: IntoIterator<Item = S>,
@@ -338,6 +370,7 @@ impl Table {
         self.column(name, ColumnDataType::DTEnum, ColumnOption::Values(values))
     }
 
+    /// add set column
     pub fn sets<I, S>(&mut self, name: impl Into<String>, values: I) -> ColumnBuilder<'_>
     where
         I: IntoIterator<Item = S>,
@@ -349,6 +382,7 @@ impl Table {
 
     // --------------------------------------------------------------------------------------------
 
+    /// add foreign key
     pub fn foreign(&mut self, name: impl Into<String>) -> ForeignKeyBuilder<'_> {
         ForeignKeyBuilder {
             table: self,
@@ -364,6 +398,7 @@ impl Table {
 
     // --------------------------------------------------------------------------------------------
 
+    /// validate column created by developer
     pub fn validate(&mut self) -> &mut Self {
         for foreign_key in &mut self.foreign_keys {
             if !foreign_key.validate() {
@@ -380,6 +415,7 @@ impl Table {
         self
     }
 
+    /// drop column
     pub fn drop_column(&mut self, name: impl Into<String>) {
         self.drop_columns.push(name.into());
     }
@@ -387,6 +423,8 @@ impl Table {
 }
 
 impl Column {
+
+    /// validate column fields
     fn validate(&mut self) -> bool {
         match self.data_type {
             ColumnDataType::DTNone => return false,
@@ -430,6 +468,7 @@ impl Column {
         true
     }
 
+    /// check is string type
     pub fn is_string_type(&self) -> bool {
         match self.data_type {
             ColumnDataType::DTString
@@ -443,6 +482,8 @@ impl Column {
 }
 
 impl Default for Column {
+
+    /// make default column data
     fn default() -> Self {
         Column {
             name: String::new(),
@@ -459,7 +500,11 @@ impl Default for Column {
         }
     }
 }
+
+
 impl Default for ForeignKey {
+
+    /// make default foreign data
     fn default() -> Self {
         ForeignKey {
             referenced_column: String::new(),
@@ -472,6 +517,7 @@ impl Default for ForeignKey {
 }
 
 impl ForeignKey {
+    /// validate foreign key
     fn validate(&mut self) -> bool {
         if self.column_name.is_empty()
             || self.referenced_column.is_empty()
