@@ -12,12 +12,22 @@ impl Migration for {{  name }} {
         schema.create("{{ create }}", |table| {
                 table.id();
                 // add some rows you want here here
-                table.validate();
+
+                // validate table after create
+                let warnings = table.validate();
+                for w in warnings {
+                    eprintln!("warning: {}", w);
+                }
             });
         {% endif %}
         {% if is_table %}
         schema.table("{{ table }}", |table| {
                 // do what you want here
+                // validate table after change
+                let warnings = table.validate();
+                for w in warnings {
+                    eprintln!("warning: {}", w);
+                }
         });
         {% endif %}
         Ok(())

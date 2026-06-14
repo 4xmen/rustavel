@@ -12,7 +12,15 @@ impl Migration for CreateTodos {
             table.id();
             table.string("title", 127).index().comment("todo title");
             table.boolean("done").default_bool(false).comment("is task done");
+            table.morph("supportable","supportale");
             table.timestamps();
+            table.soft_delete();
+
+            let warnings = table.validate();
+            for w in warnings {
+                eprintln!("warning: {}", w);
+            }
+
         });
         Ok(())
     }

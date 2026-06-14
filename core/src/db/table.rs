@@ -1,7 +1,7 @@
 use crate::config::CONFIG;
 use crate::config::database::DatabaseEngine;
-
-#[derive(Debug,Clone)]
+use illuminate_str::Str;
+#[derive(Debug, Clone)]
 pub struct Table {
     pub name: String,
     pub columns: Vec<Column>,
@@ -105,7 +105,6 @@ pub struct ForeignKey {
 
 #[allow(dead_code)]
 impl Table {
-
     /// create new instance of table
     pub fn new(table_name: &str) -> Self {
         Self {
@@ -152,9 +151,11 @@ impl Table {
     /// this function convert table to rust struct
     /// note: maybe need move this function to schema
     pub fn to_struct(&self) -> String {
-        let name = self.name.clone();
         let mut result = "#[derive(Debug, sqlx::FromRow)]\n".to_string();
-        result += &format!("pub struct {} {{\n", name);
+        result += &format!(
+            "pub struct {} {{\n",
+            Str::ucfirst(&Str::singular(&self.name))
+        );
 
         for col in &self.columns {
             let field = Self::make_field(col);
@@ -200,13 +201,16 @@ impl Table {
             rust_type = format!("Option<{}>", rust_type);
         }
 
-        if column.unsigned && CONFIG.database.connection == DatabaseEngine::Mysql{
-            rust_type = rust_type.replace("i","u");
+        if column.unsigned && CONFIG.database.connection == DatabaseEngine::Mysql {
+            rust_type = rust_type.replace("i", "u");
         }
 
         if column.data_type == ColumnDataType::DTTimestamps {
-             format!("pub created_at: {},\n    pub updated_at: {}", rust_type, rust_type)
-        }else{
+            format!(
+                "pub created_at: {},\n    pub updated_at: {}",
+                rust_type, rust_type
+            )
+        } else {
             format!("pub {}: {}", column.name, rust_type)
         }
     }
@@ -214,7 +218,8 @@ impl Table {
     // --------------------------------------------------------------------------------------------
     /// add id column id
     pub fn id(&mut self) -> ColumnBuilder<'_> {
-        self.column("id", ColumnDataType::DTId, ColumnOption::None).unsigned()
+        self.column("id", ColumnDataType::DTId, ColumnOption::None)
+            .unsigned()
     }
 
     /// add boolean column
@@ -357,7 +362,8 @@ impl Table {
             name,
             ColumnDataType::DTMorph,
             ColumnOption::Index(index_name.into()),
-        ).nullable()
+        )
+        .nullable()
     }
 
     /// add enum column
@@ -399,20 +405,35 @@ impl Table {
     // --------------------------------------------------------------------------------------------
 
     /// validate column created by developer
-    pub fn validate(&mut self) -> &mut Self {
-        for foreign_key in &mut self.foreign_keys {
-            if !foreign_key.validate() {
-                println!("invalid foreign key:");
-                dbg!(&foreign_key);
+    pub fn validate(&self) -> Vec<String> {
+        let mut errors = vec![];
+
+        for fk in &self.foreign_keys {
+            if !fk.validate() {
+                errors.push(format!(
+                    "invalid foreign key: {},{},{}",
+                    self.name, fk.column_name, fk.referenced_column
+                ));
             }
         }
-        for column in &mut self.columns {
-            if !column.validate() {
-                println!("invalid column:");
-                dbg!(&column);
+
+        for col in &self.columns {
+            if !col.validate() {
+                errors.push(format!("invalid column: {},{}",self.name,col.name));
             }
         }
-        self
+
+        if self
+            .columns
+            .iter()
+            .filter(|c| c.data_type == ColumnDataType::DTTimestamps)
+            .count()
+            > 1
+        {
+            errors.push(format!("duplicate timestamps: {}", self.name));
+        }
+
+        errors
     }
 
     /// drop column
@@ -423,9 +444,8 @@ impl Table {
 }
 
 impl Column {
-
     /// validate column fields
-    fn validate(&mut self) -> bool {
+    fn validate(&self) -> bool {
         match self.data_type {
             ColumnDataType::DTNone => return false,
 
@@ -482,7 +502,6 @@ impl Column {
 }
 
 impl Default for Column {
-
     /// make default column data
     fn default() -> Self {
         Column {
@@ -501,9 +520,7 @@ impl Default for Column {
     }
 }
 
-
 impl Default for ForeignKey {
-
     /// make default foreign data
     fn default() -> Self {
         ForeignKey {
@@ -518,7 +535,7 @@ impl Default for ForeignKey {
 
 impl ForeignKey {
     /// validate foreign key
-    fn validate(&mut self) -> bool {
+    fn validate(&self) -> bool {
         if self.column_name.is_empty()
             || self.referenced_column.is_empty()
             || self.foreign_table.is_empty()
