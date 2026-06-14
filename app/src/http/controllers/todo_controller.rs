@@ -22,6 +22,7 @@ pub async fn index(State(_state): State<AppState>) -> impl IntoResponse {
             done: true,
             created_at: now_primitive(),
             updated_at: now_primitive(),
+            deleted_at: None,
 
         },
         Todo{
@@ -30,6 +31,7 @@ pub async fn index(State(_state): State<AppState>) -> impl IntoResponse {
             done: true,
             created_at: now_primitive(),
             updated_at: now_primitive(),
+            deleted_at: None,
         },
         Todo{
             id: 3,
@@ -37,6 +39,7 @@ pub async fn index(State(_state): State<AppState>) -> impl IntoResponse {
             done: false,
             created_at: now_primitive(),
             updated_at: now_primitive(),
+            deleted_at: Some(now_primitive()),
         },
 
     );
