@@ -36,7 +36,11 @@ pub async fn run_migrations(rollback: i64, passive: bool, fresh: bool) -> Result
     };
     let downs = schema.get_ran_migrations_gt(batch - (rollback + 1)).await?;
 
-    title(TitleKind::Info, "Running migrations.");
+    if passive {
+        title(TitleKind::Info, "Running model generator.");
+    }else{
+        title(TitleKind::Info, "Running migrations.");
+    }
 
     for mig in migrations {
         let start = Instant::now();
@@ -63,13 +67,19 @@ pub async fn run_migrations(rollback: i64, passive: bool, fresh: bool) -> Result
 
     if passive {
         for model_data in schema.to_struct().into_iter() {
-            save_generated_model(
-                Str::ucfirst(&Str::singular(&model_data.table)),
-                Some(model_data),
-            )
-            .await
-            .unwrap();
+            let start = Instant::now();
+            let model_name = Str::ucfirst(&Str::singular(&model_data.table));
+            match save_generated_model(model_name.clone(), Some(model_data)).await {
+                Ok(_) => {
+                    operation(&format!("Model generate: {}", &model_name), start.elapsed(), Status::Done);
+                }
+                Err(e) => {
+                    operation(&format!("Model generate: {}", &model_name), start.elapsed(), Status::Failed);
+                    eprintln!("Error: {:?}", e);
+                }
+            }
         }
+
     }
 
     if migrated_count == 0 && !passive {
