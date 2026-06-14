@@ -1,14 +1,13 @@
+use crate::general::generate_model::save_generated_model;
+use crate::make::controller::{NewControllerArgs, controller};
+use crate::make::make_error::MakeError;
+use crate::make::migration::{NewMigArgs, migrate};
 use clap::Args;
 use illuminate_str::Str;
-use minijinja::{context, Environment};
-use tokio::time::Instant;
+use minijinja::{Environment, context};
 use rustavel_core::facades::file_content::FileContent;
-use rustavel_core::facades::terminal_ui::{operation, Status};
-use crate::make::controller::{controller, NewControllerArgs};
-use crate::make::make_error::MakeError;
-use crate::make::migration::{migrate, NewMigArgs};
-
-const MODEL_GENERATED_TEMPLATE: &str = include_str!("templates/model_generated.rs.j2");
+use rustavel_core::facades::terminal_ui::{Status, operation};
+use tokio::time::Instant;
 const MODEL_TEMPLATE: &str = include_str!("templates/model.rs.j2");
 #[derive(Args, Debug)]
 #[command(about = "Create a new model file")]
@@ -24,54 +23,27 @@ pub struct NewModelArgs {
     pub has_controller: bool,
 }
 
-
-#[derive(serde::Serialize)]
-struct ModelContext {
-    name: String,
-    fields: String,
-    table: String,
-    pkey: String,
-    field_list: String,
-}
-
-
 pub async fn model(args: &NewModelArgs) -> Result<(), MakeError> {
-
     let start = Instant::now();
-    let model_name = Str::ucfirst( &Str::singular(&args.name) );
+    let model_name = Str::ucfirst(&Str::singular(&args.name));
 
-    let mut env = Environment::new();
-    env.add_template("model_generated", MODEL_GENERATED_TEMPLATE)?;
-
-    let ctx = ModelContext {
-        name: model_name.clone(),
-        fields: "".to_string(),
-        field_list: "".to_string(),
-        table: "".to_string(),
-        pkey: "".to_string(),
-    };
-
-    let rendered = env.get_template("model_generated")?.render(ctx)?;
-
+    save_generated_model(model_name.clone(), None).await?;
 
     let base = std::env::current_dir()?.join("app/src/models");
-    let generated_path = base.join(format!("{}_generated.rs", model_name.to_lowercase()));
     let model_path = base.join(format!("{}.rs", model_name.to_lowercase()));
-    FileContent::put(generated_path.to_str().unwrap(), &rendered).await?;
-    env = Environment::new();
-    env.add_template("model_generated", MODEL_TEMPLATE)?;
-    let rendered = env.get_template("model_generated")?.render(context! {
+    let mut env = Environment::new();
+    env.add_template("model", MODEL_TEMPLATE)?;
+    let rendered = env.get_template("model")?.render(context! {
         name => model_name.clone(),
     })?;
     FileContent::put(model_path.to_str().unwrap(), &rendered).await?;
 
-
     // check migration and create
     if args.has_migration {
         let migration_name = format!("{}Create", &model_name);
-        let table = Str::plural_studly(&model_name,3).to_lowercase();
+        let table = Str::plural_studly(&model_name, 3).to_lowercase();
         // println!("Creating migration {}", table);
-        let mig_args = NewMigArgs{
+        let mig_args = NewMigArgs {
             name: migration_name,
             create: Some(table),
             path: None,
@@ -84,7 +56,7 @@ pub async fn model(args: &NewModelArgs) -> Result<(), MakeError> {
     // check controller and create
     if args.has_controller {
         let controller_name = format!("{}Controller", &model_name);
-        let cont_args = NewControllerArgs{
+        let cont_args = NewControllerArgs {
             name: controller_name,
             model: Some(model_name.clone()),
         };
@@ -95,7 +67,11 @@ pub async fn model(args: &NewModelArgs) -> Result<(), MakeError> {
     if args.has_migration {
         // create controller here
     }
-    operation(&format!("model and raw generated made: {:?}", model_name),start.elapsed(),Status::Done);
+    operation(
+        &format!("model and raw generated made: {:?}", model_name),
+        start.elapsed(),
+        Status::Done,
+    );
 
     Ok(())
 }

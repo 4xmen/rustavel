@@ -3,9 +3,15 @@ name = "rustavel-artisan"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+name = "rustavel_artisan"
+path = "src/lib.rs"
+
+
 [[bin]]
 name = "artisan"
 path = "src/artisan.rs"
+
 
 [dependencies]
 rustavel-core = { path = "../core" }

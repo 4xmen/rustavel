@@ -31,8 +31,9 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    //// app key generate
+    /// app key generate
     KeyGenerate,
+
     Migrate {
         /// rollback step count
         #[arg(long, default_value_t = 0)]
@@ -42,7 +43,7 @@ enum Commands {
         #[arg(long)]
         fresh: bool,
 
-        /// Run migrations in passive mode ( Effective just in up mode)
+        /// Run migrations in passive mode ( generate model struct )
         #[arg(long)]
         passive: bool,
 
@@ -95,7 +96,7 @@ async fn main() {
                 }
             }
 
-        }
+        },
         Commands::Migrate  { rollback, fresh, passive } => {
 
             if CONFIG.app.env == "production" {
