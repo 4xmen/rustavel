@@ -1,8 +1,8 @@
 use std::collections::HashMap;
-use std::time::Instant;
 use macros::CheckMate;
 
 #[derive(CheckMate, Debug)]
+#[allow(dead_code)] // cuz we want to test macro work here or not
 struct FullRuleCoverage {
 
     id: i64,
@@ -49,7 +49,6 @@ struct FullRuleCoverage {
 
 #[test]
 fn test_all_rules_parsed() {
-
     assert_eq!(true, true);
 
 }

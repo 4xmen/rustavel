@@ -10,6 +10,7 @@ use rustavel_core::facades::datetime::now_compact;
 use rustavel_core::facades::file_content::FileContent;
 use crate::make::make_error::MakeError;
 
+#[warn(dead_code)] // use in load template
 const MIGRATION_TEMPLATE: &str = include_str!("templates/migration.rs.j2");
 
 

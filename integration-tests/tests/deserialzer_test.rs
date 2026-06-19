@@ -1,6 +1,6 @@
 use rustavel_core::localization::numbers::apply_normalize_number;
 use rustavel_core::facades::datetime::*;
-use serde::{de, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use time::{Date, PrimitiveDateTime};
 
 #[derive(Debug, Serialize, Deserialize)]
