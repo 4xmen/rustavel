@@ -636,6 +636,9 @@ pub trait TimeExt {
     /// # Example
     ///
     /// ```rust
+    /// # use crate::rustavel_core::facades::datetime::TimeExt;
+    /// use rustavel_core::facades::datetime::now;
+    /// let datetime = now();
     /// let formatted = datetime.jdate("Y/m/d");
     /// ```
     fn jdate(&self, format: &str) -> String;
@@ -652,6 +655,9 @@ pub trait TimeExt {
     /// # Example
     ///
     /// ```rust
+    /// # use crate::rustavel_core::facades::datetime::TimeExt;
+    /// use rustavel_core::facades::datetime::now;
+    /// let datetime = now();
     /// let formatted = datetime.ldate("Y-m-d");
     /// ```
     fn ldate(&self, format: &str) -> String;
