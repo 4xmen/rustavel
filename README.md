@@ -18,6 +18,127 @@ while respecting the values of the Rust ecosystem: correctness, clarity, and per
 
 ---
 
+## Quick Example / Code Samples
+
+### Some artisan commands sample
+```bash
+cargo artisan make model User -m -c # model + migration + controller
+cargo artisan make migration CreateTodos  -t todos # migration
+cargo artisan make migrate # do migrate / may rollback
+cargo artisan serv # run app
+cargo artisan key-generate # key generate
+```
+
+### Routing sample
+
+```rust
+
+route.group(|r| {
+    r.name("api")
+        .prefix("/api")
+        .middleware(log_middleware::log_request);
+
+    r.group(|v1| {
+        v1.prefix("/v1").name("v1");
+        v1.any("", hello_api).name("index");
+
+        v1.group(|users| {
+            users.prefix("/users").name("users");
+            users.get("/show/{id}", user_controller::show).name("get");
+            users.get("/create", todo_controller::create).name("create");
+        });
+    })
+});
+
+```
+
+### Migration sample
+
+```rust
+schema.create("todos", |table| {
+    table.id();
+    table.string("title", 127).index().comment("todo title");
+    table.boolean("done").default_bool(false).comment("is task done");
+    table.timestamps();
+    table.soft_delete();
+});
+```
+
+### Validator sample
+
+```rust
+#[derive(CheckMate, Debug)]
+struct FullRoleCoverage {
+
+    id: i64,
+
+    #[validating("required|email|max:180|lowercase")]
+    email: String,
+
+    #[validating("nullable|min:8|max:128|confirmed:password_confirmation|uppercase")]
+    password: Option<String>,
+
+    password_confirmation: Option<String>,
+
+    #[validating("size:10","ascii","alphanumeric")]
+    code: String,
+
+    #[validating("url|ip")]
+    endpoint: String,
+
+    #[validating("hex_color|starts_with:#|ends_with:ff")]
+    color: String,
+
+    #[validating("in:admin,user,guest|not_in:banned,suspended")]
+    role: String,
+
+    #[validating("unique:users,email,id|exists:users,email")]
+    user_ref: String,
+  
+    #[validating("date|datetime|time")]
+    published_at: String,
+
+    #[validating("before:2026-01-01","after:2024-01-01")]
+    date_range: String,
+    
+    #[validating("json")]
+    metadata: String,
+
+    #[validating("array")]
+    test: HashMap<String, String>,
+}
+```
+
+### Factory sample
+
+```rust
+#[derive(Debug, Pawn)]
+struct UserFactory {
+    #[fake(name)]
+    name: String,
+    #[fake(username)]
+    username: String,
+    #[fake(password(length = 8))]
+    password: String,
+    #[fake(email)]
+    email: String,
+    #[fake(lorem(words = 20))]
+    bio: String,
+    #[generator(take_role)]
+    role: Role,
+    #[value("2020-01-01")]
+    created_at: String,
+}
+
+let users = UserFactory::factory().count(10).create();
+// A single user forced into the Admin role -> UserFactory
+let admin = UserFactory::factory().state(|u| {
+    u.role = Role::Admin;
+})
+.create();
+```
+
+---
 ## Philosophy
 
 Rustavel follows a few strict principles:
@@ -46,6 +167,7 @@ Rustavel is under active development and currently focuses on:
 - Application configuration (env-driven, explicit, and testable)
 - Routing DSL built on top of `axum`
 - Migration system with a Rust-based schema DSL
+- Validator and 
 - CLI tooling inspired by `artisan`
 - Template rendering via `minijinja`
 
