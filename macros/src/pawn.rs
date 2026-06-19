@@ -1,0 +1,235 @@
+//! Derive macro powering the `pawn` crate.
+//!
+//! This crate only exports the [`Pawn`] derive; the runtime trait and the
+//! fluent builders live in the `factory` crate, which re-exports this macro.
+
+use proc_macro2::TokenStream as TokenStream2;
+use quote::quote;
+use syn::parse::{Parse, ParseStream};
+use syn::punctuated::Punctuated;
+use syn::spanned::Spanned;
+use syn::{
+     Data, DeriveInput, Expr, ExprLit, Fields, Ident, Lit, LitInt, Path, Token,
+};
+
+
+/// Expands the derive input into a `Pawn` implementation.
+pub fn pawn_expand(input: DeriveInput) -> syn::Result<TokenStream2> {
+    let name = &input.ident;
+    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+
+    let fields = match &input.data {
+        Data::Struct(data) => match &data.fields {
+            Fields::Named(named) => &named.named,
+            _ => {
+                return Err(syn::Error::new(
+                    input.ident.span(),
+                    "Factory can only be derived for structs with named fields",
+                ))
+            }
+        },
+        _ => {
+            return Err(syn::Error::new(
+                input.ident.span(),
+                "Factory can only be derived for structs",
+            ))
+        }
+    };
+
+    let mut uses_fake = false;
+    let mut inits = Vec::with_capacity(fields.len());
+    for field in fields {
+        let ident = field.ident.as_ref().expect("named field has an ident");
+        let init = field_init(field, &mut uses_fake)?;
+        inits.push(quote! { #ident: #init });
+    }
+
+    // Only bring `Fake` into scope when a `#[fake(...)]` field actually needs it,
+    // so structs that never use it don't require the `fake` crate at all.
+    let fake_import = uses_fake.then(|| quote! { use ::fake::Fake; });
+
+    Ok(quote! {
+        impl #impl_generics macros_core::factory::Pawn for #name #ty_generics #where_clause {
+            fn definition() -> Self {
+                #fake_import
+                Self {
+                    #(#inits),*
+                }
+            }
+        }
+    })
+}
+
+/// Builds the initializer expression for a single field from its attribute.
+fn field_init(field: &syn::Field, uses_fake: &mut bool) -> syn::Result<TokenStream2> {
+    let mut init: Option<TokenStream2> = None;
+
+    for attr in &field.attrs {
+        let path = attr.path();
+        let is_factory_attr =
+            path.is_ident("fake") || path.is_ident("generator") || path.is_ident("value");
+        if !is_factory_attr {
+            continue;
+        }
+
+        if init.is_some() {
+            return Err(syn::Error::new(
+                attr.span(),
+                "a field may only use one of #[fake], #[generator], or #[value]",
+            ));
+        }
+
+        init = Some(if path.is_ident("fake") {
+            *uses_fake = true;
+            fake_init(attr)?
+        } else if path.is_ident("generator") {
+            generator_init(attr)?
+        } else {
+            value_init(attr)?
+        });
+    }
+
+    // No recognized attribute: fall back to `Default`.
+    Ok(init.unwrap_or_else(|| quote! { ::core::default::Default::default() }))
+}
+
+/// Maps a `#[fake(...)]` attribute to a `fake`-crate expression that yields a `String`.
+fn fake_init(attr: &syn::Attribute) -> syn::Result<TokenStream2> {
+    let spec: FakeSpec = attr.parse_args()?;
+
+    let expr = match spec.kind.to_string().as_str() {
+        "name" => {
+            spec.expect_no_args()?;
+            quote! { ::fake::faker::name::en::Name().fake::<String>() }
+        }
+        "username" => {
+            spec.expect_no_args()?;
+            quote! { ::fake::faker::internet::en::Username().fake::<String>() }
+        }
+        "email" => {
+            spec.expect_no_args()?;
+            quote! { ::fake::faker::internet::en::SafeEmail().fake::<String>() }
+        }
+        "password" => {
+            let len = spec.required_int("length")?;
+            quote! { ::fake::faker::internet::en::Password((#len)..(#len + 1)).fake::<String>() }
+        }
+        "lorem" => {
+            let words = spec.required_int("words")?;
+            quote! { ::fake::faker::lorem::en::Sentence((#words)..(#words + 1)).fake::<String>() }
+        }
+        other => {
+            return Err(syn::Error::new(
+                spec.kind.span(),
+                format!(
+                    "unknown fake generator `{other}`; \
+                     expected name, username, email, password, or lorem"
+                ),
+            ))
+        }
+    };
+    Ok(expr)
+}
+
+/// Maps `#[generator(path)]` to a call of the named zero-argument function.
+fn generator_init(attr: &syn::Attribute) -> syn::Result<TokenStream2> {
+    let path: Path = attr.parse_args()?;
+    Ok(quote! { #path() })
+}
+
+/// Maps `#[value(expr)]` to an initializer.
+///
+/// A string literal is wrapped in `.into()` so it can populate `String` (or any
+/// `From<&str>`) fields directly; every other expression is emitted verbatim.
+fn value_init(attr: &syn::Attribute) -> syn::Result<TokenStream2> {
+    let expr: Expr = attr.parse_args()?;
+    if matches!(
+        &expr,
+        Expr::Lit(ExprLit {
+            lit: Lit::Str(_),
+            ..
+        })
+    ) {
+        Ok(quote! { (#expr).into() })
+    } else {
+        Ok(quote! { #expr })
+    }
+}
+
+/// Parsed contents of a `#[fake(...)]` attribute, e.g. the `password(length = 8)` part.
+struct FakeSpec {
+    kind: Ident,
+    args: Punctuated<FakeArg, Token![,]>,
+}
+
+/// A single `key = literal` argument inside a fake spec.
+struct FakeArg {
+    key: Ident,
+    value: Lit,
+}
+
+impl Parse for FakeSpec {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let kind: Ident = input.parse()?;
+        let args = if input.peek(syn::token::Paren) {
+            let content;
+            syn::parenthesized!(content in input);
+            Punctuated::<FakeArg, Token![,]>::parse_terminated(&content)?
+        } else {
+            Punctuated::new()
+        };
+        Ok(Self { kind, args })
+    }
+}
+
+impl Parse for FakeArg {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let key: Ident = input.parse()?;
+        input.parse::<Token![=]>()?;
+        let value: Lit = input.parse()?;
+        Ok(Self { key, value })
+    }
+}
+
+impl FakeSpec {
+    /// Errors if any argument was supplied to a generator that takes none.
+    fn expect_no_args(&self) -> syn::Result<()> {
+        if let Some(arg) = self.args.first() {
+            return Err(syn::Error::new(
+                arg.key.span(),
+                format!("`{}` does not take arguments", self.kind),
+            ));
+        }
+        Ok(())
+    }
+
+    /// Extracts a single required integer argument named `key` (e.g. `length = 8`).
+    fn required_int(&self, key: &str) -> syn::Result<LitInt> {
+        let mut iter = self.args.iter();
+        let arg = iter.next().ok_or_else(|| {
+            syn::Error::new(
+                self.kind.span(),
+                format!("`{}` requires `{key} = N`", self.kind),
+            )
+        })?;
+        if let Some(extra) = iter.next() {
+            return Err(syn::Error::new(
+                extra.key.span(),
+                format!("`{}` accepts only `{key} = N`", self.kind),
+            ));
+        }
+        if arg.key != key {
+            return Err(syn::Error::new(
+                arg.key.span(),
+                format!("expected `{key}`, found `{}`", arg.key),
+            ));
+        }
+        match &arg.value {
+            Lit::Int(int) => Ok(int.clone()),
+            other => Err(syn::Error::new(
+                other.span(),
+                format!("`{key}` must be an integer"),
+            )),
+        }
+    }
+}

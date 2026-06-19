@@ -1,3 +1,19 @@
+//! Rusatavel Procedural macros exposed by this crate.
+//!
+//! This file contains only the public `proc_macro_derive` entry points and macro
+//! registrations. The implementation details, parsing logic, code generation, and
+//! supporting utilities are organized into dedicated modules and files to keep the
+//! crate structure maintainable and easy to navigate.
+//!
+//! Available derive macros:
+//!
+//! * `checkmate` - validator
+//! * `pawn` - factory
+//!
+//! For implementation details of a specific macro, refer to its corresponding
+//! module.
+
+
 use proc_macro::TokenStream;
 use quote::quote;
 use quote::spanned::Spanned;
@@ -5,10 +21,19 @@ use std::collections::HashSet;
 use syn::{ DeriveInput, parse_macro_input};
 use syn::{Error};
 use crate::checkmate::*;
-
+use crate::pawn::pawn_expand;
 
 mod checkmate;
+mod pawn;
 
+/// Derive macro for the CheckMate validation system.
+///
+/// CheckMate provides a Laravel-inspired validation experience for Rust.
+/// Validation rules are declared with the #[validating(...)] attribute on
+/// struct fields, and an asynchronous validate() method is generated
+/// automatically.
+///
+/// Refer to the module documentation for detailed rule definitions and examples.
 #[proc_macro_derive(CheckMate, attributes(validating))]
 pub fn mate_validate(input: TokenStream) -> TokenStream {
     // Parse the input tokens into a syntax tree (DeriveInput represents the struct)
@@ -83,14 +108,6 @@ pub fn mate_validate(input: TokenStream) -> TokenStream {
     // let lit = LitStr::new(&rules_display, Span::call_site());
     let r#gen = quote! {
 
-    // impl #struct_name {
-    //     pub fn display_parsed_rules() -> &'static str {
-    //             #lit
-    //         }
-    //     }
-
-
-
         impl  #struct_name {
             async fn validate(&self) -> Result<(), macros_core::ValidationErrors> {
                 let mut errors = macros_core::ValidationErrors::new();
@@ -109,4 +126,23 @@ pub fn mate_validate(input: TokenStream) -> TokenStream {
     };
 
     r#gen.into()
+}
+
+/// Derives `macros::Pawn`, generating a `definition()` that builds one fully
+/// populated instance from each field's attribute.
+///
+/// Supported field attributes:
+/// - `#[fake(name)]`, `#[fake(username)]`, `#[fake(email)]`
+/// - `#[fake(password(length = N))]`
+/// - `#[fake(lorem(words = N))]`
+/// - `#[generator(path::to::function)]` — calls a zero-argument function
+/// - `#[value(expr)]` — uses a literal/expression verbatim
+///
+/// Fields without any of these attributes fall back to `Default::default()`.
+#[proc_macro_derive(Pawn, attributes(fake, generator, value))]
+pub fn derive_factory(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    pawn_expand(input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
 }

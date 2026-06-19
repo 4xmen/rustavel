@@ -1,9 +1,19 @@
 use std::collections::HashMap;
-use macros::CheckMate;
+use macros::{CheckMate,Pawn};
+use macros_core::factory::Pawn;
+
+#[derive(Debug,PartialEq)]
+enum Role {
+    Developer,
+    Admin,
+    User,
+    Guest,
+}
+
 
 #[derive(CheckMate, Debug)]
 #[allow(dead_code)] // cuz we want to test macro work here or not
-struct FullRuleCoverage {
+struct FullRoleCoverage {
 
     id: i64,
 
@@ -46,9 +56,49 @@ struct FullRuleCoverage {
     #[validating("array")]
     test: HashMap<String, String>,
 }
+#[derive(Debug, Pawn)]
+struct UserFactory {
+    #[fake(name)]
+    name: String,
+    #[fake(username)]
+    username: String,
+    #[fake(password(length = 8))]
+    password: String,
+    #[fake(email)]
+    email: String,
+    #[fake(lorem(words = 20))]
+    bio: String,
+    #[generator(take_role)]
+    role: Role,
+    #[value("2020-01-01")]
+    created_at: String,
+}
+
+/// Picks a role at random for each generated user.
+/// Picks a role at random for each generated user.
+fn take_role() -> Role {
+    use fake::Fake;
+    match (0u8..4u8).fake::<u8>() {
+        0 => Role::Developer,
+        1 => Role::Admin,
+        2 => Role::User,
+        _ => Role::Guest,
+    }
+}
 
 #[test]
-fn test_all_rules_parsed() {
-    assert_eq!(true, true);
+fn test_all_roles_parsed() {
+    // 100 users with random data -> Vec<UserFactory>
+    let users = UserFactory::factory().count(10).create();
+
+    assert_eq!(users.len(), 10);
+
+    // A single user forced into the Admin role -> UserFactory
+    let admin = UserFactory::factory()
+        .state(|u| {
+            u.role = Role::Admin;
+        })
+        .create();
+    assert_eq!(admin.role, Role::Admin);
 
 }
