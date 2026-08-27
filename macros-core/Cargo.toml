@@ -9,3 +9,6 @@ regex.workspace = true
 once_cell.workspace = true
 time.workspace = true
 serde_json.workspace = true
+
+[build-dependencies]
+dotenvy = "0.15.7"

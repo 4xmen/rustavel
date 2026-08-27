@@ -4,10 +4,11 @@
 **Rustavel** is an experimental, Rust-first backend toolkit inspired by the *developer experience* of Laravel —  
 not its runtime model, not its magic, and not its ORM assumptions.
 
-This project explores a simple question:
+This project explores two simple question:
 
 > Can we offer a familiar, productive DX for backend developers  
 > while staying idiomatic, explicit, and safe in Rust?
+> What if Laravel's developer experience was redesigned under Rust's rules?
 
 Rustavel is **not** a Laravel port.  
 It is **not** an ORM.  
@@ -108,6 +109,10 @@ struct FullRoleCoverage {
     test: HashMap<String, String>,
 }
 ```
+
+> Note:
+> Validation rules are validated at compile time.
+> Approaches that relied on runtime rule parsing were intentionally excluded to preserve Rust's compile-time guarantees.
 
 ### Factory sample
 

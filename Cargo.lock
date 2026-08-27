@@ -1242,6 +1242,7 @@ dependencies = [
 name = "macros-core"
 version = "0.1.0"
 dependencies = [
+ "dotenvy",
  "once_cell",
  "regex",
  "serde",
