@@ -3,7 +3,7 @@
 //! This crate only exports the [`Pawn`] derive; the runtime trait and the
 //! fluent builders live in the `factory` crate, which re-exports this macro.
 
-use proc_macro2::TokenStream as TokenStream2;
+use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
@@ -11,7 +11,7 @@ use syn::spanned::Spanned;
 use syn::{
      Data, DeriveInput, Expr, ExprLit, Fields, Ident, Lit, LitInt, Path, Token,
 };
-
+use macros_core::build_config;
 
 /// Expands the derive input into a `Pawn` implementation.
 pub fn pawn_expand(input: DeriveInput) -> syn::Result<TokenStream2> {
@@ -96,27 +96,28 @@ fn field_init(field: &syn::Field, uses_fake: &mut bool) -> syn::Result<TokenStre
 /// Maps a `#[fake(...)]` attribute to a `fake`-crate expression that yields a `String`.
 fn fake_init(attr: &syn::Attribute) -> syn::Result<TokenStream2> {
     let spec: FakeSpec = attr.parse_args()?;
+    let locale_ident = syn::Ident::new(build_config::FAKER_LOCALE, Span::call_site());
 
     let expr = match spec.kind.to_string().as_str() {
         "name" => {
             spec.expect_no_args()?;
-            quote! { ::fake::faker::name::en::Name().fake::<String>() }
+            quote! { ::fake::faker::name::#locale_ident::Name().fake::<String>() }
         }
         "username" => {
             spec.expect_no_args()?;
-            quote! { ::fake::faker::internet::en::Username().fake::<String>() }
+            quote! { ::fake::faker::internet::#locale_ident::Username().fake::<String>() }
         }
         "email" => {
             spec.expect_no_args()?;
-            quote! { ::fake::faker::internet::en::SafeEmail().fake::<String>() }
+            quote! { ::fake::faker::internet::#locale_ident::SafeEmail().fake::<String>() }
         }
         "password" => {
             let len = spec.required_int("length")?;
-            quote! { ::fake::faker::internet::en::Password((#len)..(#len + 1)).fake::<String>() }
+            quote! { ::fake::faker::internet::#locale_ident::Password((#len)..(#len + 1)).fake::<String>() }
         }
         "lorem" => {
             let words = spec.required_int("words")?;
-            quote! { ::fake::faker::lorem::en::Sentence((#words)..(#words + 1)).fake::<String>() }
+            quote! { ::fake::faker::lorem::#locale_ident::Sentence((#words)..(#words + 1)).fake::<String>() }
         }
         other => {
             return Err(syn::Error::new(
