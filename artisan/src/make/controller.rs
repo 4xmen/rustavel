@@ -4,9 +4,8 @@ use illuminate_str::Str;
 use minijinja::{ Environment};
 use rustavel_core::facades::file_content::FileContent;
 use rustavel_core::facades::terminal_ui::{operation, Status};
+use crate::general::lib::register_mod_file;
 use crate::make::make_error::MakeError;
-use std::path::Path;
-use tokio::fs;
 
 const CONTROLLER_TEMPLATE: &str = include_str!("templates/controller.rs.j2");
 #[derive(Args, Debug)]
@@ -62,30 +61,3 @@ pub async fn controller(args: &NewControllerArgs) -> Result<(), MakeError> {
     Ok(())
 }
 
-
-/// Ensure a module is registered in mod.rs (idempotent)
-async fn register_mod_file(mod_file: &Path, module_name: &str) -> Result<(), MakeError> {
-    // Read existing mod.rs content or create empty if missing
-    let content = match fs::read_to_string(mod_file).await {
-        Ok(c) => c,
-        Err(_) => String::new(),
-    };
-
-    let line = format!("pub mod {};", module_name);
-
-    // Avoid duplicate registration
-    if content.lines().any(|l| l.trim() == line) {
-        return Ok(());
-    }
-
-    // Append module declaration
-    let mut new_content = content;
-    if !new_content.ends_with('\n') && !new_content.is_empty() {
-        new_content.push('\n');
-    }
-    new_content.push_str(&line);
-    new_content.push('\n');
-
-    fs::write(mod_file, new_content).await?;
-    Ok(())
-}

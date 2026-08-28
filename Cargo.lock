@@ -1803,6 +1803,8 @@ dependencies = [
  "clap",
  "dotenv",
  "illuminate-str",
+ "macros",
+ "macros-core",
  "once_cell",
  "rustavel-artisan",
  "rustavel-core",

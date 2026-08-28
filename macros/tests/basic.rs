@@ -75,7 +75,6 @@ struct UserFactory {
 }
 
 /// Picks a role at random for each generated user.
-/// Picks a role at random for each generated user.
 fn take_role() -> Role {
     use fake::Fake;
     match (0u8..4u8).fake::<u8>() {
@@ -88,7 +87,7 @@ fn take_role() -> Role {
 
 #[test]
 fn test_all_roles_parsed() {
-    // 100 users with random data -> Vec<UserFactory>
+    // 10 users with random data -> Vec<UserFactory>
     let users = UserFactory::factory().count(10).create();
 
     assert_eq!(users.len(), 10);

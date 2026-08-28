@@ -6,6 +6,8 @@ use rustavel_core::logger;
 
 mod migrator;
 mod migrations;
+mod factories;
+mod seeders;
 
 #[derive(Parser, Debug)]
 #[command(name = "migration")]

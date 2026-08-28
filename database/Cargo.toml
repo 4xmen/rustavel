@@ -10,6 +10,8 @@ path = "src/main.rs"
 [dependencies]
 rustavel-core = { path = "../core" }
 rustavel-artisan = { path = "../artisan"}
+macros= {path = "../macros"}
+macros-core= {path = "../macros-core"}
 clap.workspace = true
 tokio.workspace = true
 dotenv.workspace = true

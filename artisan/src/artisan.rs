@@ -13,6 +13,7 @@ use crate::make::controller::{controller, NewControllerArgs};
 
 use dialoguer::{theme::ColorfulTheme, Confirm};
 use rustavel_core::facades::terminal_ui::{TitleKind, title};
+use crate::make::factory::{factory, NewFactoryArgs};
 
 fn confirm(message: &str) -> bool {
     Confirm::with_theme(&ColorfulTheme::default())
@@ -62,7 +63,8 @@ enum MakeCmd {
     /// Create a new migration file
     Migration(NewMigArgs),
     Model(NewModelArgs),
-    Controller(NewControllerArgs)
+    Controller(NewControllerArgs),
+    Factory(NewFactoryArgs),
 }
 
 
@@ -167,6 +169,12 @@ async fn main() {
                     let _ = controller(&args).await.unwrap_or_else(|e| {
                         println!("{:?}",e);
                         title(TitleKind::Error, &format!("controller error: {:?}", e));
+                    });
+                },
+                MakeCmd::Factory(args) => {
+                    let _ = factory(&args).await.unwrap_or_else(|e| {
+                        println!("{:?}",e);
+                        title(TitleKind::Error, &format!("factory error: {:?}", e));
                     });
                 }
             }
