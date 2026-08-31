@@ -11,11 +11,6 @@ pub mod build_config {
     include!(concat!(env!("OUT_DIR"), "/build_config.rs"));
 }
 pub mod factory;
-pub mod resource;
-
-// Re-exported at the crate root so application code can write
-// `use macros_core::FromResource;` instead of the longer module path.
-pub use crate::resource::{collection, FromResource};
 
 use std::collections::HashMap;
 use serde::Serialize;
