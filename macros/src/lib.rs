@@ -23,8 +23,11 @@ use syn::{Error};
 use crate::checkmate::*;
 use crate::pawn::pawn_expand;
 
+
 mod checkmate;
 mod pawn;
+
+mod resource;
 
 /// Derive macro for the CheckMate validation system.
 ///
@@ -144,5 +147,52 @@ pub fn derive_factory(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     pawn_expand(input)
         .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+
+/// Derives a compile-time mapping from a source struct to this resource.
+///
+/// # Attributes
+///
+/// |      Attribute    | Position | Meaning |
+/// |-------------------|----------|------------------------------------------------------------|
+/// | `#[source(Path)]` |  struct  | The source type this resource is built from. **Required.** |
+/// | `#[source(name)]` |  field   | Read the value from a differently named source field.        |
+/// | `#[transform(f)]` |  field   | Convert one field's value with `fn f(SourceFieldTy) -> FieldTy`. |
+/// | `#[compute(f)]`   |  field   | Derive the value from the whole source with `fn f(&Source) -> FieldTy`. |
+///
+/// # Generated items
+///
+/// * `impl macros_core::FromResource<Source> for TheResource` — the mapping.
+/// * `impl From<Source> for TheResource` — so `TheResource::from(x)` and
+///   `x.into()` work as shown in the design document.
+/// * `TheResource::from_source(x)` and `TheResource::collection(iter)` —
+///   inherent methods, which give better error messages than trait calls.
+///
+/// # Example
+///
+/// ```ignore
+/// #[derive(Resource)]
+/// #[source(Todo)]
+/// struct TodoResource {
+///     id: i64,
+///     #[source(title)]
+///     name: String,
+///     #[transform(format_date)]
+///     created_at: String,
+///     #[compute(is_overdue)]
+///     is_overdue: bool,
+/// }
+/// ```
+#[proc_macro_derive(Resource, attributes(source, transform, compute))]
+pub fn derive_resource(input: TokenStream) -> TokenStream {
+    // `parse_macro_input!` already emits a `compile_error!` on malformed input,
+    // so from here on we only deal with *semantic* errors (missing `#[source]`,
+    // conflicting attributes, unsupported shapes, ...).
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+
+    resource::derive(input)
+        .unwrap_or_else(Error::into_compile_error)
         .into()
 }
