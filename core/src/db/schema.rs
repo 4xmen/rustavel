@@ -1481,7 +1481,7 @@ impl Schema {
                 &Str::implode(";\n", post),
                 &table.action,
             );
-            logger::info(&format!("Just4debug develop core: \n {}", sql.trim()));
+            // logger::info(&format!("Just4debug develop core: \n {}", sql.trim()));
             // execute generated sql
             match self.client.execute(&sql).await {
                 Ok(_) => {
