@@ -125,10 +125,11 @@ async fn main() {
                 args.push("--passive");
             }
             // compile and run database
-            ProcessCommand::new("cargo")
-                .args(args)
-                .status()
-                .unwrap();
+            let status = ProcessCommand::new("cargo").args(args).status().unwrap();
+            if !status.success() {
+                title(TitleKind::Error, "Migration compile/run failed");
+                std::process::exit(status.code().unwrap_or(1));
+            }
         }
         Commands::Serv => {
             println!("Starting rustavel-app with hot-reload (cargo watch)...");
