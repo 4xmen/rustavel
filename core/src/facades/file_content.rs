@@ -52,7 +52,7 @@ impl FileContent {
     ///
     /// # Returns
     ///
-    /// Returns a `Result<bool, io::Error>`. `Ok(true)` indicates the content was successfully read from the file,
+    /// Returns a `Result<bool, io::Error>`. `Ok(string)` indicates the content was successfully read from the file,
     /// while an error will return the error value.
     ///
     /// The file's content is printed to the console.
@@ -65,7 +65,7 @@ impl FileContent {
     ///     let txt = FileContent::get("example.txt").await;
     /// }
     /// ```
-    pub async fn get(path: &str) -> Result<bool, io::Error> {
+    pub async fn get(path: &str) -> Result<String, io::Error> {
         let path = Path::new(path);
 
         // Open the file for reading.
@@ -78,8 +78,8 @@ impl FileContent {
         let mut contents = String::new();
         match file.read_to_string(&mut contents).await {
             Ok(_) => {
-                println!("File contents: {}", contents); // Print the file content to the console
-                Ok(true)
+                // println!("File contents: {}", contents); // Print the file content to the console
+                Ok(contents)
             }
             Err(e) => Err(e),
         }

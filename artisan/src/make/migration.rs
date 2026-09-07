@@ -1,19 +1,17 @@
+use crate::make::make_error::MakeError;
 use clap::Args;
-use minijinja::{Environment};
 use illuminate_str::Str;
-use std::fs;
-use std::io;
-use std::path::{ PathBuf};
-use std::time::Instant;
-use rustavel_core::facades::terminal_ui::{operation,Status};
+use minijinja::Environment;
 use rustavel_core::facades::datetime::now_compact;
 use rustavel_core::facades::file_content::FileContent;
-use crate::make::make_error::MakeError;
+use rustavel_core::facades::terminal_ui::{Status, operation};
+use std::fs;
+use std::io;
+use std::path::PathBuf;
+use std::time::Instant;
 
 #[warn(dead_code)] // use in load template
 const MIGRATION_TEMPLATE: &str = include_str!("templates/migration.rs.j2");
-
-
 
 #[derive(Args, Debug)]
 #[command(about = "Create a new migration file")]
@@ -48,7 +46,6 @@ struct MigrationContext {
     table: Option<String>,
 }
 
-
 /// Create and persist a new migration file from CLI (artisan) input.
 ///
 /// This function does:
@@ -61,15 +58,9 @@ struct MigrationContext {
 /// 7. Register the new migration in `database/src/migrations/mod.rs`.
 /// 8. Report the operation status and execution time.
 pub async fn migrate(args: &NewMigArgs) -> Result<bool, MakeError> {
-
     let start = Instant::now();
 
-
-    let final_name = format!(
-        "m_{}_{}",
-        now_compact(),
-        Str::snake(&args.name, "_")
-    );
+    let final_name = format!("m_{}_{}", now_compact(), Str::snake(&args.name, "_"));
 
     let mut env = Environment::new();
     env.add_template("migration", MIGRATION_TEMPLATE)?;
@@ -105,11 +96,10 @@ pub async fn migrate(args: &NewMigArgs) -> Result<bool, MakeError> {
         Status::Done,
     );
 
-    register_new_migration(&final_name,&Str::studly(&args.name) )?;
+    register_new_migration(&final_name, &Str::studly(&args.name)).await?;
 
     Ok(true)
 }
-
 
 /// Resolve the final filesystem path for the migration file.
 ///
@@ -118,19 +108,14 @@ pub async fn migrate(args: &NewMigArgs) -> Result<bool, MakeError> {
 /// 2. Treat the provided path as an absolute path when `--realpath` is set.
 /// 3. Otherwise, resolve the provided path relative to the current working directory.
 /// 4. Append the migration filename to the resolved base path.
-fn resolve_target_path(
-    file_name: &str,
-    args: &NewMigArgs,
-) -> Result<PathBuf, io::Error> {
+fn resolve_target_path(file_name: &str, args: &NewMigArgs) -> Result<PathBuf, io::Error> {
     match &args.path {
         None => {
             let base = std::env::current_dir()?.join("database/src/migrations");
             Ok(base.join(file_name))
         }
 
-        Some(path) if args.realpath => {
-            Ok(PathBuf::from(path).join(file_name))
-        }
+        Some(path) if args.realpath => Ok(PathBuf::from(path).join(file_name)),
 
         Some(path) => {
             let cwd = std::env::current_dir()?;
@@ -138,8 +123,6 @@ fn resolve_target_path(
         }
     }
 }
-
-
 
 /// Update `mod.rs` to register a new migration.
 ///
@@ -150,71 +133,23 @@ fn resolve_target_path(
 ///    - `// #[add-mig-trait]`
 /// 3. Check duplicates for module and struct.
 /// 4. Append new module and struct before placeholders.
-pub fn register_new_migration(final_name: &str, struct_raw: &str) -> io::Result<()> {
+pub async fn register_new_migration(final_name: &str, struct_raw: &str) -> io::Result<()> {
+    // Locate mod.rs
+    let mod_rs_path: PathBuf = std::env::current_dir()?.join("database/src/migrations/registry.rs");
 
-    // Derive module and struct names
-    let module_name = final_name; // same as file name without `.rs`
-    let struct_name = format!(
-        "{}::{}",
-        &final_name,
-        &struct_raw
+    let mut file_data = match FileContent::get(mod_rs_path.to_str().unwrap()).await {
+        Ok(v) => v,
+        Err(e) => return Err(e),
+    };
+
+    file_data = format!(
+        "{}    migration!({},{});\n}}",
+        file_data.trim().trim_matches('}'),
+        final_name,
+        struct_raw
     );
 
-    // Locate mod.rs
-    let mod_rs_path: PathBuf = std::env::current_dir()?
-        .join("database/src/migrations/mod.rs");
-
-    // Read content
-    let content = fs::read_to_string(&mod_rs_path)?;
-
-    // Placeholders
-    let mod_placeholder = "// #[placeholder-add-mig-mods] DO NOT REMOVE THIS COMMENT, OTHERWISE AUTOMATIC ADD WILL BREAK";
-    let trait_placeholder = "// #[placeholder-add-mig-trait] DO NOT REMOVE THIS COMMENT, OTHERWISE AUTOMATIC ADD WILL BREAK";
-
-    // Validate placeholders exist
-    if !content.contains(mod_placeholder) {
-        return Err(io::Error::new(
-            io::ErrorKind::Other,
-            format!("Placeholder '{}' not found in mod.rs", mod_placeholder),
-        ));
-    }
-    if !content.contains(trait_placeholder) {
-        return Err(io::Error::new(
-            io::ErrorKind::Other,
-            format!("Placeholder '{}' not found in mod.rs", trait_placeholder),
-        ));
-    }
-
-    // Check duplicates
-    if content.contains(&format!("pub mod {};", module_name)) {
-        return Err(io::Error::new(
-            io::ErrorKind::Other,
-            format!("Module '{}' already exists in mod.rs", module_name),
-        ));
-    }
-    if content.contains(&format!("Box::new({} {{}})", struct_name)) {
-        return Err(io::Error::new(
-            io::ErrorKind::Other,
-            format!("Struct '{}' already exists in get_all_migrations", struct_name),
-        ));
-    }
-
-    // Append module and struct before placeholders
-    let new_content = content
-        .replace(
-            mod_placeholder,
-            &format!("pub mod {};\n{}", module_name, mod_placeholder),
-        )
-        .replace(
-            trait_placeholder,
-            &format!("Box::new({} {{}}),\n        {}", struct_name, trait_placeholder),
-        );
-
-    // Write back to mod.rs
-    fs::write(&mod_rs_path, new_content)?;
-
-    // println!("✅ mod.rs updated: module '{}' registered", module_name);
-
+    FileContent::put(mod_rs_path.to_str().unwrap(), &file_data).await?;
 
     Ok(())
 }

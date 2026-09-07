@@ -161,19 +161,19 @@ async fn main() {
                     });
                 },
                 MakeCmd::Model(args) => {
-                    let _ = model(&args).await.unwrap_or_else(|e| {
+                    model(&args).await.unwrap_or_else(|e| {
                         println!("{:?}",e);
                         title(TitleKind::Error, &format!("model error: {:?}", e));
                     });
                 },
                 MakeCmd::Controller(args) => {
-                    let _ = controller(&args).await.unwrap_or_else(|e| {
+                    controller(&args).await.unwrap_or_else(|e| {
                         println!("{:?}",e);
                         title(TitleKind::Error, &format!("controller error: {:?}", e));
                     });
                 },
                 MakeCmd::Factory(args) => {
-                    let _ = factory(&args).await.unwrap_or_else(|e| {
+                    factory(&args).await.unwrap_or_else(|e| {
                         println!("{:?}",e);
                         title(TitleKind::Error, &format!("factory error: {:?}", e));
                     });
