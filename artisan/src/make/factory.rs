@@ -18,6 +18,7 @@ pub struct NewFactoryArgs {
     pub model: Option<String>,
 }
 
+#[allow(unused)]
 #[derive(serde::Serialize)]
 struct FactoryContext {
     name: String,
@@ -25,7 +26,9 @@ struct FactoryContext {
     has_model: bool,
 }
 
+#[allow(unused)]
 const FACTORY_TEMPLATE: &str = include_str!("templates/factory.rs.j2");
+#[allow(dead_code)]
 pub async fn factory(args: &NewFactoryArgs) -> Result<(), MakeError> {
     let start = Instant::now();
     let factory_name = Str::ucfirst(&Str::singular(&args.name));

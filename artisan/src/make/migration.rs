@@ -10,7 +10,7 @@ use std::io;
 use std::path::PathBuf;
 use std::time::Instant;
 
-#[warn(dead_code)] // use in load template
+#[allow(unused)]
 const MIGRATION_TEMPLATE: &str = include_str!("templates/migration.rs.j2");
 
 #[derive(Args, Debug)]
@@ -36,6 +36,7 @@ pub struct NewMigArgs {
     pub realpath: bool,
 }
 
+#[allow(unused)]
 #[derive(serde::Serialize)]
 struct MigrationContext {
     name: String,
@@ -57,6 +58,7 @@ struct MigrationContext {
 /// 6. Write the rendered migration to disk.
 /// 7. Register the new migration in `database/src/migrations/mod.rs`.
 /// 8. Report the operation status and execution time.
+#[allow(dead_code)]
 pub async fn migrate(args: &NewMigArgs) -> Result<bool, MakeError> {
     let start = Instant::now();
 
@@ -133,6 +135,8 @@ fn resolve_target_path(file_name: &str, args: &NewMigArgs) -> Result<PathBuf, io
 ///    - `// #[add-mig-trait]`
 /// 3. Check duplicates for module and struct.
 /// 4. Append new module and struct before placeholders.
+///
+#[allow(dead_code)]
 pub async fn register_new_migration(final_name: &str, struct_raw: &str) -> io::Result<()> {
     // Locate mod.rs
     let mod_rs_path: PathBuf = std::env::current_dir()?.join("database/src/migrations/registry.rs");

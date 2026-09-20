@@ -7,6 +7,7 @@ use rustavel_core::facades::terminal_ui::{operation, Status};
 use crate::general::lib::register_mod_file;
 use crate::make::make_error::MakeError;
 
+#[allow(unused)]
 const CONTROLLER_TEMPLATE: &str = include_str!("templates/controller.rs.j2");
 #[derive(Args, Debug)]
 #[command(about = "Create a new controller file")]
@@ -19,6 +20,7 @@ pub struct NewControllerArgs {
     pub model: Option<String>,
 }
 
+#[allow(unused)]
 #[derive(serde::Serialize)]
 struct ControllerContext {
     model: String,
@@ -26,6 +28,7 @@ struct ControllerContext {
 }
 
 
+#[allow(dead_code)]
 pub async fn controller(args: &NewControllerArgs) -> Result<(), MakeError> {
     let start = Instant::now();
     let controller_name = Str::ucfirst( &Str::singular(&args.name) );

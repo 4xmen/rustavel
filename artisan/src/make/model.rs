@@ -8,6 +8,8 @@ use minijinja::{Environment, context};
 use rustavel_core::facades::file_content::FileContent;
 use rustavel_core::facades::terminal_ui::{Status, operation};
 use tokio::time::Instant;
+
+#[allow(unused)]
 const MODEL_TEMPLATE: &str = include_str!("templates/model.rs.j2");
 #[derive(Args, Debug)]
 #[command(about = "Create a new model file")]
@@ -23,6 +25,8 @@ pub struct NewModelArgs {
     pub has_controller: bool,
 }
 
+
+#[allow(dead_code)]
 pub async fn model(args: &NewModelArgs) -> Result<(), MakeError> {
     let start = Instant::now();
     let model_name = Str::ucfirst(&Str::singular(&args.name));

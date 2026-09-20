@@ -18,6 +18,7 @@ pub struct NewSeederArgs {
     pub model: Option<String>,
 }
 
+#[allow(unused)]
 #[derive(serde::Serialize)]
 struct SeederContext {
     name: String,
@@ -25,7 +26,11 @@ struct SeederContext {
     has_model: bool,
 }
 
+
+#[allow(unused)]
 const SEEDER_TEMPLATE: &str = include_str!("templates/seeder.rs.j2");
+
+#[allow(dead_code)]
 pub async fn seeder(args: &NewSeederArgs) -> Result<(), MakeError> {
     let start = Instant::now();
     let seeder_name = Str::ucfirst(&Str::singular(&args.name));

@@ -123,7 +123,7 @@ async fn main() {
             }
 
         },
-        Commands::Migrate(MigrateArgs) => {
+        Commands::Migrate(migrate_args) => {
 
             if CONFIG.app.env == "production" {
                 if !confirm("Are you sure you want to run migration in production mode?") {
@@ -133,19 +133,19 @@ async fn main() {
                 }
             }
             let mut args  = vec!["run", "--package", "rustavel-db", "--bin", "database"];
-            if MigrateArgs.rollback > 0 || MigrateArgs.fresh || MigrateArgs.passive {
+            if migrate_args.rollback > 0 || migrate_args.fresh || migrate_args.passive {
                 args.push("--");
             }
-            let rollback_str = MigrateArgs.rollback.to_string();
+            let rollback_str = migrate_args.rollback.to_string();
 
-            if MigrateArgs.rollback != 0 {
+            if migrate_args.rollback != 0 {
                 args.push("--rollback");
                 args.push(&rollback_str);
             }
-            if MigrateArgs.fresh {
+            if migrate_args.fresh {
                 args.push("--fresh");
             }
-            if MigrateArgs.passive {
+            if migrate_args.passive {
                 args.push("--passive");
             }
             // compile and run database
