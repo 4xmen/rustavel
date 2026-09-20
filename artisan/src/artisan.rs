@@ -2,7 +2,7 @@ mod make;
 mod general;
 
 // use std::env::current_dir;
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 use std::process::Command as ProcessCommand;
 use rustavel_core::config::CONFIG;
 // use clap::Args;
@@ -24,6 +24,21 @@ fn confirm(message: &str) -> bool {
         .unwrap()
 }
 
+#[derive(Args, Debug)]
+struct MigrateArgs {
+    /// Rollback step count
+    #[arg(long, default_value_t = 0)]
+    rollback: i64,
+
+    /// Drop all tables and re-run all migrations
+    #[arg(long)]
+    fresh: bool,
+
+    /// Run migrations in passive mode
+    #[arg(long)]
+    passive: bool,
+}
+
 #[derive(Parser)]
 #[command(name = "artisan")]
 struct Cli {
@@ -36,24 +51,16 @@ enum Commands {
     /// app key generate
     KeyGenerate,
 
-    Migrate {
-        /// rollback step count
-        #[arg(long, default_value_t = 0)]
-        rollback: i64,
+    Migrate(MigrateArgs),
 
-        ///  Drop all tables and re-run all migrations
-        #[arg(long)]
-        fresh: bool,
-
-        /// Run migrations in passive mode ( generate model struct )
-        #[arg(long)]
-        passive: bool,
-
-    },
     Serv,
     Make {
         #[command(subcommand)]
         kind: MakeCmd,
+    },
+    Db {
+        #[command(subcommand)]
+        action: DbCmd,
     },
     // may add: Make { kind: String, name: String }, Seed, etc.
 }
@@ -63,12 +70,28 @@ enum Commands {
 enum MakeCmd {
     /// Create a new migration file
     Migration(NewMigArgs),
+    /// create a new model
     Model(NewModelArgs),
+    /// create new controller
     Controller(NewControllerArgs),
+    /// create new factory
     Factory(NewFactoryArgs),
+    /// create new seeder
     Seeder(NewSeederArgs),
 }
-
+#[derive(Subcommand, Debug)]
+enum DbCmd {
+    /// Seed the database with records
+    Seed,
+    /// Display information about the database
+    Show,
+    /// Monitor the number of connections to the database
+    Monitor,
+    /// Display information about a database table
+    Table,
+    /// Drop all tables, views, and types from the database
+    Wipe,
+}
 
 
 
@@ -83,7 +106,7 @@ async fn main() {
         Commands::KeyGenerate => {
             if !CONFIG.app.key.is_empty() {
                 if !confirm("Are you sure you want to regenerate key?") {
-                    title(TitleKind::Error,"Application key set successfully.");
+                    title(TitleKind::Info,"Cancelled...");
                     std::process::exit(0);
                 }
             }
@@ -92,7 +115,7 @@ async fn main() {
 
             match set_env_value( "APP_KEY", &app_key) {
                 Ok(_) => {
-                    title(TitleKind::Info,"Cancelled...");
+                    title(TitleKind::Error,"Application key set successfully.");
                 }
                 Err(e) => {
                     title(TitleKind::Error,&format!("failed to set APP_KEY: {}", e));
@@ -100,7 +123,7 @@ async fn main() {
             }
 
         },
-        Commands::Migrate  { rollback, fresh, passive } => {
+        Commands::Migrate(MigrateArgs) => {
 
             if CONFIG.app.env == "production" {
                 if !confirm("Are you sure you want to run migration in production mode?") {
@@ -110,19 +133,19 @@ async fn main() {
                 }
             }
             let mut args  = vec!["run", "--package", "rustavel-db", "--bin", "database"];
-            if rollback > 0 || fresh || passive {
+            if MigrateArgs.rollback > 0 || MigrateArgs.fresh || MigrateArgs.passive {
                 args.push("--");
             }
-            let rollback_str = rollback.to_string();
+            let rollback_str = MigrateArgs.rollback.to_string();
 
-            if rollback != 0 {
+            if MigrateArgs.rollback != 0 {
                 args.push("--rollback");
                 args.push(&rollback_str);
             }
-            if fresh {
+            if MigrateArgs.fresh {
                 args.push("--fresh");
             }
-            if passive {
+            if MigrateArgs.passive {
                 args.push("--passive");
             }
             // compile and run database
@@ -185,6 +208,16 @@ async fn main() {
                         title(TitleKind::Error, &format!("seeder error: {:?}", e));
                     });
                 },
+            }
+        },
+        Commands::Db { action } => {
+            match action {
+                DbCmd::Seed => {
+                    println!("Seeding database...");
+                },
+                _ => {
+                    print!("Command under develope: {:?}", action);
+                }
             }
         }
         // add another command here :)

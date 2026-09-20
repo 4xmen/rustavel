@@ -8,6 +8,7 @@ mod migrator;
 mod migrations;
 mod factories;
 mod seeders;
+mod db;
 
 #[derive(Parser, Debug)]
 #[command(name = "migration")]
