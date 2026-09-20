@@ -3,4 +3,5 @@ pub mod model;
 pub mod make_error;
 pub mod controller;
 pub mod factory;
+pub mod seeder;
 

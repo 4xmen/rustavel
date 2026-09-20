@@ -14,6 +14,7 @@ use crate::make::controller::{controller, NewControllerArgs};
 use dialoguer::{theme::ColorfulTheme, Confirm};
 use rustavel_core::facades::terminal_ui::{TitleKind, title};
 use crate::make::factory::{factory, NewFactoryArgs};
+use crate::make::seeder::{seeder, NewSeederArgs};
 
 fn confirm(message: &str) -> bool {
     Confirm::with_theme(&ColorfulTheme::default())
@@ -65,6 +66,7 @@ enum MakeCmd {
     Model(NewModelArgs),
     Controller(NewControllerArgs),
     Factory(NewFactoryArgs),
+    Seeder(NewSeederArgs),
 }
 
 
@@ -81,7 +83,6 @@ async fn main() {
         Commands::KeyGenerate => {
             if !CONFIG.app.key.is_empty() {
                 if !confirm("Are you sure you want to regenerate key?") {
-
                     title(TitleKind::Error,"Application key set successfully.");
                     std::process::exit(0);
                 }
@@ -177,7 +178,13 @@ async fn main() {
                         println!("{:?}",e);
                         title(TitleKind::Error, &format!("factory error: {:?}", e));
                     });
-                }
+                },
+                MakeCmd::Seeder(args) => {
+                    seeder(&args).await.unwrap_or_else(|e| {
+                        println!("{:?}",e);
+                        title(TitleKind::Error, &format!("seeder error: {:?}", e));
+                    });
+                },
             }
         }
         // add another command here :)

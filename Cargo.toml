@@ -63,3 +63,5 @@ crc32fast = "1.5"        # cheap integrity hash
 data-encoding = "2.10"    # binary encodings
 percent-encoding = "2.3" # URL encode/decode
 
+# ── handle genreal error ────────────────────────
+anyhow = "1.0.104"
