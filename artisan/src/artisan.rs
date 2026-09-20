@@ -1,5 +1,6 @@
 mod make;
 mod general;
+mod db;
 
 // use std::env::current_dir;
 use clap::{Args, Parser, Subcommand};
@@ -13,6 +14,7 @@ use crate::make::controller::{controller, NewControllerArgs};
 
 use dialoguer::{theme::ColorfulTheme, Confirm};
 use rustavel_core::facades::terminal_ui::{TitleKind, title};
+use crate::db::seed::SeedArgs;
 use crate::make::factory::{factory, NewFactoryArgs};
 use crate::make::seeder::{seeder, NewSeederArgs};
 
@@ -37,6 +39,10 @@ struct MigrateArgs {
     /// Run migrations in passive mode
     #[arg(long)]
     passive: bool,
+
+    /// Run seed after migrate
+    #[arg(long)]
+    seed: bool,
 }
 
 #[derive(Parser)]
@@ -82,7 +88,7 @@ enum MakeCmd {
 #[derive(Subcommand, Debug)]
 enum DbCmd {
     /// Seed the database with records
-    Seed,
+    Seed(SeedArgs),
     /// Display information about the database
     Show,
     /// Monitor the number of connections to the database
@@ -132,10 +138,11 @@ async fn main() {
                     std::process::exit(0);
                 }
             }
-            let mut args  = vec!["run", "--package", "rustavel-db", "--bin", "database"];
-            if migrate_args.rollback > 0 || migrate_args.fresh || migrate_args.passive {
+            let mut args  = vec!["run", "--package", "rustavel-db", "--bin", "database" ];
+            if migrate_args.rollback > 0 || migrate_args.fresh || migrate_args.passive || migrate_args.seed {
                 args.push("--");
             }
+            args.push( "migrate");
             let rollback_str = migrate_args.rollback.to_string();
 
             if migrate_args.rollback != 0 {
@@ -147,6 +154,9 @@ async fn main() {
             }
             if migrate_args.passive {
                 args.push("--passive");
+            }
+            if migrate_args.seed {
+                args.push("--seed");
             }
             // compile and run database
             let status = ProcessCommand::new("cargo").args(args).status().unwrap();
@@ -212,8 +222,21 @@ async fn main() {
         },
         Commands::Db { action } => {
             match action {
-                DbCmd::Seed => {
-                    println!("Seeding database...");
+                DbCmd::Seed(seed_args) => {
+                    let mut args  = vec!["run", "--package", "rustavel-db", "--bin", "database" , "seed"];
+                    let mut cls_str = "".to_string();
+                    if let Some(class) = seed_args.class {
+                       args.push("--");
+                        cls_str = format!("--class {}", class);
+                       args.push(&cls_str);
+                    }
+                    // compile and run database
+                    let status = ProcessCommand::new("cargo").args(args).status().unwrap();
+                    if !status.success() {
+                        title(TitleKind::Error, "Migration compile/run failed");
+                        std::process::exit(status.code().unwrap_or(1));
+                    }
+
                 },
                 _ => {
                     print!("Command under develope: {:?}", action);

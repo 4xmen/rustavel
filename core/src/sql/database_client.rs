@@ -1,3 +1,4 @@
+use std::fmt;
 use sqlx::Row;
 use std::fmt::Debug;
 #[derive(Debug)]
@@ -7,6 +8,19 @@ pub enum DbError {
     NotFound,
     InvalidQuery(String),
 }
+
+impl fmt::Display for DbError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DbError::Sqlx(e) => write!(f, "sqlx error: {e}"),
+            DbError::InvalidTable => write!(f, "invalid table"),
+            DbError::NotFound => write!(f, "not found"),
+            DbError::InvalidQuery(q) => write!(f, "invalid query: {q}"),
+        }
+    }
+}
+
+impl std::error::Error for DbError {}
 
 #[async_trait::async_trait]
 pub trait DatabaseClient: Send + Sync + Debug {
