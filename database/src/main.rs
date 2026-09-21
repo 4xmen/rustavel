@@ -1,5 +1,7 @@
-use clap::{ Parser, Subcommand};
+use std::time::Instant;
+use clap::{Parser, Subcommand};
 use rustavel_artisan::db::seed::SeedArgs;
+use rustavel_core::facades::terminal_ui::{operation, title, Status, TitleKind};
 use rustavel_core::logger;
 
 mod factories;
@@ -125,7 +127,16 @@ async fn run(cli: Cli) -> Result<(), anyhow::Error> {
             // Unlike the standalone `seed` command, no specific seeder
             // class is selected here.
             if seed {
-                seeders::database_seeder::DatabaseSeeder::run().await?;
+                let start = Instant::now();
+                title(TitleKind::Info,"Running seeders");
+                match seeders::database_seeder::DatabaseSeeder::run().await {
+                    Ok(e) =>{
+                        operation("All seeder done", start.elapsed(), Status::Done);
+                    }
+                    Err(e) => {
+                        operation(&format!("Seeding :{}", e), start.elapsed(), Status::Failed);
+                    }
+                }
             }
         }
 
@@ -142,7 +153,7 @@ async fn run(cli: Cli) -> Result<(), anyhow::Error> {
         Command::Seed(args) => {
             // The SeedArgs value can be used by DatabaseSeeder to decide
             // whether a specific seeder class should be executed.
-            print!("{:?}", args);
+            // print!("{:?}", args);
             seeders::database_seeder::DatabaseSeeder::run().await?;
         }
     }

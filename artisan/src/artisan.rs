@@ -1,22 +1,22 @@
-mod make;
-mod general;
 mod db;
+mod general;
+mod make;
 
 // use std::env::current_dir;
 use clap::{Args, Parser, Subcommand};
-use std::process::Command as ProcessCommand;
 use rustavel_core::config::CONFIG;
+use std::process::Command as ProcessCommand;
 // use clap::Args;
-use crate::make::migration::{NewMigArgs,migrate};
 use crate::general::lib::{generate_laravel_app_key, set_env_value};
-use crate::make::model::{model, NewModelArgs};
-use crate::make::controller::{controller, NewControllerArgs};
+use crate::make::controller::{NewControllerArgs, controller};
+use crate::make::migration::{NewMigArgs, migrate};
+use crate::make::model::{NewModelArgs, model};
 
-use dialoguer::{theme::ColorfulTheme, Confirm};
-use rustavel_core::facades::terminal_ui::{TitleKind, title};
 use crate::db::seed::SeedArgs;
-use crate::make::factory::{factory, NewFactoryArgs};
-use crate::make::seeder::{seeder, NewSeederArgs};
+use crate::make::factory::{NewFactoryArgs, factory};
+use crate::make::seeder::{NewSeederArgs, seeder};
+use dialoguer::{Confirm, theme::ColorfulTheme};
+use rustavel_core::facades::terminal_ui::{TitleKind, title};
 
 fn confirm(message: &str) -> bool {
     Confirm::with_theme(&ColorfulTheme::default())
@@ -71,7 +71,6 @@ enum Commands {
     // may add: Make { kind: String, name: String }, Seed, etc.
 }
 
-
 #[derive(Subcommand, Debug)]
 enum MakeCmd {
     /// Create a new migration file
@@ -99,50 +98,45 @@ enum DbCmd {
     Wipe,
 }
 
-
-
 #[tokio::main]
 async fn main() {
-
     dotenv::dotenv().ok();
     let cli = Cli::parse();
 
     match cli.command {
-
         Commands::KeyGenerate => {
-            if !CONFIG.app.key.is_empty() {
-                if !confirm("Are you sure you want to regenerate key?") {
-                    title(TitleKind::Info,"Cancelled...");
-                    std::process::exit(0);
-                }
+            if !CONFIG.app.key.is_empty() && !confirm("Are you sure you want to regenerate key?") {
+                title(TitleKind::Info, "Cancelled...");
+                std::process::exit(0);
             }
 
             let app_key = generate_laravel_app_key();
 
-            match set_env_value( "APP_KEY", &app_key) {
+            match set_env_value("APP_KEY", &app_key) {
                 Ok(_) => {
-                    title(TitleKind::Error,"Application key set successfully.");
+                    title(TitleKind::Error, "Application key set successfully.");
                 }
                 Err(e) => {
-                    title(TitleKind::Error,&format!("failed to set APP_KEY: {}", e));
+                    title(TitleKind::Error, &format!("failed to set APP_KEY: {}", e));
                 }
             }
-
-        },
+        }
         Commands::Migrate(migrate_args) => {
-
-            if CONFIG.app.env == "production" {
-                if !confirm("Are you sure you want to run migration in production mode?") {
-
-                    title(TitleKind::Info,"Cancelled...");
-                    std::process::exit(0);
-                }
+            if CONFIG.app.env == "production"
+                && !confirm("Are you sure you want to run migration in production mode?")
+            {
+                title(TitleKind::Info, "Cancelled...");
+                std::process::exit(0);
             }
-            let mut args  = vec!["run", "--package", "rustavel-db", "--bin", "database" ];
-            if migrate_args.rollback > 0 || migrate_args.fresh || migrate_args.passive || migrate_args.seed {
+            let mut args = vec!["run", "--package", "rustavel-db", "--bin", "database"];
+            if migrate_args.rollback > 0
+                || migrate_args.fresh
+                || migrate_args.passive
+                || migrate_args.seed
+            {
                 args.push("--");
             }
-            args.push( "migrate");
+            args.push("migrate");
             let rollback_str = migrate_args.rollback.to_string();
 
             if migrate_args.rollback != 0 {
@@ -171,64 +165,75 @@ async fn main() {
             let status = ProcessCommand::new("cargo")
                 .args([
                     "watch",
-                    "-p", "rustavel-app",
-                    "--ignore", "target",
-                    "-x", "run --package rustavel-app --bin rustavel-app",
+                    "-p",
+                    "rustavel-app",
+                    "--ignore",
+                    "target",
+                    "-x",
+                    "run --package rustavel-app --bin rustavel-app",
                 ])
                 .status();
 
             match status {
-                Ok(s) if s.success() => {},
-                Ok(s) => title(TitleKind::Success,&format!("cargo watch exit with code: {} ", s.code().unwrap_or(-1))),
+                Ok(s) if s.success() => {}
+                Ok(s) => title(
+                    TitleKind::Success,
+                    &format!("cargo watch exit with code: {} ", s.code().unwrap_or(-1)),
+                ),
                 Err(e) => title(TitleKind::Error, &format!("cargo watch can't run: {}", e)),
             }
-        },
+        }
         Commands::Make { kind } => {
             // println!("what use did? {:?}", kind);
 
             match kind {
                 MakeCmd::Migration(args) => {
                     let _ = migrate(&args).await.unwrap_or_else(|e| {
-                        println!("{:?}",e);
+                        println!("{:?}", e);
                         title(TitleKind::Error, &format!("migration error: {:?}", e));
                         false
                     });
-                },
+                }
                 MakeCmd::Model(args) => {
                     model(&args).await.unwrap_or_else(|e| {
-                        println!("{:?}",e);
+                        println!("{:?}", e);
                         title(TitleKind::Error, &format!("model error: {:?}", e));
                     });
-                },
+                }
                 MakeCmd::Controller(args) => {
                     controller(&args).await.unwrap_or_else(|e| {
-                        println!("{:?}",e);
+                        println!("{:?}", e);
                         title(TitleKind::Error, &format!("controller error: {:?}", e));
                     });
-                },
+                }
                 MakeCmd::Factory(args) => {
                     factory(&args).await.unwrap_or_else(|e| {
-                        println!("{:?}",e);
+                        println!("{:?}", e);
                         title(TitleKind::Error, &format!("factory error: {:?}", e));
                     });
-                },
+                }
                 MakeCmd::Seeder(args) => {
                     seeder(&args).await.unwrap_or_else(|e| {
-                        println!("{:?}",e);
+                        println!("{:?}", e);
                         title(TitleKind::Error, &format!("seeder error: {:?}", e));
                     });
-                },
+                }
             }
-        },
+        }
         Commands::Db { action } => {
             match action {
                 DbCmd::Seed(seed_args) => {
-                    let mut args  = vec!["run", "--package", "rustavel-db", "--bin", "database" , "seed"];
-                    let mut cls_str = "".to_string();
-                    if let Some(class) = seed_args.class {
-                       args.push("--");
-                        cls_str = format!("--class {}", class);
-                       args.push(&cls_str);
+                    let mut args = vec![
+                        "run",
+                        "--package",
+                        "rustavel-db",
+                        "--bin",
+                        "database",
+                        "seed",
+                    ];
+                    let class = seed_args.class;
+                    if let Some(class) = class.as_deref() {
+                        args.extend(["--", "--class", class.trim()]);
                     }
                     // compile and run database
                     let status = ProcessCommand::new("cargo").args(args).status().unwrap();
@@ -236,13 +241,11 @@ async fn main() {
                         title(TitleKind::Error, "Migration compile/run failed");
                         std::process::exit(status.code().unwrap_or(1));
                     }
-
-                },
+                }
                 _ => {
                     print!("Command under develope: {:?}", action);
                 }
             }
-        }
-        // add another command here :)
+        } // add another command here :)
     }
 }
