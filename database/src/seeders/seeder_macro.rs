@@ -2,7 +2,7 @@
 #[macro_export]
 macro_rules! seeders {
     () => {{
-        title(TitleKind::Info, "Noting to seed");
+        rustavel_core::facades::terminal_ui::title(TitleKind::Info, "Noting to seed");
         Ok::<(), anyhow::Error>(())
     }};
 
@@ -11,7 +11,7 @@ macro_rules! seeders {
             {
                 // Start timing immediately before the seeder runs.
                 // This measures only the execution time of this specific seeder.
-                let start = Instant::now();
+                let start = std::time::Instant::now();
 
                 // Run the seeder and wait for it to complete.
                 let result = <$seeder>::run().await;
@@ -20,12 +20,12 @@ macro_rules! seeders {
                     Ok(_) => {
                         // If the seeder succeeded, print the same success-style message
                         // together with the elapsed time.
-                        operation( stringify!($seeder),start.elapsed(), Status::Done );
+                        rustavel_core::facades::terminal_ui::operation( stringify!($seeder),start.elapsed(), rustavel_core::facades::terminal_ui::Status::Done );
                     }
                     Err(err) => {
                         // If the seeder failed, print the error plus the elapsed time.
                         // Then stop execution by returning the error to the caller.
-                        operation( stringify!($seeder),start.elapsed(), Status::Failed );
+                        rustavel_core::facades::terminal_ui::operation( stringify!($seeder),start.elapsed(), rustavel_core::facades::terminal_ui::Status::Failed );
                         return Err(err);
                     }
                 }
