@@ -3,6 +3,8 @@ use clap::{Parser, Subcommand};
 use rustavel_artisan::db::seed::SeedArgs;
 use rustavel_core::facades::terminal_ui::{operation, title, Status, TitleKind};
 use rustavel_core::logger;
+use anyhow::Result;
+include!(concat!(env!("OUT_DIR"), "/generated_seeders_import.rs"));
 
 mod factories;
 mod migrator;
@@ -150,13 +152,35 @@ async fn run(cli: Cli) -> Result<(), anyhow::Error> {
         //
         //     cli-db seed
         //     cli-db seed --class UserSeeder
-        Command::Seed(_args) => {
+        Command::Seed(args) => {
             // The SeedArgs value can be used by DatabaseSeeder to decide
             // whether a specific seeder class should be executed.
-            // print!("{:?}", args);
-            seeders::database_seeder::DatabaseSeeder::run().await?;
+            if let Some(class) = args.class {
+                include!(concat!(env!("OUT_DIR"), "/generated_seeders.rs"));
+
+            }else{
+                seeders::database_seeder::DatabaseSeeder::run().await?;
+            }
+
         }
     }
 
     Ok(())
+}
+
+pub async fn run_seeder<F, T>(name: &str, fut: F) -> Result<T>
+where
+    F: Future<Output = Result<T>>,
+{
+    let start = Instant::now();
+    let out = fut.await;
+    match &out {
+        Ok(_output) => {
+            operation( name,start.elapsed(), Status::Done );
+        },
+        Err(_e) => {
+            operation( name,start.elapsed(), Status::Failed )
+        }
+    }
+    out
 }

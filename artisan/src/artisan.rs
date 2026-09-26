@@ -229,11 +229,12 @@ async fn main() {
                         "rustavel-db",
                         "--bin",
                         "database",
+                        "--",
                         "seed",
                     ];
                     let class = seed_args.class;
                     if let Some(class) = class.as_deref() {
-                        args.extend(["--", "--class", class.trim()]);
+                        args.extend(["--class", class.trim()]);
                     }
                     // compile and run database
                     let status = ProcessCommand::new("cargo").args(args).status().unwrap();

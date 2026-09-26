@@ -11,9 +11,3 @@ pub struct SeedArgs {
     #[arg(long = "class")]
     pub class: Option<String>,
 }
-pub fn seed(seed_args: SeedArgs){
-    if seed_args.class.is_none(){
-        // main is run all seeder
-        
-    }
-}
