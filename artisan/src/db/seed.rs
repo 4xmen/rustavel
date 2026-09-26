@@ -8,10 +8,6 @@ use clap::Args;
 #[derive(Args, Debug)]
 pub struct SeedArgs {
     /// The name of the seeder class (struct) to run.
-    ///
-    /// Example:
-    ///
-    ///     migration seed --class UserSeeder
     #[arg(long = "class")]
     pub class: Option<String>,
 }

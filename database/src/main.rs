@@ -130,7 +130,7 @@ async fn run(cli: Cli) -> Result<(), anyhow::Error> {
                 let start = Instant::now();
                 title(TitleKind::Info,"Running seeders");
                 match seeders::database_seeder::DatabaseSeeder::run().await {
-                    Ok(e) =>{
+                    Ok(_e) =>{
                         operation("All seeder done", start.elapsed(), Status::Done);
                     }
                     Err(e) => {
@@ -150,7 +150,7 @@ async fn run(cli: Cli) -> Result<(), anyhow::Error> {
         //
         //     cli-db seed
         //     cli-db seed --class UserSeeder
-        Command::Seed(args) => {
+        Command::Seed(_args) => {
             // The SeedArgs value can be used by DatabaseSeeder to decide
             // whether a specific seeder class should be executed.
             // print!("{:?}", args);

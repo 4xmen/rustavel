@@ -483,14 +483,19 @@ impl Column {
 
     /// check is string type
     pub fn is_string_type(&self) -> bool {
-        match self.data_type {
-            ColumnDataType::DTString
+        // match self.data_type {
+        //     ColumnDataType::DTString
+        //     | ColumnDataType::DTLongText
+        //     | ColumnDataType::DTMediumText
+        //     | ColumnDataType::DTTinyText
+        //     | ColumnDataType::DTJson => true,
+        //     _ => false,
+        // }
+        matches!(self.data_type, ColumnDataType::DTString
             | ColumnDataType::DTLongText
             | ColumnDataType::DTMediumText
             | ColumnDataType::DTTinyText
-            | ColumnDataType::DTJson => true,
-            _ => false,
-        }
+            | ColumnDataType::DTJson)
     }
 }
 

@@ -7,9 +7,8 @@ pub struct TodoSeeder;
 
 impl TodoSeeder {
     pub async fn run() -> Result<bool> {
-        println!("Seeder fire!");
 
-        let success = false;
+        let success = true;
 
         if !success {
             return Err(anyhow!("Todo seeder failed"));
