@@ -3,6 +3,7 @@ name = "rustavel-app"
 version = "0.1.0"
 edition = "2024"
 #build = "build.rs"
+rust-version.workspace = true
 
 [[bin]]
 name = "rustavel-app"

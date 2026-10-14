@@ -11,6 +11,9 @@ members = [
 ]
 resolver = "2"
 
+[workspace.package]
+rust-version = "1.90.0"
+
 [workspace.dependencies]
 
 # ── Runtime / Async ───────────────────────────────

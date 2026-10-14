@@ -2,3 +2,6 @@
 [alias]
 artisan = "run --target-dir target/target-cli --bin artisan --" # target is sedative right now may need cli app
 
+
+[resolver]
+incompatible-rust-versions = "fallback"
