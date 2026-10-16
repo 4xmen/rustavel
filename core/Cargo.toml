@@ -21,4 +21,6 @@ futures.workspace = true
 macros-core= {path = "../macros-core"}
 time.workspace = true
 rand.workspace = true
+argon2.workspace = true
+bcrypt.workspace = true
 #jalali-rs = "0.1.1"
