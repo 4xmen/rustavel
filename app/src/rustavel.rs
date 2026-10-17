@@ -1,9 +1,11 @@
+#![feature(duration_millis_float)]
+
+use std::path::Path;
 use std::sync::Arc;
 
 mod http;
 mod models;
 mod routes;
-
 
 use rustavel_core::config::CONFIG;
 use rustavel_core::logger;
@@ -12,6 +14,7 @@ use rustavel_core::state::AppState;
 // use axum::Router;
 // use axum::routing::post;
 use axum::extract::DefaultBodyLimit;
+use minijinja::{Environment, path_loader};
 
 #[tokio::main]
 async fn main() {
@@ -25,10 +28,24 @@ async fn main() {
 
     let routes_map = Arc::new(built.names.clone());
 
-    let state = AppState { routes: routes_map };
+    // load minijinja template
+
+    let views_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("resources")
+        .join("views");
+
+    let mut env = Environment::new();
+    env.set_loader(path_loader(views_dir));
+
+    let state = AppState {
+        routes: routes_map,
+        templates: Arc::new(env),
+    };
 
     // take type annotation
-    let app = built.router
+    let app = built
+        .router
         .layer(DefaultBodyLimit::max(CONFIG.app.max_upload_size))
         .with_state(state);
 
@@ -47,6 +64,4 @@ async fn main() {
 
     logger::success(&format!("Starting server on http://{}", app_start_point));
     axum::serve(listener, app).await.unwrap();
-
 }
-

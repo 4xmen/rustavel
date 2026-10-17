@@ -1,5 +1,6 @@
 use crate::http::controllers::todo_controller;
 use crate::http::controllers::test_controller;
+use crate::http::controllers::welcome_controller;
 use crate::http::middleware::log_middleware;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
@@ -9,7 +10,7 @@ use rustavel_core::routing::{BuiltRoutes, Route};
 pub fn web_routes() -> BuiltRoutes<AppState> {
     let mut route = Route::new();
 
-    route.get("/", hello).name("welcome");
+    route.get("/", welcome_controller::index).name("welcome").middleware(performance_middleware);
     route.get("/about", hello).name("about");
     // route.get("/about2",hello).name("about");
     route
@@ -38,6 +39,7 @@ pub fn web_routes() -> BuiltRoutes<AppState> {
 
 use axum::extract::State;
 use rustavel_core::state::AppState;
+use crate::http::middleware::performance::performance_middleware;
 // import AppState
 
 async fn hello(State(state): State<AppState>) -> impl IntoResponse {

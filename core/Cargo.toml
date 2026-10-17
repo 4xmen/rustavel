@@ -23,4 +23,5 @@ time.workspace = true
 rand.workspace = true
 argon2.workspace = true
 bcrypt.workspace = true
+minijinja.workspace = true
 #jalali-rs = "0.1.1"

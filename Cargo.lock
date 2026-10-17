@@ -1896,6 +1896,7 @@ dependencies = [
  "futures",
  "illuminate-str",
  "macros-core",
+ "minijinja",
  "once_cell",
  "rand 0.10.2",
  "serde",

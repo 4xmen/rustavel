@@ -9,6 +9,7 @@
 //! All timestamps are UTC unless explicitly stated otherwise.
 
 use std::fmt::Write;
+use std::time::Duration;
 use time::{
     Date,
     OffsetDateTime,
@@ -797,3 +798,17 @@ impl TimeExt for Date {
 }
 
 
+pub fn format_duration(duration: Duration) -> String {
+    let (value, unit) = if duration.as_secs_f64() >= 1.0 {
+        (duration.as_secs_f64(), "s")
+    } else if duration.as_millis() >= 1 {
+        (duration.as_secs_f64() * 1_000.0, "ms")
+    } else {
+        (duration.as_secs_f64() * 1_000_000.0, "µs")
+    };
+
+    let number = format!("{value:.2}");
+    let number = number.trim_end_matches('0').trim_end_matches('.');
+
+    format!("{number}{unit}")
+}

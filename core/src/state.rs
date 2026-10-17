@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use minijinja::Environment;
 
 #[derive(Clone, Debug)]
 pub struct AppState {
     pub routes: Arc<HashMap<String, String>>,
+    pub templates: Arc<Environment<'static>>,
 }
 
 impl AppState {

@@ -1,17 +1,22 @@
+<div style="text-align: center">
+
+<img alt="logo" src="app/src/resources/images/logo.svg" width="120">
+
+</div>
 
 # Rustavel
 
-**Rustavel** is an experimental, Rust-first backend toolkit inspired by the *developer experience* of Laravel —  
+**Rustavel** is an experimental, Rust-first backend toolkit inspired by the *developer experience* of Laravel —
 not its runtime model, not its magic, and not its ORM assumptions.
 
 This project explores two simple question:
 
-> Can we offer a familiar, productive DX for backend developers  
+> Can we offer a familiar, productive DX for backend developers
 > while staying idiomatic, explicit, and safe in Rust?
 > What if Laravel's developer experience was redesigned under Rust's rules?
 
-Rustavel is **not** a Laravel port.  
-It is **not** an ORM.  
+Rustavel is **not** a Laravel port.
+It is **not** an ORM.
 It is **not** a framework that hides SQL or system boundaries.
 
 It is a growing collection of **opt-in tools** designed to feel comfortable for developers coming from Laravel / PHP,
@@ -22,6 +27,7 @@ while respecting the values of the Rust ecosystem: correctness, clarity, and per
 ## Quick Example / Code Samples
 
 ### Some artisan commands sample
+
 ```bash
 cargo artisan make model User -m -c # model + migration + controller
 cargo artisan make migration CreateTodos  -t todos # migration
@@ -33,7 +39,6 @@ cargo artisan key-generate # key generate
 ### Routing sample
 
 ```rust
-
 route.group(|r| {
     r.name("api")
         .prefix("/api")
@@ -50,7 +55,6 @@ route.group(|r| {
         });
     })
 });
-
 ```
 
 ### Migration sample
@@ -144,23 +148,20 @@ let admin = UserFactory::factory().state(|u| {
 ```
 
 ---
+
 ## Philosophy
 
 Rustavel follows a few strict principles:
 
-- **Rust is the source of truth**  
+- **Rust is the source of truth**
   No runtime magic, no reflection, no hidden behavior.
-
-- **DX matters, but never at the cost of safety**  
+- **DX matters, but never at the cost of safety**
   If something cannot be expressed safely or clearly in Rust, we don’t force it.
-
-- **Opt-in abstractions**  
+- **Opt-in abstractions**
   Nothing is mandatory. You can adopt individual parts without buying into the whole stack.
-
-- **Schema-first, not ORM-first**  
+- **Schema-first, not ORM-first**
   Data access is explicit. Rustavel does not impose an ORM model but focuses on migrations; the rest is up to the user.
-
-- **Familiar ideas, idiomatic Rust**  
+- **Familiar ideas, idiomatic Rust**
   Laravel-inspired *concepts*, not Laravel-style implementations.
 
 ---
@@ -172,10 +173,9 @@ Rustavel is under active development and currently focuses on:
 - Application configuration (env-driven, explicit, and testable)
 - Routing DSL built on top of `axum`
 - Migration system with a Rust-based schema DSL
-- Validator and 
+- Validator and
 - CLI tooling inspired by `artisan`
 - Template rendering via `minijinja`
-
 
 The project intentionally avoids over-engineering and grows only when real usage justifies it.
 
@@ -194,10 +194,11 @@ Instead:
 
 A minimal, type-safe DSL exists only to describe **query shape and intent**, not execution.
 
-> If you prefer another approach — raw SQL, `sqlx`, `sea-query`, or something else —  
+> If you prefer another approach — raw SQL, `sqlx`, `sea-query`, or something else —
 > Rustavel does not stand in your way.
 
 An ORM may exist **in the future**, but only if:
+
 - it solves real problems,
 - remains explicit,
 - and earns its place through usage — not assumptions.
@@ -209,7 +210,6 @@ An ORM may exist **in the future**, but only if:
 Rustavel is organized as a Cargo workspace:
 
 ```
-
 ├── app                 # Application layer
 ├── core                # Shared primitives and abstractions
 ├── artisan             # CLI tooling
@@ -218,7 +218,6 @@ Rustavel is organized as a Cargo workspace:
 ├── macros-corde        # Project's macros standalone libs
 ├── graveyard           # DEPRECATED libs 
 ├── integration-tests   # integration tests of project
-
 ```
 
 Each crate has a clear responsibility and can evolve independently.
@@ -229,7 +228,7 @@ Each crate has a clear responsibility and can evolve independently.
 
 Rustavel is **early-stage** and **intentionally incomplete**.
 
-This is not a finished framework —  
+This is not a finished framework —
 it is a foundation being shaped in the open.
 
 APIs may evolve.
@@ -245,6 +244,7 @@ Stability will come *after* clarity.
 Contributions are **highly welcome**.
 
 Especially if you care about:
+
 - clean DSL design
 - safe abstractions
 - developer experience without hidden costs
@@ -253,10 +253,11 @@ Especially if you care about:
 You do **not** need to agree with every design decision to contribute.
 Discussion, alternatives, and critiques are encouraged.
 
-> The goal is not to copy Laravel —  
+> The goal is not to copy Laravel —
 > the goal is to build something *worthy of Rust*.
 
 If you are unsure where to start:
+
 - open an issue
 - ask questions
 - propose ideas
@@ -277,7 +278,6 @@ Build something better on top of it.
 
 ---
 
-
 ## A Note to the Laravel Community ❤️
 
 Rustavel exists because Laravel exists.
@@ -292,6 +292,7 @@ Rustavel does **not** aim to replace Laravel.
 It exists for a different ecosystem, with different constraints, and different trade-offs.
 
 If you come from Laravel and are curious about Rust:
+
 - you are welcome here
 - your feedback is valuable
 - and your perspective matters
@@ -312,6 +313,7 @@ Rustavel is being built to be approachable, but it is still an **early-stage pro
 Some features you might expect from mature frameworks may not exist yet.
 
 If you have requests such as:
+
 - “Can it do X?”
 - “Is there support for Y?”
 - “Why doesn’t it work like Z?”
@@ -323,7 +325,6 @@ Some may be accepted, some postponed, and some declined — always with an expla
 
 Learning and exploration are part of the process.
 Respectful questions are always encouraged.
-
 
 ## Graveyard  🪦
 
@@ -352,12 +353,12 @@ To build, test, or evaluate them, the corresponding workspace entries must be ex
 
 If you manage to meaningfully improve or revive one of these ideas in an idiomatic and safe way, contributions or notes about your approach are always welcome.
 
-
 ## Final Note
 
 Rustavel is an exploration.
 
-If it turns out to be useful — great.  
+If it turns out to be useful — great.
 If it inspires better tools elsewhere — even better.
 
 Either way, the journey is the point.
+
