@@ -798,6 +798,11 @@ impl TimeExt for Date {
 }
 
 
+/// Formats a [`Duration`] using seconds, milliseconds, or microseconds.
+///
+/// The value is displayed with up to two decimal places, with trailing zeros
+/// removed. Durations of at least one second use `s`, durations of at least
+/// one millisecond use `ms`, and shorter durations use `µs`.
 pub fn format_duration(duration: Duration) -> String {
     let (value, unit) = if duration.as_secs_f64() >= 1.0 {
         (duration.as_secs_f64(), "s")
