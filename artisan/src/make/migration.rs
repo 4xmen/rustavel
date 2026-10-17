@@ -9,6 +9,7 @@ use std::fs;
 use std::io;
 use std::path::PathBuf;
 use std::time::Instant;
+use minijinja::value::Serde;
 
 #[allow(unused)]
 const MIGRATION_TEMPLATE: &str = include_str!("templates/migration.rs.j2");
@@ -76,7 +77,7 @@ pub async fn migrate(args: &NewMigArgs) -> Result<bool, MakeError> {
         table: args.table.clone(),
     };
 
-    let rendered = env.get_template("migration")?.render(ctx)?;
+    let rendered = env.get_template("migration")?.render(Serde(&ctx))?;
 
     // println!("{}", rendered);
 

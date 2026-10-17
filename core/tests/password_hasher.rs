@@ -2,7 +2,6 @@
 mod tests {
     use rustavel_core::facades::password::PasswordDriver;
     use rustavel_core::facades::password::PasswordHasher;
-    use super::*;
 
     /// Creates a hasher for each supported password driver.
     fn drivers() -> Vec<(&'static str, PasswordHasher)> {

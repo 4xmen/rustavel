@@ -2,6 +2,7 @@ use std::time::Instant;
 use clap::Args;
 use illuminate_str::Str;
 use minijinja::Environment;
+use minijinja::value::Serde;
 use rustavel_core::facades::file_content::FileContent;
 use rustavel_core::facades::terminal_ui::{operation, Status};
 use crate::general::lib::register_mod_file;
@@ -56,7 +57,7 @@ pub async fn factory(args: &NewFactoryArgs) -> Result<(), MakeError> {
         model: model_name.clone(),
         has_model: model_name.len() > 0,
     };
-    let rendered = env.get_template("factory")?.render(ctx)?;
+    let rendered = env.get_template("factory")?.render(Serde(&ctx))?;
 
     let base = std::env::current_dir()?.join("database/src/factories/");
     let generated_path = base.join(format!("{}.rs", Str::snake(&factory_name,"_")));

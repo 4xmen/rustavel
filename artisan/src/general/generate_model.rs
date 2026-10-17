@@ -1,4 +1,5 @@
 use minijinja::{ Environment};
+use minijinja::value::Serde;
 use rustavel_core::facades::file_content::FileContent;
 use crate::make::make_error::MakeError;
 use rustavel_core::db::schema::ModelData;
@@ -39,7 +40,7 @@ pub async fn save_generated_model(model_name: String, data: Option<ModelData>)  
         }
     };
 
-    let rendered = env.get_template("model_generated")?.render(ctx)?;
+    let rendered = env.get_template("model_generated")?.render(Serde(&ctx))?;
 
     // println!("{}", rendered); // debug print
 

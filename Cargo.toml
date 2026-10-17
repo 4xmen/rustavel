@@ -27,10 +27,18 @@ tower = "0.5.3" # middleware / layers
 axum-params = "0.4"
 
 # ── Templates / Views + Code genrate ─────────────────────────────
-minijinja = { version = "2", features = ["loader"] } # Jinja-like templates
+minijinja = { version = "3", features = [
+    "builtins",
+    "macros",
+    "multi_template",
+    "serde",
+    "json",
+    "urlencode",
+    "loop_controls",
+] } # Jinja-like templates
 
 # ── Database / Persistence / fake ────────────────────────
-sqlx = { version = "0.8.6", features = ["runtime-tokio", "tls-rustls-ring-webpki", "mysql", "sqlite", "postgres", "macros",  "time"] }
+sqlx = { version = "0.8.6", features = ["runtime-tokio", "tls-rustls-ring-webpki", "mysql", "sqlite", "postgres", "macros", "time"] }
 fake = "5"
 # ── Serialization / Data ──────────────────────────
 serde = { version = "1", features = ["derive"] }
