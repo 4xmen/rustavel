@@ -1,5 +1,5 @@
 use std::fmt;
-use sqlx::Row;
+use sqlx::{AssertSqlSafe, Row};
 use std::fmt::Debug;
 #[derive(Debug)]
 pub enum DbError {
@@ -51,7 +51,7 @@ impl DatabaseClient for MySqlClient {
         sql: &str,
         params: &[&str],  // ← str reference
     ) -> Result<(), DbError> {
-        let mut query = sqlx::query(sql);
+        let mut query = sqlx::query(AssertSqlSafe(sql));
 
         for param in params {
             query = query.bind(*param);
@@ -65,14 +65,14 @@ impl DatabaseClient for MySqlClient {
     async fn execute(&self, sql: &str) -> Result<(), DbError> {
         for single_sql in sql.split(";") {
             if !single_sql.trim().is_empty() {
-                sqlx::query(single_sql).execute(&self.pool).await?;
+                sqlx::query(AssertSqlSafe(single_sql)).execute(&self.pool).await?;
             }
         }
         Ok(())
     }
 
     async fn fetch_strings(&self, sql: &str) -> Result<Vec<String>, DbError> {
-        let rows = sqlx::query(sql).fetch_all(&self.pool).await?;
+        let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&self.pool).await?;
 
         if rows.is_empty() {
             return Ok(vec![]);
@@ -87,7 +87,7 @@ impl DatabaseClient for MySqlClient {
     }
 
     async fn fetch_numbers(&self, sql: &str) -> Result<Vec<i64>, DbError> {
-        let rows = sqlx::query(sql).fetch_all(&self.pool).await?;
+        let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&self.pool).await?;
 
         if !rows.is_empty() {
             return Ok(vec![]);
@@ -102,7 +102,7 @@ impl DatabaseClient for MySqlClient {
     }
 
     async fn fetch_strings_params(&self, sql: &str, params: &[&str]) -> Result<Vec<String>, DbError> {
-        let mut query = sqlx::query(sql);
+        let mut query = sqlx::query(AssertSqlSafe(sql));
 
             for param in params {
                 query = query.bind(*param);
@@ -125,7 +125,7 @@ impl DatabaseClient for MySqlClient {
         sql: &str,
         params: &[&str],
     ) -> Result<i64, DbError> {
-        let mut query = sqlx::query(sql);
+        let mut query = sqlx::query(AssertSqlSafe(sql));
 
         for param in params {
             query = query.bind(*param);
@@ -152,7 +152,7 @@ impl DatabaseClient for SqliteClient {
         sql: &str,
         params: &[&str],  // ← str reference
     ) -> Result<(), DbError> {
-        let mut query = sqlx::query(sql);
+        let mut query = sqlx::query(AssertSqlSafe(sql));
 
         for param in params {
             query = query.bind(*param);
@@ -166,14 +166,14 @@ impl DatabaseClient for SqliteClient {
         
         for single_sql in sql.split(";") {
             if !single_sql.trim().is_empty() {
-                sqlx::query(single_sql).execute(&self.pool).await?;
+                sqlx::query(AssertSqlSafe(single_sql)).execute(&self.pool).await?;
             }
         }
         Ok(())
     }
 
     async fn fetch_strings(&self, sql: &str) -> Result<Vec<String>, DbError> {
-        let rows = sqlx::query(sql).fetch_all(&self.pool).await?;
+        let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&self.pool).await?;
         if rows.is_empty() {
             return Ok(vec![]);
         }
@@ -184,7 +184,7 @@ impl DatabaseClient for SqliteClient {
     }
 
     async fn fetch_numbers(&self, sql: &str) -> Result<Vec<i64>, DbError> {
-        let rows = sqlx::query(sql).fetch_all(&self.pool).await?;
+        let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&self.pool).await?;
         if rows.is_empty() {
             return Ok(vec![]);
         }
@@ -195,7 +195,7 @@ impl DatabaseClient for SqliteClient {
     }
 
     async fn fetch_strings_params(&self, sql: &str, params: &[&str]) -> Result<Vec<String>, DbError> {
-        let mut query = sqlx::query(sql);
+        let mut query = sqlx::query(AssertSqlSafe(sql));
 
         for param in params {
             query = query.bind(*param);
@@ -218,7 +218,7 @@ impl DatabaseClient for SqliteClient {
         sql: &str,
         params: &[&str],
     ) -> Result<i64, DbError> {
-        let mut query = sqlx::query(sql);
+        let mut query = sqlx::query(AssertSqlSafe(sql));
 
         for param in params {
             query = query.bind(*param);

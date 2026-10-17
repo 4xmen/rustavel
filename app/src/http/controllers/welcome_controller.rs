@@ -1,7 +1,5 @@
 use std::time::Instant;
-use axum::{extract::State, response::IntoResponse, http::StatusCode, Extension};
-use axum::response::Html;
-use minijinja::value::Serde;
+use axum::{extract::State, response::IntoResponse, Extension};
 use serde::Serialize;
 use rustavel_core::config::CONFIG;
 use rustavel_core::facades::datetime::format_duration;
@@ -19,7 +17,7 @@ pub async fn index(
     Extension(start): Extension<Instant>,
 ) -> impl IntoResponse {
     // Prepare the data passed to the template.
-    
+
     let elapsed_ms = format_duration(start.elapsed());
 
     let sample = SampleData {

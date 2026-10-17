@@ -1,4 +1,3 @@
-#![feature(duration_millis_float)]
 
 use std::path::Path;
 use std::sync::Arc;
