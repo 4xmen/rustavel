@@ -2,7 +2,6 @@ use std::time::Instant;
 use clap::{Parser, Subcommand};
 use rustavel_artisan::db::seed::SeedArgs;
 use rustavel_core::facades::terminal_ui::{operation, title, Status, TitleKind};
-use rustavel_core::logger;
 use anyhow::Result;
 include!(concat!(env!("OUT_DIR"), "/generated_seeders_import.rs"));
 
@@ -97,9 +96,16 @@ async fn main() {
     let cli = Cli::parse();
 
     // Execute the selected command.
+    // if let Err(error) = run(cli).await {
+    //     logger::error(&format!("{:?}", error));
+    // }
+
     if let Err(error) = run(cli).await {
-        logger::error(&format!("{:?}", error));
+        // the logger prints from a background task,which exit() would cut off
+        eprintln!("\x1b[31m{:?}\x1b[0m", error);
+        std::process::exit(1);
     }
+
 }
 
 

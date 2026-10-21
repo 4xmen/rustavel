@@ -384,7 +384,7 @@ impl SqlGenerator for SqliteGenerator {
     }
 
     fn get_ran_gt(&self) -> String {
-        "SELECT migration FROM migrations WHERE batch > 0".to_string()
+        "SELECT migration FROM migrations WHERE batch > ?".to_string()
     }
 
 
