@@ -14,7 +14,7 @@ pub trait Migration: Send + Sync {
 }
 
 pub async fn run_migrations(rollback: i64, passive: bool, fresh: bool) -> Result<(), DbError> {
-    let migrations = get_all_migrations();
+    let mut migrations = get_all_migrations();
     let mut batch = 1;
     let mut schema = Schema::new().await?;
     let mut migrated_count = 0;
@@ -34,7 +34,17 @@ pub async fn run_migrations(rollback: i64, passive: bool, fresh: bool) -> Result
     } else {
         vec![]
     };
-    let downs = schema.get_ran_migrations_gt(batch - (rollback + 1)).await?;
+
+    // let downs = schema.get_ran_migrations_gt(batch - (rollback + 1)).await?;
+    let downs = if passive || rollback <= 0 {
+        vec![]
+    }else {
+        schema.get_ran_migrations_gt(batch - (rollback + 1)).await?
+    };
+    // roll back newest first so dependent tables are dropped before their parents
+    if rollback > 0 {
+        migrations.reverse();
+    }
 
     if passive {
         title(TitleKind::Info, "Running model generator.");
