@@ -77,9 +77,18 @@ impl<S> Clone for RouteContext<S> {
 /// # Fields
 /// * `items` - A vector of individual route entries (private, so not documented publicly).
 /// * `ctx_stack` group content stack
+
+
+// pub struct Route<S = ()> {
+//     items: Vec<RouteItem<S>>,
+//     ctx_stack: Vec<RouteContext<S>>,
+// }
+
 pub struct Route<S = ()> {
     items: Vec<RouteItem<S>>,
     ctx_stack: Vec<RouteContext<S>>,
+    // number of routes that existed when each open group started
+    group_starts: Vec<usize>,
 }
 
 pub struct BuiltRoutes<S = ()> {
@@ -144,9 +153,15 @@ macro_rules! define_method {
 #[allow(dead_code)]
 impl<S: Clone + Send + Sync + 'static> Route<S> {
     pub fn new() -> Self {
+        // Self {
+        //     items: vec![],
+        //     ctx_stack: vec![],
+        // }
+
         Self {
             items: vec![],
             ctx_stack: vec![],
+            group_starts: vec![],
         }
     }
 
@@ -240,6 +255,18 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
         self.add(RouteMethod::Any, path, handler)
     }
 
+    /// The last route, but only if it was added directly in the current group.
+    /// Otherwise `name()`/`middleware()` belong to the group itself.
+    fn last_route_in_scope(&mut self) -> Option<&mut RouteItem<S>> {
+        let start = self.group_starts.last().copied().unwrap_or(0);
+        let depth = self.ctx_stack.len();
+        if self.items.len() > start {
+            self.items.last_mut().filter(|last| last.contexts.len() == depth)
+        } else {
+            None
+        }
+    }
+
     // attach name to last route
     /// Adds a name to current route or group
     ///
@@ -266,7 +293,15 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
     ///
     /// ```
     pub fn name(&mut self, name: &str) -> &mut Self {
-        if let Some(last) = self.items.last_mut() {
+        // if let Some(last) = self.items.last_mut() {
+        //     // If the last route has no name yet and was added
+        //     if last.name.is_empty() {
+        //         last.name = name.to_string();
+        //         return self;
+        //     }
+        // }
+
+        if let Some(last) = self.last_route_in_scope() {
             // If the last route has no name yet and was added
             if last.name.is_empty() {
                 last.name = name.to_string();
@@ -324,10 +359,16 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
             router.layer(axum::middleware::from_fn(mw.clone()))
         });
 
-        if let Some(ctx) = self.ctx_stack.last_mut() {
-            ctx.middlewares.push(mw);
-        } else if let Some(last) = self.items.last_mut() {
+        // if let Some(ctx) = self.ctx_stack.last_mut() {
+        //     ctx.middlewares.push(mw);
+        // } else if let Some(last) = self.items.last_mut() {
+        //     last.middlewares.push(mw);
+        // }
+
+        if let Some(last) = self.last_route_in_scope() {
             last.middlewares.push(mw);
+        } else if let Some(ctx) = self.ctx_stack.last_mut() {
+            ctx.middlewares.push(mw);
         }
 
         self
@@ -625,10 +666,16 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
     where
         F: FnOnce(&mut Self),
     {
+        // self.ctx_stack.push(RouteContext::new());
+        // f(self);
+        // self.ctx_stack.pop();
+
         self.ctx_stack.push(RouteContext::new());
+        self.group_starts.push(self.items.len());
 
         f(self);
 
+        self.group_starts.pop();
         self.ctx_stack.pop();
     }
 }

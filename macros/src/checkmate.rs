@@ -24,7 +24,7 @@
 //! CheckMate: check/validate، smart
 
 
-use proc_macro::TokenStream;
+// use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::format_ident;
 use quote::quote;
@@ -527,15 +527,23 @@ impl Rule {
             Rule::Confirmed(val) => {
                 let confirm = format_ident!("{}", val);
                 if is_option_type(field_ty) {
+                    // quote! {
+                    //     if let Some(value) = (&self.#field_ident).as_ref() {
+                    //         if let Some(value2) = (&self.#confirm).as_ref() {
+                    //             if value != value2 {
+                    //                 errors.add(#field_name, format!("{} not confirmed",&#field_name));
+                    //             }
+                    //         }
+                    //     }
+                    // }
+
                     quote! {
-                        if let Some(value) = (&self.#field_ident).as_ref() {
-                            if let Some(value2) = (&self.#confirm).as_ref() {
-                                if value != value2 {
-                                    errors.add(#field_name, format!("{} not confirmed",&#field_name));
-                                }
-                            }
+                        // a value without a matching confirmation (missing or different) fails
+                        if self.#field_ident.is_some() && self.#field_ident != self.#confirm {
+                            errors.add(#field_name, format!("{} not confirmed",&#field_name));
                         }
                     }
+
                 } else {
                     quote! {
                         if &self.#field_ident != &self.#confirm{
@@ -1308,178 +1316,274 @@ impl Rule {
                 }
                 quote! {}
             }
-            Rule::Exists(meta) => {
-                let mut tokens = TokenStream::new();
-                // Safe: one of the branches will always assign wanted_token, else returns
-                #[allow(unused_assignments)]
-                let mut wanted_token: Option<TokenStream> = None;
 
-                let db = meta.split(',').collect::<Vec<_>>();
+            // Rule::Exists(meta) => {
+            //     let mut tokens = TokenStream::new();
+            //     // Safe: one of the branches will always assign wanted_token, else returns
+            //     #[allow(unused_assignments)]
+            //     let mut wanted_token: Option<TokenStream> = None;
+            //
+            //     let db = meta.split(',').collect::<Vec<_>>();
+            //     if db.len() != 2 {
+            //         return Error::new_spanned(
+            //             field_name,
+            //             format!("Exists must have to value like: table,column. Exm: users,email. Your meta: {} ", &meta),
+            //         )
+            //             .to_compile_error()
+            //             .into();
+            //     }
+            //
+            //     let table = db.get(0).unwrap().to_string();
+            //     let column = db.get(1).unwrap().to_string();
+            //
+            //     let is_option = is_option_type(field_ty);
+            //     if is_string_type(field_ty) {
+            //         if is_option {
+            //             wanted_token = Some(quote! {
+            //                 let mut wanted = "";
+            //                 if let Some(value) = self.#field_ident{
+            //                     wanted = value;
+            //                 }
+            //             }
+            //                 .into());
+            //         } else {
+            //             wanted_token =Some( quote! {
+            //                 let wanted = &self.#field_ident.clone();
+            //             }
+            //                 .into());
+            //         }
+            //     } else if is_numeric_type(field_ty) {
+            //         if is_option {
+            //             wanted_token = Some(quote! {
+            //                 let mut wanted = "";
+            //                 if let Some(value) = self.#field_ident{
+            //                     wanted = value.to_string();
+            //                 }
+            //             }
+            //                 .into());
+            //         } else {
+            //             wanted_token = Some(quote! {
+            //                 let wanted = &self.#field_ident.to_string();
+            //             }
+            //                 .into());
+            //         }
+            //     } else {
+            //         return Error::new_spanned(
+            //             field_name,
+            //             format!(
+            //                 "unsupported type requried numberic or string `{}`",
+            //                 field_name
+            //             ),
+            //         )
+            //             .to_compile_error()
+            //             .into();
+            //     }
+            //
+            //     let db_token: TokenStream = quote! {
+            //         if !rustavel_core::db::get_static_schema()
+            //         .await.exists_record(#table, #column, wanted).await {
+            //             errors.add(#field_name, format!("The record not exists: {}", wanted));
+            //         }
+            //     }
+            //         .into();
+            //
+            //     if let Some(tokens2) = wanted_token {
+            //         tokens.extend(tokens2);
+            //     }
+            //     tokens.extend(db_token);
+            //     tokens.into()
+            // }
+            // Rule::Unique(meta) => {
+            //     let mut tokens = TokenStream::new();
+            //     // Safe: one of the branches will always assign wanted_token2, else returns
+            //     #[allow(unused_assignments)]
+            //     let mut wanted_token2: Option<TokenStream> = None;
+            //
+            //     let db = meta.split(',').collect::<Vec<_>>();
+            //     let db_len = db.len();
+            //     if db_len < 2 || db_len > 3 {
+            //         return Error::new_spanned(
+            //             field_name,
+            //             format!("Unique must have to value like: table,column or table,column,except_field. Exm: users,email or users,email,id . Your meta: {} ", &meta),
+            //         ).to_compile_error()
+            //             .into();
+            //     }
+            //     let table = db.get(0).unwrap().to_string();
+            //     let column = db.get(1).unwrap().to_string();
+            //
+            //     let is_option = is_option_type(field_ty);
+            //     if is_string_type(field_ty) {
+            //         if is_option {
+            //             wanted_token2 = Some(
+            //                 quote! {
+            //                     let mut wanted = "";
+            //                     if let Some(value) = self.#field_ident{
+            //                         wanted = value;
+            //                     }
+            //                 }
+            //                     .into(),
+            //             );
+            //         } else {
+            //             wanted_token2 = Some(
+            //                 quote! {
+            //                     let wanted = &self.#field_ident.clone();
+            //                 }
+            //                     .into(),
+            //             );
+            //         }
+            //     } else if is_numeric_type(field_ty) {
+            //         if is_option {
+            //             wanted_token2 = Some(
+            //                 quote! {
+            //                     let mut wanted = "";
+            //                     if let Some(value) = self.#field_ident{
+            //                         wanted = value.to_string();
+            //                     }
+            //                 }
+            //                     .into(),
+            //             );
+            //         } else {
+            //             wanted_token2 = Some(
+            //                 quote! {
+            //                     let wanted = &self.#field_ident.to_string();
+            //                 }
+            //                     .into(),
+            //             );
+            //         }
+            //     } else {
+            //         return Error::new_spanned(
+            //             field_name,
+            //             format!(
+            //                 "unsupported type requried numberic or string `{}`",
+            //                 field_name
+            //             ),
+            //         )
+            //             .to_compile_error()
+            //             .into();
+            //     }
+            //
+            //     let mut db_token: TokenStream = TokenStream::new();
+            //     if db_len == 2 {
+            //         db_token = quote! {
+            //             if rustavel_core::db::get_static_schema()
+            //             .await.exists_record(#table, #column, wanted).await {
+            //                 errors.add(#field_name, format!("The record exists: {}", wanted));
+            //             }
+            //         }
+            //             .into();
+            //     } else if db_len == 3 {
+            //         let except_val = db.get(2).unwrap().to_string();
+            //         let except = format_ident!("{}", &except_val);
+            //         db_token = quote!{
+            //             if rustavel_core::db::get_static_schema()
+            //             .await.exists_record_except(#table, #column, wanted, #except_val,&macros_core::convert_to_string(&self.#except)).await {
+            //                 errors.add(#field_name, format!("The record exists: {}", wanted));
+            //             }
+            //         }.into();
+            //     }
+            //
+            //     if let Some(tokens2) = wanted_token2 {
+            //         tokens.extend(tokens2);
+            //     }
+            //     tokens.extend(db_token);
+            //     tokens.into()
+            // }
+
+            Rule::Exists(meta) => {
+                let db = meta.split(',').map(str::trim).collect::<Vec<_>>();
                 if db.len() != 2 {
                     return Error::new_spanned(
                         field_name,
                         format!("Exists must have to value like: table,column. Exm: users,email. Your meta: {} ", &meta),
                     )
-                        .to_compile_error()
-                        .into();
+                        .to_compile_error();
                 }
-
-                let table = db.get(0).unwrap().to_string();
-                let column = db.get(1).unwrap().to_string();
-
-                let is_option = is_option_type(field_ty);
-                if is_string_type(field_ty) {
-                    if is_option {
-                        wanted_token = Some(quote! {
-                            let mut wanted = "";
-                            if let Some(value) = self.#field_ident{
-                                wanted = value;
-                            }
-                        }
-                            .into());
-                    } else {
-                        wanted_token =Some( quote! {
-                            let wanted = &self.#field_ident.clone();
-                        }
-                            .into());
-                    }
-                } else if is_numeric_type(field_ty) {
-                    if is_option {
-                        wanted_token = Some(quote! {
-                            let mut wanted = "";
-                            if let Some(value) = self.#field_ident{
-                                wanted = value.to_string();
-                            }
-                        }
-                            .into());
-                    } else {
-                        wanted_token = Some(quote! {
-                            let wanted = &self.#field_ident.to_string();
-                        }
-                            .into());
-                    }
-                } else {
+                if !is_string_type(field_ty) && !is_numeric_type(field_ty) {
                     return Error::new_spanned(
                         field_name,
-                        format!(
-                            "unsupported type requried numberic or string `{}`",
-                            field_name
-                        ),
+                        format!("unsupported type requried numberic or string `{}`", field_name),
                     )
-                        .to_compile_error()
-                        .into();
+                        .to_compile_error();
                 }
-
-                let db_token: TokenStream = quote! {
-                    if !rustavel_core::db::get_static_schema()
-                    .await.exists_record(#table, #column, wanted).await {
-                        errors.add(#field_name, format!("The record not exists: {}", wanted));
+                let (table, column) = (db[0], db[1]);
+                let body = quote! {
+                    let found = match rustavel_core::db::get_static_schema().await {
+                        Some(schema) => schema.exists_record(#table, #column, &wanted).await,
+                        None => None,
+                    };
+                    match found {
+                        Some(true) => {}
+                        Some(false) => errors.add(#field_name, format!("The record not exists: {}", wanted)),
+                        None => errors.add(#field_name, "The record could not be checked"),
                     }
-                }
-                    .into();
-
-                if let Some(tokens2) = wanted_token {
-                    tokens.extend(tokens2);
-                }
-                tokens.extend(db_token);
-                tokens.into()
+                };
+                wrap_db_rule(field_ident, field_ty, body)
             }
             Rule::Unique(meta) => {
-                let mut tokens = TokenStream::new();
-                // Safe: one of the branches will always assign wanted_token2, else returns
-                #[allow(unused_assignments)]
-                let mut wanted_token2: Option<TokenStream> = None;
-
-                let db = meta.split(',').collect::<Vec<_>>();
-                let db_len = db.len();
-                if db_len < 2 || db_len > 3 {
+                let db = meta.split(',').map(str::trim).collect::<Vec<_>>();
+                if db.len() < 2 || db.len() > 3 {
                     return Error::new_spanned(
                         field_name,
                         format!("Unique must have to value like: table,column or table,column,except_field. Exm: users,email or users,email,id . Your meta: {} ", &meta),
-                    ).to_compile_error()
-                        .into();
+                    ).to_compile_error();
                 }
-                let table = db.get(0).unwrap().to_string();
-                let column = db.get(1).unwrap().to_string();
-
-                let is_option = is_option_type(field_ty);
-                if is_string_type(field_ty) {
-                    if is_option {
-                        wanted_token2 = Some(
-                            quote! {
-                                let mut wanted = "";
-                                if let Some(value) = self.#field_ident{
-                                    wanted = value;
-                                }
-                            }
-                                .into(),
-                        );
-                    } else {
-                        wanted_token2 = Some(
-                            quote! {
-                                let wanted = &self.#field_ident.clone();
-                            }
-                                .into(),
-                        );
-                    }
-                } else if is_numeric_type(field_ty) {
-                    if is_option {
-                        wanted_token2 = Some(
-                            quote! {
-                                let mut wanted = "";
-                                if let Some(value) = self.#field_ident{
-                                    wanted = value.to_string();
-                                }
-                            }
-                                .into(),
-                        );
-                    } else {
-                        wanted_token2 = Some(
-                            quote! {
-                                let wanted = &self.#field_ident.to_string();
-                            }
-                                .into(),
-                        );
-                    }
-                } else {
+                if !is_string_type(field_ty) && !is_numeric_type(field_ty) {
                     return Error::new_spanned(
                         field_name,
-                        format!(
-                            "unsupported type requried numberic or string `{}`",
-                            field_name
-                        ),
+                        format!("unsupported type requried numberic or string `{}`", field_name),
                     )
-                        .to_compile_error()
-                        .into();
+                        .to_compile_error();
                 }
-
-                let mut db_token: TokenStream = TokenStream::new();
-                if db_len == 2 {
-                    db_token = quote! {
-                        if rustavel_core::db::get_static_schema()
-                        .await.exists_record(#table, #column, wanted).await {
-                            errors.add(#field_name, format!("The record exists: {}", wanted));
+                let (table, column) = (db[0], db[1]);
+                let lookup = match db.get(2) {
+                    Some(except_col) => {
+                        let except = format_ident!("{}", except_col);
+                        quote! {
+                            schema.exists_record_except(#table, #column, &wanted, #except_col, &macros_core::convert_to_string(&self.#except)).await
                         }
                     }
-                        .into();
-                } else if db_len == 3 {
-                    let except_val = db.get(2).unwrap().to_string();
-                    let except = format_ident!("{}", &except_val);
-                    db_token = quote!{
-                        if rustavel_core::db::get_static_schema()
-                        .await.exists_record_except(#table, #column, wanted, #except_val,&macros_core::convert_to_string(&self.#except)).await {
-                            errors.add(#field_name, format!("The record exists: {}", wanted));
-                        }
-                    }.into();
-                }
-
-                if let Some(tokens2) = wanted_token2 {
-                    tokens.extend(tokens2);
-                }
-                tokens.extend(db_token);
-                tokens.into()
+                    None => quote! { schema.exists_record(#table, #column, &wanted).await },
+                };
+                let body = quote! {
+                    let found = match rustavel_core::db::get_static_schema().await {
+                        Some(schema) => #lookup,
+                        None => None,
+                    };
+                    match found {
+                        Some(false) => {}
+                        Some(true) => errors.add(#field_name, format!("The record exists: {}", wanted)),
+                        None => errors.add(#field_name, "The record could not be checked"),
+                    }
+                };
+                wrap_db_rule(field_ident, field_ty, body)
             }
+
+
             _ => quote! {},
+        }
+    }
+}
+
+/// Wraps a database rule so `wanted` holds the field value as a String.
+/// `None` in an `Option` field skips the check (use `required` to forbid it).
+fn wrap_db_rule(
+    field_ident: &syn::Ident,
+    field_ty: &Type,
+    body: proc_macro2::TokenStream,
+) -> proc_macro2::TokenStream {
+    if is_option_type(field_ty) {
+        quote! {
+            if let Some(value) = &self.#field_ident {
+                let wanted = value.to_string();
+                #body
+            }
+        }
+    } else {
+        quote! {
+            {
+                let wanted = self.#field_ident.to_string();
+                #body
+            }
         }
     }
 }

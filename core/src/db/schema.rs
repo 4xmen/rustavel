@@ -86,7 +86,8 @@ pub struct Schema {
     client: Box<dyn DatabaseClient + Send + Sync>,
     debug: bool,
     tables: HashMap<String, Table>,
-    current: Option<Table>,
+    // current: Option<Table>,
+    pending: Vec<Table>,
 }
 
 impl Schema {
@@ -131,7 +132,8 @@ impl Schema {
             client,
             debug,
             tables: HashMap::new(),
-            current: None,
+            // current: None,
+            pending: Vec::new(),
         })
     }
 
@@ -1328,7 +1330,8 @@ impl Schema {
             self.tables.insert(name.clone(), table.clone());
         }
 
-        self.current = Some(table);
+        // self.current = Some(table);
+        self.pending.push(table);
         // println!("{:?}",self.tables.keys().cloned().collect::<Vec<_>>());
 
         self
@@ -1393,8 +1396,8 @@ impl Schema {
             self.tables.insert(name.clone(), table.clone());
         }
 
-        self.current = Some(table);
-
+        // self.current = Some(table);
+        self.pending.push(table);
         self
     }
 
@@ -1442,63 +1445,126 @@ impl Schema {
     /// - Requires appropriate database permissions to execute the migration.
 
     pub async fn execute_migration(
-        &self,
+        &mut self,
         final_name: &str,
         duration: &Instant,
     ) -> Result<(), DbError> {
-        // extract last migration data information
-        if let Some(table) = &self.current {
-            let mut body = vec![];
-            let mut foot = vec![];
-            let mut post = vec![];
-            let mut spliter = String::new();
-            for column in &table.columns {
-                let (b, f, p, s) = self.generator.column(&column, &table.name, &table.action);
-                body.push(b);
-                if !f.is_empty() {
-                    foot.push(f);
-                }
-                if !p.is_empty() {
-                    post.push(p);
-                }
-                spliter = s;
-            }
-            for column in &table.drop_columns {
-                body.push(self.generator.drop_column(&column));
-            }
-            for key in &table.foreign_keys {
-                let str = self.generator.foreign_key(&key, &table.name, &table.action);
-
-                if !str.is_empty() {
-                    foot.push(str);
-                }
-            }
-            body.append(&mut foot);
-            let sql = Str::implode(&spliter, body);
-            let sql = self.generator.table_sql(
-                &table.name,
-                &sql,
-                &Str::implode(";\n", post),
-                &table.action,
-            );
-            // logger::info(&format!("Just4debug develop core: \n {}", sql.trim()));
-            // execute generated sql
-            match self.client.execute(&sql).await {
-                Ok(_) => {
-                    // logger::success(&format!("Updated table  : \n {}", &table.name));
-                    operation(final_name, duration.elapsed(), Status::Done);
-                    Ok(())
-                }
-                Err(e) => {
-                    // logger::error(&format!("{:?}", e));
-                    operation(final_name, duration.elapsed(), Status::Failed);
-                    Err(e)
-                }
-            }
-        } else {
-            Err(DbError::InvalidTable)
+        if self.pending.is_empty() {
+            return Err(DbError::InvalidTable);
         }
+        // run every table defined since the last execute, in order
+        let tables = std::mem::take(&mut self.pending);
+        for table in &tables {
+            let sql = self.table_to_sql(table);
+            if let Err(e) = self.client.execute(&sql).await {
+                operation(final_name, duration.elapsed(), Status::Failed);
+                return Err(e);
+            }
+        }
+        operation(final_name, duration.elapsed(), Status::Done);
+        Ok(())
     }
+
+    /// Drops table definitions that were collected but not executed,
+    /// e.g. from a migration that has already run.
+    pub fn clear_pending(&mut self) {
+        self.pending.clear();
+    }
+
+    fn table_to_sql(&self, table: &Table) -> String {
+        let mut body = vec![];
+        let mut foot = vec![];
+        let mut post = vec![];
+        let mut spliter = String::new();
+        for column in &table.columns {
+            let (b, f, p, s) = self.generator.column(&column, &table.name, &table.action);
+            body.push(b);
+            if !f.is_empty() {
+                foot.push(f);
+            }
+            if !p.is_empty() {
+                post.push(p);
+            }
+            spliter = s;
+        }
+        for column in &table.drop_columns {
+            body.push(self.generator.drop_column(&column));
+        }
+        for key in &table.foreign_keys {
+            let str = self.generator.foreign_key(&key, &table.name, &table.action);
+
+            if !str.is_empty() {
+                foot.push(str);
+            }
+        }
+        body.append(&mut foot);
+        let sql = Str::implode(&spliter, body);
+        self.generator.table_sql(
+            &table.name,
+            &sql,
+            &Str::implode(";\n", post),
+            &table.action,
+        )
+    }
+
+    // pub async fn execute_migration(
+    //     &self,
+    //     final_name: &str,
+    //     duration: &Instant,
+    // ) -> Result<(), DbError> {
+    //     // extract last migration data information
+    //     if let Some(table) = &self.current {
+    //         let mut body = vec![];
+    //         let mut foot = vec![];
+    //         let mut post = vec![];
+    //         let mut spliter = String::new();
+    //         for column in &table.columns {
+    //             let (b, f, p, s) = self.generator.column(&column, &table.name, &table.action);
+    //             body.push(b);
+    //             if !f.is_empty() {
+    //                 foot.push(f);
+    //             }
+    //             if !p.is_empty() {
+    //                 post.push(p);
+    //             }
+    //             spliter = s;
+    //         }
+    //         for column in &table.drop_columns {
+    //             body.push(self.generator.drop_column(&column));
+    //         }
+    //         for key in &table.foreign_keys {
+    //             let str = self.generator.foreign_key(&key, &table.name, &table.action);
+    //
+    //             if !str.is_empty() {
+    //                 foot.push(str);
+    //             }
+    //         }
+    //         body.append(&mut foot);
+    //         let sql = Str::implode(&spliter, body);
+    //         let sql = self.generator.table_sql(
+    //             &table.name,
+    //             &sql,
+    //             &Str::implode(";\n", post),
+    //             &table.action,
+    //         );
+    //         // logger::info(&format!("Just4debug develop core: \n {}", sql.trim()));
+    //         // execute generated sql
+    //         match self.client.execute(&sql).await {
+    //             Ok(_) => {
+    //                 // logger::success(&format!("Updated table  : \n {}", &table.name));
+    //                 operation(final_name, duration.elapsed(), Status::Done);
+    //                 Ok(())
+    //             }
+    //             Err(e) => {
+    //                 // logger::error(&format!("{:?}", e));
+    //                 operation(final_name, duration.elapsed(), Status::Failed);
+    //                 Err(e)
+    //             }
+    //         }
+    //     } else {
+    //         Err(DbError::InvalidTable)
+    //     }
+    // }
 
     /// Checks if the migrations repository exists in the database.
     ///
@@ -1828,40 +1894,130 @@ impl Schema {
         }
     }
 
-    pub async fn exists_record(&self, table: &str, column: &str, wanted: &str) -> bool {
+    // pub async fn exists_record(&self, table: &str, column: &str, wanted: &str) -> bool {
+    //     // ----------------------------------------------------
+    //     // Perform identifier validation (table & column) using a cached schema whitelist.
+    //     // Schema metadata is initialized once and reused from memory (OnceCell),
+    //     // providing O(1)-like lookup performance under high concurrency.
+    //     // This ensures query safety by preventing injection through dynamic identifiers
+    //     // before building the final SQL statement.
+    //     // ----------------------------------------------------
+    //     let tables = get_tables().await;
+    //     if !tables.contains(&table.to_string()) {
+    //         logger::error(&format!("table not exists {}", table));
+    //         logger::info("May you need to run migrations or restart app to re-cache tables!?");
+    //         return false;
+    //     }
+    //     let columns = get_columns().await;
+    //     if !columns.contains(&format!("{}.{}", table, column)) {
+    //         logger::error(&format!("column `{}` not exists in {}", column, table));
+    //         logger::info("May you need to run migrations or restart app to re-cache tables!?");
+    //         return false;
+    //     }
+    //     // check exists record
+    //     let sql = &self.generator.record_exists(table, column);
+    //     match self.client.fetch_count_params(sql, &[wanted]).await {
+    //         Ok(result) => {
+    //             if result == 0 {
+    //                 return false;
+    //             }
+    //             true
+    //         }
+    //         Err(e) => {
+    //             if self.debug {
+    //                 logger::error(&format!("{:?}", e));
+    //             }
+    //             false
+    //         }
+    //     }
+    // }
+    //
+    // pub async fn exists_record_except(
+    //     &self,
+    //     table: &str,
+    //     column: &str,
+    //     wanted: &str,
+    //     except_col: &str,
+    //     except_val: &str,
+    // ) -> bool {
+    //     // ----------------------------------------------------
+    //     // Perform identifier validation (table & column) using a cached schema whitelist.
+    //     // Schema metadata is initialized once and reused from memory (OnceCell),
+    //     // providing O(1)-like lookup performance under high concurrency.
+    //     // This ensures query safety by preventing injection through dynamic identifiers
+    //     // before building the final SQL statement.
+    //     // ----------------------------------------------------
+    //     let tables = get_tables().await;
+    //     if !tables.contains(&table.to_string()) {
+    //         logger::error(&format!("table not exists {}", table));
+    //         logger::info("May you need to run migrations or restart app to re-cache tables!?");
+    //         return false;
+    //     }
+    //     let columns = get_columns().await;
+    //     if !columns.contains(&format!("{}.{}", table, column)) {
+    //         logger::error(&format!("column `{}` not exists in {}", column, table));
+    //         logger::info("May you need to run migrations or restart app to re-cache tables!?");
+    //         return false;
+    //     }
+    //     if !columns.contains(&format!("{}.{}", table, except_col)) {
+    //         logger::error(&format!("column `{}` not exists in {}", column, table));
+    //         logger::info("May you need to run migrations or restart app to re-cache tables!?");
+    //         return false;
+    //     }
+    //     // check exists record
+    //     let sql = &self
+    //         .generator
+    //         .record_exists_except(table, column, except_col);
+    //     match self
+    //         .client
+    //         .fetch_count_params(sql, &[wanted, except_val])
+    //         .await
+    //     {
+    //         Ok(result) => {
+    //             if result == 0 {
+    //                 return false;
+    //             }
+    //             true
+    //         }
+    //         Err(e) => {
+    //             if self.debug {
+    //                 logger::error(&format!("{:?}", e));
+    //             }
+    //             false
+    //         }
+    //     }
+    // }
+
+
+    /// `Some(true/false)` if the lookup ran, `None` if it could not run
+    /// (unknown table/column or a database error). Validators must treat
+    /// `None` as a failure, otherwise `unique` would pass on any error.
+    pub async fn exists_record(&self, table: &str, column: &str, wanted: &str) -> Option<bool> {
         // ----------------------------------------------------
-        // Perform identifier validation (table & column) using a cached schema whitelist.
-        // Schema metadata is initialized once and reused from memory (OnceCell),
-        // providing O(1)-like lookup performance under high concurrency.
-        // This ensures query safety by preventing injection through dynamic identifiers
-        // before building the final SQL statement.
+        // Identifiers are checked against a cached schema whitelist
+        // before being placed into the SQL statement.
         // ----------------------------------------------------
+        let table = self.fix_table_name(table);
         let tables = get_tables().await;
-        if !tables.contains(&table.to_string()) {
+        if !tables.contains(&table) {
             logger::error(&format!("table not exists {}", table));
             logger::info("May you need to run migrations or restart app to re-cache tables!?");
-            return false;
+            return None;
         }
         let columns = get_columns().await;
         if !columns.contains(&format!("{}.{}", table, column)) {
             logger::error(&format!("column `{}` not exists in {}", column, table));
             logger::info("May you need to run migrations or restart app to re-cache tables!?");
-            return false;
+            return None;
         }
-        // check exists record
-        let sql = &self.generator.record_exists(table, column);
+        let sql = &self.generator.record_exists(&table, column);
         match self.client.fetch_count_params(sql, &[wanted]).await {
-            Ok(result) => {
-                if result == 0 {
-                    return false;
-                }
-                true
-            }
+            Ok(count) => Some(count > 0),
             Err(e) => {
                 if self.debug {
                     logger::error(&format!("{:?}", e));
                 }
-                false
+                None
             }
         }
     }
@@ -1873,54 +2029,41 @@ impl Schema {
         wanted: &str,
         except_col: &str,
         except_val: &str,
-    ) -> bool {
-        // ----------------------------------------------------
-        // Perform identifier validation (table & column) using a cached schema whitelist.
-        // Schema metadata is initialized once and reused from memory (OnceCell),
-        // providing O(1)-like lookup performance under high concurrency.
-        // This ensures query safety by preventing injection through dynamic identifiers
-        // before building the final SQL statement.
-        // ----------------------------------------------------
+    ) -> Option<bool> {
+        let table = self.fix_table_name(table);
         let tables = get_tables().await;
-        if !tables.contains(&table.to_string()) {
+        if !tables.contains(&table) {
             logger::error(&format!("table not exists {}", table));
             logger::info("May you need to run migrations or restart app to re-cache tables!?");
-            return false;
+            return None;
         }
         let columns = get_columns().await;
-        if !columns.contains(&format!("{}.{}", table, column)) {
-            logger::error(&format!("column `{}` not exists in {}", column, table));
-            logger::info("May you need to run migrations or restart app to re-cache tables!?");
-            return false;
+        for col in [column, except_col] {
+            if !columns.contains(&format!("{}.{}", table, col)) {
+                logger::error(&format!("column `{}` not exists in {}", col, table));
+                logger::info("May you need to run migrations or restart app to re-cache tables!?");
+                return None;
+            }
         }
-        if !columns.contains(&format!("{}.{}", table, except_col)) {
-            logger::error(&format!("column `{}` not exists in {}", column, table));
-            logger::info("May you need to run migrations or restart app to re-cache tables!?");
-            return false;
-        }
-        // check exists record
         let sql = &self
             .generator
-            .record_exists_except(table, column, except_col);
+            .record_exists_except(&table, column, except_col);
         match self
             .client
             .fetch_count_params(sql, &[wanted, except_val])
             .await
         {
-            Ok(result) => {
-                if result == 0 {
-                    return false;
-                }
-                true
-            }
+            Ok(count) => Some(count > 0),
             Err(e) => {
                 if self.debug {
                     logger::error(&format!("{:?}", e));
                 }
-                false
+                None
             }
         }
     }
+
+
 
     // pub fn final_tables(&self) -> &HashMap<String,Table> {
     //     &self.tables

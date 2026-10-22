@@ -400,12 +400,21 @@ impl SqlGenerator for SqliteGenerator {
         "DELETE FROM migrations WHERE migration = ?".to_string()
     }
 
+    // fn record_exists(&self, table: &str, column: &str) -> String {
+    //     format!("SELECT COUNT(*) AS 'count' FROM '{}' WHERE '{}' = ?", table, column)
+    // }
+    //
+    // fn record_exists_except(&self,table: &str,column: &str, except: &str) -> String{
+    //     format!("SELECT COUNT(*) AS 'count' FROM '{}' WHERE '{}' = ? AND '{}' <> ?", table, column,except)
+    // }
+
+
+    // identifiers need double quotes: in SQLite 'email' is a string literal
     fn record_exists(&self, table: &str, column: &str) -> String {
-        format!("SELECT COUNT(*) AS 'count' FROM '{}' WHERE '{}' = ?", table, column)
+        format!("SELECT COUNT(*) AS count FROM \"{}\" WHERE \"{}\" = ?", table, column)
     }
 
     fn record_exists_except(&self,table: &str,column: &str, except: &str) -> String{
-        format!("SELECT COUNT(*) AS 'count' FROM '{}' WHERE '{}' = ? AND '{}' <> ?", table, column,except)
+        format!("SELECT COUNT(*) AS count FROM \"{}\" WHERE \"{}\" = ? AND \"{}\" <> ?", table, column,except)
     }
-
 }

@@ -392,14 +392,24 @@ impl SqlGenerator for MySqlGenerator {
     }
 
     fn foreign_key(&self, key: &ForeignKey, table_name: &str, action: &TableAction) -> String {
+        // let update = match key.on_update {
+        //     true => "ON DELETE CASCADE",
+        //     false => "",
+        // };
+        // let delete = match key.on_delete {
+        //     true => "ON UPDATE CASCADE",
+        //     false => "",
+        // };
+
         let update = match key.on_update {
-            true => "ON DELETE CASCADE",
-            false => "",
-        };
-        let delete = match key.on_delete {
             true => "ON UPDATE CASCADE",
             false => "",
         };
+        let delete = match key.on_delete {
+            true => "ON DELETE CASCADE",
+            false => "",
+        };
+
         let prefix = match *action {
             TableAction::Alter => "ADD ",
             _ => "",
