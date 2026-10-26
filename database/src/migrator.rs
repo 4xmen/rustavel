@@ -54,8 +54,13 @@ pub async fn run_migrations(rollback: i64, passive: bool, fresh: bool) -> Result
 
     for mig in migrations {
         let start = Instant::now();
+        // if rollback <= 0 {
+        //     mig.up(&mut schema).await?;
         if rollback <= 0 {
+            // forget tables left over from an already-ran migration
+            schema.clear_pending();
             mig.up(&mut schema).await?;
+
             if !passive && !migration_list.contains(&mig.name().to_string()) {
                 // run migration
                 schema.execute_migration(mig.name(), &start.into()).await?;
@@ -78,7 +83,10 @@ pub async fn run_migrations(rollback: i64, passive: bool, fresh: bool) -> Result
     if passive {
         for model_data in schema.to_struct().into_iter() {
             let start = Instant::now();
-            let model_name = Str::ucfirst(&Str::singular(&model_data.table));
+            // let model_name = Str::ucfirst(&Str::singular(&model_data.table));
+
+            // blog_posts -> BlogPost (ucfirst gave `Blog_post`)
+            let model_name = Str::studly(&Str::singular(&model_data.table));
             match save_generated_model(model_name.clone(), Some(model_data)).await {
                 Ok(_) => {
                     operation(&format!("Model generate: {}", &model_name), start.elapsed(), Status::Done);

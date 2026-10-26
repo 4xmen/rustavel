@@ -218,7 +218,7 @@ fn main() {
     match class.as_str() {{
     {match_arms}
             _ => {{
-                title(TitleKind::Error, &format!("Class not found: {{}}", class));
+                return Err(anyhow::anyhow!("Class not found: {{}}", class));
             }}
     }}
 "#,

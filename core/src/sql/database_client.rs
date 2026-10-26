@@ -30,6 +30,9 @@ pub trait DatabaseClient: Send + Sync + Debug {
     async fn fetch_strings_params(&self, sql: &str, params: &[&str]) -> Result<Vec<String>, DbError>;
     async fn fetch_count_params(&self, sql: &str, params: &[&str]) -> Result<i64, DbError>;
     async fn fetch_numbers(&self, sql: &str) -> Result<Vec<i64>, DbError>;
+    /// Runs every statement in order on one pooled connection. Needed for
+    /// session settings such as `SET FOREIGN_KEY_CHECKS = 0`.
+    async fn execute_on_one_connection(&self, statements: &[String]) -> Result<(), DbError>;
 }
 
 #[derive(Debug)]
@@ -45,6 +48,16 @@ impl From<sqlx::Error> for DbError {
 
 #[async_trait::async_trait]
 impl DatabaseClient for MySqlClient {
+
+    async fn execute_on_one_connection(&self, statements: &[String]) -> Result<(), DbError> {
+        let mut conn = self.pool.acquire().await?;
+        for statement in statements {
+            for single_sql in split_sql_statements(statement) {
+                sqlx::query(AssertSqlSafe(single_sql)).execute(&mut *conn).await?;
+            }
+        }
+        Ok(())
+    }
 
     async fn execute_params(
         &self,
@@ -160,6 +173,16 @@ pub struct SqliteClient {
 
 #[async_trait::async_trait]
 impl DatabaseClient for SqliteClient {
+
+    async fn execute_on_one_connection(&self, statements: &[String]) -> Result<(), DbError> {
+        let mut conn = self.pool.acquire().await?;
+        for statement in statements {
+            for single_sql in split_sql_statements(statement) {
+                sqlx::query(AssertSqlSafe(single_sql)).execute(&mut *conn).await?;
+            }
+        }
+        Ok(())
+    }
 
     async fn execute_params(
         &self,

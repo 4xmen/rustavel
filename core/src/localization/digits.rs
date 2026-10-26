@@ -19,7 +19,8 @@ pub fn normalize_digits(input: &str) -> String {
         '۷' | '٧' => '7',
         '۸' | '٨' => '8',
         '۹' | '٩' => '9',
-        '/' => '.', // float symbol
+        // '/' => '.', // float symbol
+        '٫' => '.', // Persian/Arabic decimal separator (U+066B); '/' is left alone
         _ => c,
     }).collect()
 }

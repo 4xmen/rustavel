@@ -715,25 +715,40 @@ impl Schema {
     /// - Requires highest level of database permissions.
     /// - Permanently removes all data in all tables.
     /// - sqlx don't let us use more than one query so we have to drop tables one by one
+
+
+    // pub async fn drop_all_tables(&self) -> Result<(), DbError> {
+    //     self.disable_foreign_key_constraints().await;
+    //
+    //     let tables = self.get_tables().await?;
+    //     let drop_futures: Vec<_> = tables
+    //         .into_iter()
+    //         .map(|table| self.drop_table(table))
+    //         .collect();
+    //
+    //     // execute all each other
+    //     let results = join_all(drop_futures).await;
+    //
+    //     // check result
+    //     for res in results {
+    //         res?;
+    //     }
+    //     self.enable_foreign_key_constraints().await;
+    //     Ok(())
+    // }
+
     pub async fn drop_all_tables(&self) -> Result<(), DbError> {
-        self.disable_foreign_key_constraints().await;
-
-        let tables = self.get_tables().await?;
-        let drop_futures: Vec<_> = tables
-            .into_iter()
-            .map(|table| self.drop_table(table))
-            .collect();
-
-        // execute all each other
-        let results = join_all(drop_futures).await;
-
-        // check result
-        for res in results {
-            res?;
+        // FOREIGN_KEY_CHECKS / PRAGMA foreign_keys only affect the connection
+        // they run on, so all statements must share one connection.
+        let mut statements = vec![self.generator.disable_foreign_key_constraints()];
+        for table in self.get_tables().await? {
+            // names from get_tables() already carry the prefix
+            statements.push(self.generator.drop_table(&table));
         }
-        self.enable_foreign_key_constraints().await;
-        Ok(())
+        statements.push(self.generator.enable_foreign_key_constraints());
+        self.client.execute_on_one_connection(&statements).await
     }
+
 
     /// Drops all views in the database.
     ///
@@ -1261,7 +1276,12 @@ impl Schema {
         match self.get_tables().await {
             Ok(tables) => {
                 for table in tables {
-                    self.rename(table.clone(), table.replace(&self.prefix, new_prefix))
+                    // self.rename(table.clone(), table.replace(&self.prefix, new_prefix))
+                    //     .await?
+
+                    // only the leading prefix; replace("") would insert between every char
+                    let bare = table.strip_prefix(self.prefix.as_str()).unwrap_or(&table);
+                    self.rename(table.clone(), format!("{}{}", new_prefix, bare))
                         .await?
                 }
                 self.prefix = new_prefix.to_string();
@@ -1487,10 +1507,21 @@ impl Schema {
             }
             spliter = s;
         }
+        // for column in &table.drop_columns {
+        //     body.push(self.generator.drop_column(&column));
+        // }
+
         for column in &table.drop_columns {
-            body.push(self.generator.drop_column(&column));
+            body.push(self.generator.drop_column(&table.name, &column));
         }
+
+        // for key in &table.foreign_keys {
+        //     let str = self.generator.foreign_key(&key, &table.name, &table.action);
+
         for key in &table.foreign_keys {
+            // the referenced table carries the same prefix as every other table
+            let mut key = key.clone();
+            key.foreign_table = self.fix_table_name(&key.foreign_table);
             let str = self.generator.foreign_key(&key, &table.name, &table.action);
 
             if !str.is_empty() {
@@ -1634,7 +1665,10 @@ impl Schema {
     /// - Ensure appropriate database permissions are granted to access the migrations table.
 
     pub async fn get_ran_migrations(&self) -> Result<Vec<String>, DbError> {
-        match self.client.fetch_strings(&self.generator.get_ran()).await {
+
+        // match self.client.fetch_strings(&self.generator.get_ran()).await {
+        let table = self.fix_table_name("migrations");
+        match self.client.fetch_strings(&self.generator.get_ran(&table)).await {
             // note if table not found we don't have error just empty vector
             Ok(ran) => Ok(ran),
             Err(e) => {
@@ -1680,7 +1714,11 @@ impl Schema {
     pub async fn get_ran_migrations_gt(&self, batch: i64) -> Result<Vec<String>, DbError> {
         match self
             .client
-            .fetch_strings_params(&self.generator.get_ran_gt(), &[&batch.to_string()])
+            // .fetch_strings_params(&self.generator.get_ran_gt(), &[&batch.to_string()])
+            .fetch_strings_params(
+                &self.generator.get_ran_gt(&self.fix_table_name("migrations")),
+                &[&batch.to_string()],
+            )
             .await
         {
             // note if table not found we don't have error just empty vector
@@ -1727,7 +1765,8 @@ impl Schema {
     pub async fn get_next_batch_number(&self) -> Result<i64, DbError> {
         match self
             .client
-            .fetch_numbers(&self.generator.get_next_batch_number())
+            // .fetch_numbers(&self.generator.get_next_batch_number())
+            .fetch_numbers(&self.generator.get_next_batch_number(&self.fix_table_name("migrations")))
             .await
         {
             Ok(max_vec) => {
@@ -1832,7 +1871,8 @@ impl Schema {
         migration_name: &str,
         batch_number: i64,
     ) -> Result<(), DbError> {
-        let sql = &self.generator.add_migrated_table();
+        // let sql = &self.generator.add_migrated_table();
+        let sql = &self.generator.add_migrated_table(&self.fix_table_name("migrations"));
         match self
             .client
             .execute_params(sql, &[migration_name, &batch_number.to_string()])
@@ -1882,7 +1922,8 @@ impl Schema {
     /// - Ensure appropriate database permissions are granted to modify the migrations table.
 
     pub async fn rem_migrated_table(&self, migration_name: &str) -> Result<(), DbError> {
-        let sql = &self.generator.rem_migrated_table();
+        // let sql = &self.generator.rem_migrated_table();
+        let sql = &self.generator.rem_migrated_table(&self.fix_table_name("migrations"));
         match self.client.execute_params(sql, &[migration_name]).await {
             Ok(_) => Ok(()),
             Err(e) => {
@@ -2070,10 +2111,15 @@ impl Schema {
     // }
 
     pub fn to_struct(&self) -> Vec<ModelData> {
-        let mut has_id = false;
+        // let mut has_id = false;
+        // self.tables
+        //     .iter()
+        //     .map(|(table_name, table)| {
         self.tables
             .iter()
             .map(|(table_name, table)| {
+                // per table: one table's id must not leak into the next
+                let mut has_id = false;
                 let mut cols = Vec::with_capacity(table.columns.len() * 2);
 
                 for column in &table.columns {

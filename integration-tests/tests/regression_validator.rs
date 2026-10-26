@@ -43,3 +43,9 @@ async fn bug9_length_rules_count_characters() {
     assert!(MaxFive { s: "سلام".into() }.validate().await.is_ok(), "4 characters, 8 bytes");
     assert!(SizeFour { s: "سلام".into() }.validate().await.is_ok());
 }
+
+// #[derive(CheckMate)]
+// struct BadFormat {
+//     #[validating("after:2024/01/01")]
+//     d: String,
+// }

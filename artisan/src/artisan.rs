@@ -23,13 +23,17 @@ fn confirm(message: &str) -> bool {
         .with_prompt(message)
         .default(false)
         .interact()
-        .unwrap()
+        // .unwrap()
+        // no terminal (CI): treat as "no" instead of panicking
+        .unwrap_or(false)
 }
 
 #[derive(Args, Debug)]
 struct MigrateArgs {
     /// Rollback step count
-    #[arg(long, default_value_t = 0)]
+    // #[arg(long, default_value_t = 0)]
+    // rollback: i64,
+    #[arg(long, default_value_t = 0, value_parser = clap::value_parser!(i64).range(0..))]
     rollback: i64,
 
     /// Drop all tables and re-run all migrations
@@ -114,7 +118,8 @@ async fn main() {
 
             match set_env_value("APP_KEY", &app_key) {
                 Ok(_) => {
-                    title(TitleKind::Error, "Application key set successfully.");
+                    // title(TitleKind::Error, "Application key set successfully.");
+                    title(TitleKind::Success, "Application key set successfully.");
                 }
                 Err(e) => {
                     title(TitleKind::Error, &format!("failed to set APP_KEY: {}", e));

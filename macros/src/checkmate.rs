@@ -239,78 +239,108 @@ pub fn is_option_type(ty: &Type) -> bool {
     false
 }
 
-/// Returns `true` if `s` matches one of the supported date or
-/// date‑time formats, otherwise `false`.
+// Returns `true` if `s` matches one of the supported date or
+// date‑time formats, otherwise `false`.
+//
+// Supported separators: `-` or `/` between year, month and day.
+// Month and day may be 1 or 2 digits (no leading zero required).
+// Time part (optional) is separated from the date by a single space
+// and consists of hour, minute and optional second, each 1‑2 digits.
+//
+// Examples of valid strings:
+// * `2025-31-01`
+// * `2025/1/31`
+// * `2025-01-31 20:21:01`
+// * `2025/1/31 1:1:11`
+// pub fn is_valid_datetime(s: &str) -> bool {
+//     // Split date and optional time
+//     let mut parts = s.splitn(2, ' ');
+//     let date_part = parts.next().unwrap();
+//     let time_part = parts.next();
+//
+//     // ---------- date validation ----------
+//     // Accept '-' or '/' as separator, but it must be the same for the whole date.
+//     let sep = if date_part.contains('-') {
+//         '-'
+//     } else if date_part.contains('/') {
+//         '/'
+//     } else {
+//         return false;
+//     };
+//     let date_fields: Vec<&str> = date_part.split(sep).collect();
+//     if date_fields.len() != 3 {
+//         return false;
+//     }
+//
+//     // Year: 1‑4 digits (we only care about format, not range)
+//     if !date_fields[0].chars().all(|c| c.is_ascii_digit()) {
+//         return false;
+//     }
+//
+//     // Month and day: 1‑2 digits, no leading zeros required
+//     for f in &date_fields[1..] {
+//         if f.is_empty() || f.len() > 2 || !f.chars().all(|c| c.is_ascii_digit()) {
+//             return false;
+//         }
+//     }
+//
+//     // ---------- time validation (optional) ----------
+//     if let Some(t) = time_part {
+//         // Time must be separated from date by exactly one space
+//         // and contain 2 or 3 fields separated by ':'
+//         let time_fields: Vec<&str> = t.split(':').collect();
+//         if time_fields.len() < 2 || time_fields.len() > 3 {
+//             return false;
+//         }
+//
+//         // Hour and minute: 1‑2 digits
+//         for f in &time_fields[0..2] {
+//             if f.is_empty() || f.len() > 2 || !f.chars().all(|c| c.is_ascii_digit()) {
+//                 return false;
+//             }
+//         }
+//
+//         // Optional seconds: same rules if present
+//         if time_fields.len() == 3 {
+//             let sec = time_fields[2];
+//             if sec.is_empty() || sec.len() > 2 || !sec.chars().all(|c| c.is_ascii_digit()) {
+//                 return false;
+//             }
+//         }
+//     }
+//
+//     true
+// }
+
+/// Returns `true` if `s` is `YYYY-MM-DD` or `YYYY-MM-DD HH:MM:SS`.
 ///
-/// Supported separators: `-` or `/` between year, month and day.
-/// Month and day may be 1 or 2 digits (no leading zero required).
-/// Time part (optional) is separated from the date by a single space
-/// and consists of hour, minute and optional second, each 1‑2 digits.
-///
-/// Examples of valid strings:
-/// * `2025-31-01`
-/// * `2025/1/31`
-/// * `2025-01-31 20:21:01`
-/// * `2025/1/31 1:1:11`
+/// These are exactly the formats `macros_core` parses at runtime, so a rule
+/// that compiles can also be evaluated.
 pub fn is_valid_datetime(s: &str) -> bool {
-    // Split date and optional time
-    let mut parts = s.splitn(2, ' ');
-    let date_part = parts.next().unwrap();
-    let time_part = parts.next();
-
-    // ---------- date validation ----------
-    // Accept '-' or '/' as separator, but it must be the same for the whole date.
-    let sep = if date_part.contains('-') {
-        '-'
-    } else if date_part.contains('/') {
-        '/'
-    } else {
-        return false;
-    };
-    let date_fields: Vec<&str> = date_part.split(sep).collect();
-    if date_fields.len() != 3 {
-        return false;
-    }
-
-    // Year: 1‑4 digits (we only care about format, not range)
-    if !date_fields[0].chars().all(|c| c.is_ascii_digit()) {
-        return false;
-    }
-
-    // Month and day: 1‑2 digits, no leading zeros required
-    for f in &date_fields[1..] {
-        if f.is_empty() || f.len() > 2 || !f.chars().all(|c| c.is_ascii_digit()) {
-            return false;
+    let b = s.as_bytes();
+    let digits = |from: usize, to: usize| b[from..to].iter().all(u8::is_ascii_digit);
+    let date_ok = b.len() >= 10
+        && digits(0, 4)
+        && b[4] == b'-'
+        && digits(5, 7)
+        && b[7] == b'-'
+        && digits(8, 10);
+    match b.len() {
+        10 => date_ok,
+        19 => {
+            date_ok
+                && b[10] == b' '
+                && digits(11, 13)
+                && b[13] == b':'
+                && digits(14, 16)
+                && b[16] == b':'
+                && digits(17, 19)
         }
+        _ => false,
     }
-
-    // ---------- time validation (optional) ----------
-    if let Some(t) = time_part {
-        // Time must be separated from date by exactly one space
-        // and contain 2 or 3 fields separated by ':'
-        let time_fields: Vec<&str> = t.split(':').collect();
-        if time_fields.len() < 2 || time_fields.len() > 3 {
-            return false;
-        }
-
-        // Hour and minute: 1‑2 digits
-        for f in &time_fields[0..2] {
-            if f.is_empty() || f.len() > 2 || !f.chars().all(|c| c.is_ascii_digit()) {
-                return false;
-            }
-        }
-
-        // Optional seconds: same rules if present
-        if time_fields.len() == 3 {
-            let sec = time_fields[2];
-            if sec.is_empty() || sec.len() > 2 || !sec.chars().all(|c| c.is_ascii_digit()) {
-                return false;
-            }
-        }
-    }
-
-    true
 }
+
+
 
 /// If the given type is `Option<T>`, returns `Some(&T)`.
 /// Otherwise returns `None`.
@@ -611,14 +641,16 @@ impl Rule {
                     if is_option {
                         quote! {
                             if let Some(value) = &self.#field_ident {
-                                if value.len() < #val as usize {
+                                // if value.len() < #val as usize {
+                                if value.chars().count() < #val as usize {
                                     errors.add(#field_name, format!("String length must be at least `{}` characters",&#val));
                                 }
                             }
                         }
                     } else {
                         quote! {
-                            if self.#field_ident.len() < #val as usize {
+                            // if self.#field_ident.len() < #val as usize {
+                            if self.#field_ident.chars().count() < #val as usize {
                                  errors.add(#field_name, format!("String length must be at least `{}` characters",&#val));
                             }
                         }
@@ -627,14 +659,17 @@ impl Rule {
                     if is_option {
                         quote! {
                             if let Some(value) = self.#field_ident {
-                                if macros_core::convert_to_i64(value) < #val  {
+                                // if macros_core::convert_to_i64(value) < #val  {
+                                if (value as f64) < (#val as f64) {
                                     errors.add(#field_name, format!("{} must be greater than or equal to {}",&#field_name,#val));
                                 }
                             }
                         }
                     } else {
                         quote! {
-                            if macros_core::convert_to_i64(self.#field_ident) < #val  {
+                            // if macros_core::convert_to_i64(self.#field_ident) < #val  {
+                               if (self.#field_ident as f64) < (#val as f64) {
+
                                 errors.add(#field_name, format!("{} must be greater than or equal to {}",&#field_name,#val));
                             }
                         }
@@ -655,15 +690,18 @@ impl Rule {
                     if is_option {
                         quote! {
                             if let Some(value) = &self.#field_ident {
-                                if value.len() > #val as usize {
+                                // if value.len() > #val as usize {
+                                if value.chars().count() > #val as usize {
+                                    // errors.add(#field_name, format!("String length must not exceed {} characters.",&#val));
+                                    // errors.add(#field_name, "max");
                                     errors.add(#field_name, format!("String length must not exceed {} characters.",&#val));
-                                    errors.add(#field_name, "max");
                                 }
                             }
                         }
                     } else {
                         quote! {
-                            if self.#field_ident.len() > #val as usize {
+                            // if self.#field_ident.len() > #val as usize {
+                            if self.#field_ident.chars().count() > #val as usize {
                                 errors.add(#field_name, format!("String length must not exceed {} characters.",&#val));
                             }
                         }
@@ -671,15 +709,18 @@ impl Rule {
                 } else if is_numeric_type(field_ty) {
                     if is_option {
                         quote! {
-                            if let macros_core::convert_to_i64(Some(value)) = self.#field_ident {
-                                if value < #val {
+                            // if let macros_core::convert_to_i64(Some(value)) = self.#field_ident {
+                            //     if value < #val {
+                            if let Some(value) = self.#field_ident {
+                                if (value as f64) > (#val as f64) {
                                    errors.add(#field_name, format!("{} must be less than or equal to {}",&#field_name,#val));
                                 }
                             }
                         }
                     } else {
                         quote! {
-                            if macros_core::convert_to_i64(self.#field_ident) > #val {
+                            // if macros_core::convert_to_i64(self.#field_ident) > #val {
+                            if (self.#field_ident as f64) > (#val as f64) {
                                 errors.add(#field_name, format!("{} must be less than or equal to {}",&#field_name,#val));
                             }
                         }
@@ -700,14 +741,16 @@ impl Rule {
                     if is_option {
                         quote! {
                             if let Some(value) = &self.#field_ident {
-                                if value.len() != #val as usize {
+                                // if value.len() != #val as usize {
+                                if value.chars().count() != #val as usize {
                                     errors.add(#field_name, format!("String length must equal {} characters.",&#val));
                                 }
                             }
                         }
                     } else {
                         quote! {
-                            if self.#field_ident.len() != #val as usize {
+                            // if self.#field_ident.len() != #val as usize {
+                            if self.#field_ident.chars().count() != #val as usize {
                                 errors.add(#field_name, format!("String length must equal {} characters.",&#val));
                             }
                         }
@@ -926,7 +969,17 @@ impl Rule {
                     }
                 }
             }
+
+            // Rule::In(values) => {
+            //     if is_option_type(field_ty) {
             Rule::In(values) => {
+                if !is_string_type(field_ty) {
+                    return Error::new_spanned(
+                        field_name,
+                        format!("in must be string `{}`", field_name),
+                    )
+                        .to_compile_error();
+                }
                 if is_option_type(field_ty) {
                     quote! {
                         if let Some(value) = (&self.#field_ident).as_ref() {
@@ -945,8 +998,19 @@ impl Rule {
                     }
                 }
             }
+
+            // Rule::NotIn(values) => {
+            //     if is_option_type(field_ty) {
             Rule::NotIn(values) => {
+                if !is_string_type(field_ty) {
+                    return Error::new_spanned(
+                        field_name,
+                        format!("not_in must be string `{}`", field_name),
+                    )
+                        .to_compile_error();
+                }
                 if is_option_type(field_ty) {
+
                     quote! {
                         if let Some(value) = (&self.#field_ident).as_ref() {
                             let allowed = #values.split(',').collect::<Vec<_>>();
@@ -1153,7 +1217,8 @@ impl Rule {
                         if is_datetime_type(field_ty) {
                             quote! {
                             if let Some(value) = (self.#field_ident).as_ref() {
-                                match macros_core::is_after_option_datetime_ex(value, #date) {
+                                // match macros_core::is_after_option_datetime_ex(value, #date) {
+                                match macros_core::is_after_option_datetime_ex(*value, #date) {
                                     None => errors.add(#field_name, format!("Datetime formats invalid: {},{}",&value,&#date)),
                                     Some(true) => (),
                                     Some(false)  => errors.add(#field_name,
@@ -1165,7 +1230,8 @@ impl Rule {
                         } else if is_date_type(field_ty) {
                             quote! {
                             if let Some(value) = (self.#field_ident).as_ref() {
-                                match macros_core::is_after_option_date_ex(value, #date) {
+                                // match macros_core::is_after_option_date_ex(value, #date) {
+                                match macros_core::is_after_option_date_ex(*value, #date) {
                                     None => errors.add(#field_name, format!("Date formats invalid: {},{}",&value,&#date)),
                                     Some(true) => (),
                                     Some(false)  => errors.add(#field_name,
@@ -1249,7 +1315,8 @@ impl Rule {
                         if is_datetime_type(field_ty) {
                             quote! {
                             if let Some(value) = (self.#field_ident).as_ref() {
-                                match macros_core::is_before_option_datetime_ex(value, #date) {
+                                // match macros_core::is_before_option_datetime_ex(value, #date) {
+                                match macros_core::is_before_option_datetime_ex(*value, #date){
                                     None => errors.add(#field_name, format!("Datetime formats invalid: {},{}",&value,&#date)),
                                     Some(true) => (),
                                     Some(false)  => errors.add(#field_name,
@@ -1261,7 +1328,8 @@ impl Rule {
                         } else if is_date_type(field_ty) {
                             quote! {
                             if let Some(value) = (self.#field_ident).as_ref() {
-                                match macros_core::is_before    _option_date_ex(value, #date) {
+                                // match macros_core::is_before     _option_date_ex(value, #date) {
+                                match macros_core::is_before_option_date_ex(*value, #date) {
                                     None => errors.add(#field_name, format!("Date formats invalid: {},{}",&value,&#date)),
                                     Some(true) => (),
                                     Some(false)  => errors.add(#field_name,

@@ -13,7 +13,8 @@ pub struct ValidatedJson<T>(pub T);
 impl<S, T> FromRequest<S, Body> for ValidatedJson<T>
 where
     S: Send + Sync,
-    T: DeserializeOwned + CheckMateValidator,
+    // T: DeserializeOwned + CheckMateValidator,
+    T: DeserializeOwned + CheckMateValidator + Send + Sync,
 {
     type Rejection = Response;
 
@@ -27,7 +28,8 @@ where
                 .await
                 .map_err(IntoResponse::into_response)?;
 
-        if let Err(errors) = payload.validate() {
+        // if let Err(errors) = payload.validate() {
+        if let Err(errors) = payload.validate().await {
             let mut response = Json(errors).into_response();
             *response.status_mut() = StatusCode::UNPROCESSABLE_ENTITY;
             return Err(response);

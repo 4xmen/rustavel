@@ -1,4 +1,5 @@
 use crate::general::generate_model::save_generated_model;
+use crate::general::lib::ensure_new_file;
 use crate::make::controller::{NewControllerArgs, controller};
 use crate::make::make_error::MakeError;
 use crate::make::migration::{NewMigArgs, migrate};
@@ -31,10 +32,18 @@ pub async fn model(args: &NewModelArgs) -> Result<(), MakeError> {
     let start = Instant::now();
     let model_name = Str::ucfirst(&Str::singular(&args.name));
 
+    // check before writing anything, so nothing is half-created
+    let model_path = std::env::current_dir()?
+        .join("app/src/models")
+        .join(format!("{}.rs", Str::snake(&model_name, "_")));
+    ensure_new_file(&model_path)?;
+
     save_generated_model(model_name.clone(), None).await?;
 
-    let base = std::env::current_dir()?.join("app/src/models");
-    let model_path = base.join(format!("{}.rs", model_name.to_lowercase()));
+    // let base = std::env::current_dir()?.join("app/src/models");
+    // let model_path = base.join(format!("{}.rs", model_name.to_lowercase()));
+
+
     let mut env = Environment::new();
     env.add_template("model", MODEL_TEMPLATE)?;
     let rendered = env.get_template("model")?.render(context! {
@@ -45,7 +54,10 @@ pub async fn model(args: &NewModelArgs) -> Result<(), MakeError> {
     // check migration and create
     if args.has_migration {
         let migration_name = format!("{}Create", &model_name);
-        let table = Str::plural_studly(&model_name, 3).to_lowercase();
+        // let table = Str::plural_studly(&model_name, 3).to_lowercase();
+        // BlogPost -> blog_posts
+        let table = Str::plural(&Str::snake(&model_name, "_"), 2, false);
+
         // println!("Creating migration {}", table);
         let mig_args = NewMigArgs {
             name: migration_name,

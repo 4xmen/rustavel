@@ -109,8 +109,16 @@ pub fn mate_validate(input: TokenStream) -> TokenStream {
     // let lit = LitStr::new(&rules_display, Span::call_site());
     let r#gen = quote! {
 
+        // impl  #struct_name {
+        //     async fn validate(&self) -> Result<(), macros_core::ValidationErrors> {
+        impl macros_core::CheckMateValidator for #struct_name {
+            fn validate(&self) -> impl std::future::Future<Output = Result<(), macros_core::ValidationErrors>> + Send {
+                #struct_name::validate(self)
+            }
+        }
+
         impl  #struct_name {
-            async fn validate(&self) -> Result<(), macros_core::ValidationErrors> {
+            pub async fn validate(&self) -> Result<(), macros_core::ValidationErrors> {
                 let mut errors = macros_core::ValidationErrors::new();
 
                 #(#validations)*

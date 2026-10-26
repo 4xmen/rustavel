@@ -16,10 +16,16 @@ fn main() {
 
     let mut content = String::new();
 
+    // match fs::read_dir(&models_dir) {
+    //     Ok(entries) => {
+    //         for entry in entries.flatten() {
+    //             let path = entry.path();
     match fs::read_dir(&models_dir) {
         Ok(entries) => {
-            for entry in entries.flatten() {
-                let path = entry.path();
+            // sorted, so mod.rs doesn't change between builds
+            let mut paths: Vec<PathBuf> = entries.flatten().map(|e| e.path()).collect();
+            paths.sort();
+            for path in paths {
                 if !path.is_file() || path.extension().map_or(false, |e| e == "rs") == false {
                     continue;
                 }
@@ -29,7 +35,16 @@ fn main() {
                     None => continue,
                 };
 
+                // if !stem.ends_with("_generated") {
+                //     continue;
+                // }
+
+                if stem == "mod" {
+                    continue;
+                }
+                // hand-written model code (e.g. todo.rs with `impl Todo`)
                 if !stem.ends_with("_generated") {
+                    content.push_str(&format!("pub mod {};\n", stem));
                     continue;
                 }
 
@@ -52,5 +67,5 @@ fn main() {
     let mut file = File::create(&dest_path).expect("could not create all_models.rs");
     file.write_all(content.as_bytes()).expect("could not write to all_models.rs");
 
-    println!("cargo:warning=Generated content:\n{}", content);  // 4 debug
+    // println!("cargo:warning=Generated content:\n{}", content);  // 4 debug
 }

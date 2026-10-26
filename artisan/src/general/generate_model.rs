@@ -1,3 +1,4 @@
+use illuminate_str::Str;
 use minijinja::{ Environment};
 use minijinja::value::Serde;
 use rustavel_core::facades::file_content::FileContent;
@@ -20,7 +21,8 @@ pub async fn save_generated_model(model_name: String, data: Option<ModelData>)  
     let mut env = Environment::new();
     env.add_template("model_generated", MODEL_GENERATED_TEMPLATE)?;
     let base = std::env::current_dir()?.join("app/src/models");
-    let generated_path = base.join(format!("{}_generated.rs", model_name.to_lowercase()));
+    // let generated_path = base.join(format!("{}_generated.rs", model_name.to_lowercase()));
+    let generated_path = base.join(format!("{}_generated.rs", Str::snake(&model_name, "_")));
 
     let ctx = if let Some(model_data) = data  {
         ModelContext {

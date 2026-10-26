@@ -49,8 +49,11 @@ enum Command {
     ///     cli-db migrate --fresh --seed
     Migrate {
         /// Rollback the specified number of cli-db steps.
-        #[arg(long, default_value_t = 0)]
+        // #[arg(long, default_value_t = 0)]
+        // rollback: i64,
+        #[arg(long, default_value_t = 0, value_parser = clap::value_parser!(i64).range(0..))]
         rollback: i64,
+
 
         /// Run cli-dbs in passive mode.
         #[arg(long)]
@@ -143,7 +146,7 @@ async fn run(cli: Cli) -> Result<(), anyhow::Error> {
                     }
                     Err(e) => {
                         operation(&format!("Seeding :{}", e), start.elapsed(), Status::Failed);
-                    }
+                        return Err(e);                    }
                 }
             }
         }

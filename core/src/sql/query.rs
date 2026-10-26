@@ -7,7 +7,7 @@ pub struct QueryBuilder<M: Model> {
 
 impl<M: Model> QueryBuilder<M> {
     pub fn all() -> Self {
-        println!("qb all called 2");
+        // println!("qb all called 2");
         QueryBuilder {
             select: SelectQuery {
                 table: M::table(),
@@ -36,7 +36,7 @@ pub trait QueryDsl: Model {
 
 impl<T: Model> QueryDsl for T {
     fn all() -> QueryBuilder<Self> {
-        println!("qb all called 1");
+        // println!("qb all called 1");
         QueryBuilder::all()
     }
 }

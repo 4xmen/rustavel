@@ -1,3 +1,4 @@
+use crate::general::lib::ensure_new_file;
 use crate::make::make_error::MakeError;
 use clap::Args;
 use illuminate_str::Str;
@@ -20,13 +21,15 @@ pub struct NewMigArgs {
     /// The name of the migration
     pub name: String,
 
-    /// The table to be created
+    /// The existing table to alter
     #[arg(short = 't', long)]
     pub table: Option<String>,
 
-    /// The table to migrate
+    /// The table to be created
     #[arg(short = 'c', long)]
     pub create: Option<String>,
+
+
 
     /// The location where the migration file should be created
     #[arg(short = 'p', long)]
@@ -90,6 +93,7 @@ pub async fn migrate(args: &NewMigArgs) -> Result<bool, MakeError> {
         fs::create_dir_all(parent)?;
     }
 
+    ensure_new_file(&target_path)?;
     FileContent::put(&target_path.as_path().to_str().unwrap(), &rendered).await?;
 
     // It measures execution time, not disk flush time.

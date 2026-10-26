@@ -88,3 +88,14 @@ pub async fn register_mod_file(mod_file: &Path, module_name: &str) -> Result<(),
     tokio::fs::write(mod_file, new_content).await?;
     Ok(())
 }
+
+/// Refuses to overwrite a file the developer may already have edited.
+pub fn ensure_new_file(path: &Path) -> Result<(), MakeError> {
+    if path.exists() {
+        return Err(MakeError::Io(std::io::Error::new(
+            std::io::ErrorKind::AlreadyExists,
+            format!("{} already exists", path.display()),
+        )));
+    }
+    Ok(())
+}

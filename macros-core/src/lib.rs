@@ -71,8 +71,11 @@ impl ValidationErrors {
     }
 }
 
-pub trait CheckMateValidator : Sync + Send {
-    fn validate(&self) -> Result<(), ValidationErrors>;
+// pub trait CheckMateValidator : Sync + Send {
+//     fn validate(&self) -> Result<(), ValidationErrors>;
+// }
+pub trait CheckMateValidator {
+    fn validate(&self) -> impl std::future::Future<Output = Result<(), ValidationErrors>> + Send;
 }
 
 /// Validate if the given string is a properly formatted email address.
@@ -199,10 +202,7 @@ pub fn is_valid_date(value: &str) -> bool {
         Ok(_) => {
             true
         }
-        Err(e) => {
-            print!("{:?}",e);
-            false
-        }
+        Err(_) => false,
     }
 }
 
@@ -212,10 +212,7 @@ pub fn is_valid_datetime(value: &str) -> bool {
         Ok(_) => {
             true
         }
-        Err(e) => {
-            print!("{:?}",e);
-            false
-        }
+        Err(_) => false,
     }
 }
 
@@ -225,10 +222,7 @@ pub fn is_valid_time(value: &str) -> bool {
         Ok(_) => {
             true
         }
-        Err(e) => {
-            print!("{:?}",e);
-            false
-        }
+        Err(_) => false,
     }
 }
 
@@ -254,37 +248,49 @@ pub fn is_after_option(value: &str, target: &str) -> Option<bool> {
     if target_temp.len() == 10 {
         target_temp = format!("{} 00:00:00", target);
     }
+    // if value_temp.len() == 10 {
+    //     value_temp = format!("{} 00:00:00", target);
+    // }
+
     if value_temp.len() == 10 {
-        value_temp = format!("{} 00:00:00", target);
+        value_temp = format!("{} 00:00:00", value);
     }
+
     let value_date = PrimitiveDateTime::parse(&value_temp, &*DATETIME_FORMAT).ok()?;
     let target_date = PrimitiveDateTime::parse(&target_temp, &*DATETIME_FORMAT).ok()?;
     Some(value_date > target_date)
 }
 
+/// Rule target as a datetime: `YYYY-MM-DD` means midnight.
+fn parse_target_datetime(target: &str) -> Result<PrimitiveDateTime, time::error::Parse> {
+    if target.len() == 10 {
+        PrimitiveDateTime::parse(&format!("{target} 00:00:00"), &DATETIME_FORMAT)
+    } else {
+        PrimitiveDateTime::parse(target, &DATETIME_FORMAT)
+    }
+}
+
 pub fn is_after_option_datetime_ex(value: PrimitiveDateTime, target: &str) -> Option<bool> {
 
-    match PrimitiveDateTime::parse(&format!("{target} 00:00:00"), &DATETIME_FORMAT) {
+    // match PrimitiveDateTime::parse(&format!("{target} 00:00:00"), &DATETIME_FORMAT) {
+    match parse_target_datetime(target) {
         Ok(target_date) => {
             Some(value > target_date)
         }
-        Err(e) => {
-            print!("{:?}",e);
-            None
-        }
+        Err(_) => None,
     }
 
 }
 pub fn is_after_option_date_ex(value: Date, target: &str) -> Option<bool> {
 
-    match Date::parse(target, &DATE_FORMAT) {
+    // match Date::parse(target, &DATE_FORMAT) {
+
+    // a datetime target like `2024-01-01 10:00:00` compares by its date part
+    match Date::parse(target.get(..10).unwrap_or(target), &DATE_FORMAT) {
         Ok(target_date) => {
             Some(value > target_date)
         }
-        Err(e) => {
-            print!("{:?}",e);
-            None
-        }
+        Err(_) => None,
     }
 
 }
@@ -298,9 +304,14 @@ pub fn is_before_option(value: &str, target: &str) -> Option<bool> {
     if target_temp.len() == 10 {
         target_temp = format!("{} 00:00:00", target);
     }
+    // if value_temp.len() == 10 {
+    //     value_temp = format!("{} 00:00:00", target);
+    // }
+
     if value_temp.len() == 10 {
-        value_temp = format!("{} 00:00:00", target);
+        value_temp = format!("{} 00:00:00", value);
     }
+
     let value_date = PrimitiveDateTime::parse(&value_temp, &*DATETIME_FORMAT).ok()?;
     let target_date = PrimitiveDateTime::parse(&target_temp, &*DATETIME_FORMAT).ok()?;
     Some(value_date < target_date)
@@ -309,27 +320,25 @@ pub fn is_before_option(value: &str, target: &str) -> Option<bool> {
 
 pub fn is_before_option_datetime_ex(value: PrimitiveDateTime, target: &str) -> Option<bool> {
 
-    match PrimitiveDateTime::parse(&format!("{target} 00:00:00"), &DATETIME_FORMAT) {
+    // match PrimitiveDateTime::parse(&format!("{target} 00:00:00"), &DATETIME_FORMAT) {
+    match parse_target_datetime(target) {
         Ok(target_date) => {
             Some(value < target_date)
         }
-        Err(e) => {
-            print!("{:?}",e);
-            None
-        }
+        Err(_) => None,
     }
 
 }
 pub fn is_before_option_date_ex(value: Date, target: &str) -> Option<bool> {
 
-    match Date::parse(target, &DATE_FORMAT) {
+    // match Date::parse(target, &DATE_FORMAT) {
+
+    // a datetime target like `2024-01-01 10:00:00` compares by its date part
+    match Date::parse(target.get(..10).unwrap_or(target), &DATE_FORMAT) {
         Ok(target_date) => {
             Some(value < target_date)
         }
-        Err(e) => {
-            print!("{:?}",e);
-            None
-        }
+        Err(_) => None,
     }
 
 }

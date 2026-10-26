@@ -12,10 +12,22 @@ pub struct LoggerWorker {
 
 impl LoggerWorker {
     pub fn new(rx: UnboundedReceiver<LogMessage>) -> Self {
+        // let file = OpenOptions::new()
+        //     .append(true)
+        //     .create(true)
+        //     .open("../../../storage/logs/rustavel.log")
+        //     .ok();
+
+        // relative to the project root, where artisan and the binaries run
+        let path = std::path::Path::new("storage/logs/rustavel.log");
+        if let Some(dir) = path.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
         let file = OpenOptions::new()
             .append(true)
             .create(true)
-            .open("../../../storage/logs/rustavel.log")
+            .open(path)
+            .map_err(|e| eprintln!("logger: can't open {}: {}", path.display(), e))
             .ok();
 
         Self { file, rx }
