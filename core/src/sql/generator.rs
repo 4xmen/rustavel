@@ -27,7 +27,8 @@ pub trait SqlGenerator: Debug + Sync + Send {
         action: &TableAction,
     ) -> (String, String, String,String);
     fn foreign_key(&self, key: &ForeignKey, table_name: &str, action: &TableAction) -> String;
-    fn drop_column(&self, column_name: &str) -> String;
+    // fn drop_column(&self, column_name: &str) -> String;
+    fn drop_column(&self, table_name: &str, column_name: &str) -> String;
 
     fn table_sql(
         &self,
@@ -37,13 +38,23 @@ pub trait SqlGenerator: Debug + Sync + Send {
         action: &TableAction,
     ) -> String;
 
-    fn get_ran(&self) -> String;
-    fn get_ran_gt(&self) -> String;
+    // fn get_ran(&self) -> String;
+    // fn get_ran_gt(&self) -> String;
 
-    fn get_next_batch_number(&self) -> String;
+    // fn get_next_batch_number(&self) -> String;
 
-    fn add_migrated_table(&self) -> String;
-    fn rem_migrated_table(&self) -> String;
+    // fn add_migrated_table(&self) -> String;
+    // fn rem_migrated_table(&self) -> String;
+
+    // `table` is the migrations table name including DB_PREFIX
+    fn get_ran(&self, table: &str) -> String;
+    fn get_ran_gt(&self, table: &str) -> String;
+
+    fn get_next_batch_number(&self, table: &str) -> String;
+
+    fn add_migrated_table(&self, table: &str) -> String;
+    fn rem_migrated_table(&self, table: &str) -> String;
+
     
     fn record_exists(&self,table: &str,column: &str) -> String;
     

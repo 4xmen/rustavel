@@ -3,9 +3,9 @@
 // `#[fake(name)]`, `#[fake(username)]` , `#[fake(password(length = 8))]` & etc.
 
 {% if has_model %}
-// main model
-use crate::models::{{ model }};
+// model: {{ model }} (models live in the app crate and can't be imported here)
 {% endif %}
+
 use macros::Pawn;
 
 #[derive(Debug, Pawn)]

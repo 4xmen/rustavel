@@ -11,6 +11,11 @@ use std::string::String;
 #[allow(dead_code)]
 pub struct MySqlGenerator;
 
+/// Escapes a value placed inside '...' in MySQL DDL.
+fn quote_str(value: &str) -> String {
+    value.replace('\\', "\\\\").replace('\'', "''")
+}
+
 #[allow(dead_code)]
 impl MySqlGenerator {
     #[inline]
@@ -147,12 +152,12 @@ impl SqlGenerator for MySqlGenerator {
 
         format!(
             "
-            SELECT '1' AS index_count
+            SELECT '1'
             FROM information_schema.statistics
             WHERE table_schema = DATABASE()
               AND table_name = '{}'
               AND column_name IN ({})
-            GROUP BY index_count
+            GROUP BY index_name
             HAVING COUNT(*) = {}
             LIMIT 1
             ",
@@ -187,7 +192,11 @@ impl SqlGenerator for MySqlGenerator {
         action: &TableAction,
     ) -> (String, String, String,String) {
         let mut column_sql = String::new();
-        let mut footer_sql = String::new();
+        // let mut footer_sql = String::new();
+        // let nullable = match column.nullable {
+
+        // a column can need several keys/constraints (e.g. JSON check + index)
+        let mut footers: Vec<String> = Vec::new();
         let nullable = match column.nullable {
             true => "NULL",
             false => "NOT NULL",
@@ -203,7 +212,8 @@ impl SqlGenerator for MySqlGenerator {
 
         let def = match &column.default {
             DefaultValue::Null => "DEFAULT NULL",
-            DefaultValue::String(str) => &format!(" DEFAULT '{}' ", str),
+            // DefaultValue::String(str) => &format!(" DEFAULT '{}' ", str),
+            DefaultValue::String(str) => &format!(" DEFAULT '{}' ", quote_str(str)),
             DefaultValue::JsonArray => "DEFAULT json_array()",
             DefaultValue::CurrenTimestamp => "DEFAULT current_timestamp()",
             DefaultValue::Bool(bool_val) => {
@@ -220,7 +230,8 @@ impl SqlGenerator for MySqlGenerator {
         match column.data_type {
             ColumnDataType::DTId => {
                 column_sql = "`id` BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT".to_string();
-                footer_sql = "PRIMARY KEY (`id`)".to_string();
+                // footer_sql = "PRIMARY KEY (`id`)".to_string();
+                footers.push("PRIMARY KEY (`id`)".to_string());
             }
             ColumnDataType::DTBoolean => {
                 column_sql = format!("`{}` BIT(1) {} {}", column.name, nullable, def);
@@ -290,7 +301,11 @@ impl SqlGenerator for MySqlGenerator {
             }
             ColumnDataType::DTJson => {
                 column_sql = format!("`{}` LONGTEXT {} {}", column.name, nullable, def);
-                footer_sql = format!("CONSTRAINT `{}` CHECK (json_valid(`data`))", column.name);
+                // footer_sql = format!("CONSTRAINT `{}` CHECK (json_valid(`data`))", column.name);
+                footers.push(format!(
+                    "CONSTRAINT `{}_{}_json` CHECK (json_valid(`{}`))",
+                    table_name, column.name, column.name
+                ));
                 if collation.is_empty() {
                     collation = "utf8mb4_bin";
                 }
@@ -317,7 +332,8 @@ impl SqlGenerator for MySqlGenerator {
                 let enums = match &column.option {
                     ColumnOption::Values(items) => items
                         .iter()
-                        .map(|item| format!("'{}'", item))
+                        // .map(|item| format!("'{}'", item))
+                        .map(|item| format!("'{}'", quote_str(item)))
                         .collect::<Vec<_>>()
                         .join(", "),
                     _ => "''".to_string(),
@@ -328,7 +344,8 @@ impl SqlGenerator for MySqlGenerator {
                 let sets = match &column.option {
                     ColumnOption::Values(items) => items
                         .iter()
-                        .map(|item| format!("'{}'", item))
+                        // .map(|item| format!("'{}'", item))
+                        .map(|item| format!("'{}'", quote_str(item)))
                         .collect::<Vec<_>>()
                         .join(", "),
                     _ => "''".to_string(),
@@ -341,35 +358,68 @@ impl SqlGenerator for MySqlGenerator {
                 `{}_id` BIGINT(20) UNSIGNED {} {}",
                     column.name, nullable, def, column.name, nullable, def
                 );
-                if *action == TableAction::Alter {
-                    footer_sql = format!(
-                        "ADD INDEX `morph_{}_type_{}_id_index` (`{}_type`, `{}_id`)",
-                        column.name, column.name, column.name, column.name
-                    )
-                }else{
-                    footer_sql = format!(
-                        "INDEX `morph_{}_type_{}_id_index` (`{}_type`, `{}_id`)",
-                        column.name, column.name, column.name, column.name
-                    )
-                }
+                // if *action == TableAction::Alter {
+                //     footer_sql = format!(
+                //         "ADD INDEX `morph_{}_type_{}_id_index` (`{}_type`, `{}_id`)",
+                //         column.name, column.name, column.name, column.name
+                //     )
+                // }else{
+                //     footer_sql = format!(
+                //         "INDEX `morph_{}_type_{}_id_index` (`{}_type`, `{}_id`)",
+                //         column.name, column.name, column.name, column.name
+                //     )
+                // }
+                footers.push(format!(
+                    "INDEX `morph_{}_type_{}_id_index` (`{}_type`, `{}_id`)",
+                    column.name, column.name, column.name, column.name
+                ));
             }
             _ => {}
         }
 
         if !column.comment.is_empty() {
-            column_sql = format!("{} COMMENT '{}' ", column_sql, column.comment);
+            // column_sql = format!("{} COMMENT '{}' ", column_sql, column.comment);
+            column_sql = format!("{} COMMENT '{}' ", column_sql, quote_str(&column.comment));
         }
         if !collation.is_empty() && column.is_string_type() {
             column_sql = format!("{} COLLATE '{}' ", column_sql, collation);
         }
-        if column.index {
-            footer_sql = format!("INDEX `{}` (`{}`)", column.name, column.name);
-        }
+
+        // if column.index {
+        //     footer_sql = format!("INDEX `{}` (`{}`)", column.name, column.name);
+        // }
+        // if column.unique {
+        //     footer_sql = format!(
+        //         "UNIQUE INDEX `{}_{}_unique` (`{}`)",
+        //         table_name, column.name, column.name
+        //     );
+        // }
+        // if *action == TableAction::Alter {
+        //     if column.change {
+        //         column_sql = format!("CHANGE COLUMN `{}` {}", column.name, column_sql);
+        //     } else {
+        //         column_sql = format!("ADD COLUMN {}", column_sql);
+        //     }
+        //     if column.index {
+        //         footer_sql = format!("ADD {}",footer_sql);
+        //     }
+        // } else {
+        //     if column.change {
+        //         logger::warn(&format!(
+        //             "You can't change column while trying to create table, column: `{}`",
+        //             column.name
+        //         ));
+        //     }
+        // }
+        // (column_sql, footer_sql, String::new(),String::from(",\n"))
+
         if column.unique {
-            footer_sql = format!(
+            footers.push(format!(
                 "UNIQUE INDEX `{}_{}_unique` (`{}`)",
                 table_name, column.name, column.name
-            );
+            ));
+        } else if column.index {
+            footers.push(format!("INDEX `{}` (`{}`)", column.name, column.name));
         }
         if *action == TableAction::Alter {
             if column.change {
@@ -377,29 +427,37 @@ impl SqlGenerator for MySqlGenerator {
             } else {
                 column_sql = format!("ADD COLUMN {}", column_sql);
             }
-            if column.index {
-                footer_sql = format!("ADD {}",footer_sql);
-            }
-        } else {
-            if column.change {
-                logger::warn(&format!(
-                    "You can't change column while trying to create table, column: `{}`",
-                    column.name
-                ));
-            }
+            // inside ALTER TABLE every key/constraint needs its own ADD
+            footers = footers.into_iter().map(|f| format!("ADD {}", f)).collect();
+        } else if column.change {
+            logger::warn(&format!(
+                "You can't change column while trying to create table, column: `{}`",
+                column.name
+            ));
         }
-        (column_sql, footer_sql, String::new(),String::from(",\n"))
+        (column_sql, footers.join(",\n"), String::new(),String::from(",\n"))
+
     }
 
     fn foreign_key(&self, key: &ForeignKey, table_name: &str, action: &TableAction) -> String {
+        // let update = match key.on_update {
+        //     true => "ON DELETE CASCADE",
+        //     false => "",
+        // };
+        // let delete = match key.on_delete {
+        //     true => "ON UPDATE CASCADE",
+        //     false => "",
+        // };
+
         let update = match key.on_update {
-            true => "ON DELETE CASCADE",
-            false => "",
-        };
-        let delete = match key.on_delete {
             true => "ON UPDATE CASCADE",
             false => "",
         };
+        let delete = match key.on_delete {
+            true => "ON DELETE CASCADE",
+            false => "",
+        };
+
         let prefix = match *action {
             TableAction::Alter => "ADD ",
             _ => "",
@@ -419,7 +477,8 @@ impl SqlGenerator for MySqlGenerator {
         )
     }
 
-    fn drop_column(&self, column_name: &str) -> String {
+    // fn drop_column(&self, column_name: &str) -> String {
+    fn drop_column(&self, _table_name: &str, column_name: &str) -> String {
         format!("DROP COLUMN `{}`", column_name)
     }
 
@@ -448,24 +507,44 @@ impl SqlGenerator for MySqlGenerator {
         }
     }
 
-    fn get_ran(&self) -> String {
-        "SELECT `migration` FROM `migrations`".to_string()
+    // fn get_ran(&self) -> String {
+    //     "SELECT `migration` FROM `migrations`".to_string()
+    // }
+    // fn get_ran_gt(&self) -> String {
+    //     "SELECT `migration` FROM `migrations` WHERE `batch` > ?".to_string()
+    // }
+
+    // fn get_next_batch_number(&self) -> String {
+    //     "SELECT MAX(batch) AS 'batch' FROM `migrations`".to_string()
+    // }
+
+    // fn add_migrated_table(&self) -> String {
+    //     "INSERT INTO `migrations` (`migration`, `batch`) VALUES (?, ?)".to_string()
+    // }
+
+    // fn rem_migrated_table(&self) -> String {
+    //     "DELETE FROM `migrations` WHERE  `migration` = ?".to_string()
+    // }
+
+    fn get_ran(&self, table: &str) -> String {
+        format!("SELECT `migration` FROM `{}`", table)
     }
-    fn get_ran_gt(&self) -> String {
-        "SELECT `migration` FROM `migrations` WHERE `batch` > ?".to_string()
+    fn get_ran_gt(&self, table: &str) -> String {
+        format!("SELECT `migration` FROM `{}` WHERE `batch` > ?", table)
     }
 
-    fn get_next_batch_number(&self) -> String {
-        "SELECT MAX(batch) AS 'batch' FROM `migrations`".to_string()
+    fn get_next_batch_number(&self, table: &str) -> String {
+        format!("SELECT MAX(batch) AS 'batch' FROM `{}`", table)
     }
 
-    fn add_migrated_table(&self) -> String {
-        "INSERT INTO `migrations` (`migration`, `batch`) VALUES (?, ?)".to_string()
+    fn add_migrated_table(&self, table: &str) -> String {
+        format!("INSERT INTO `{}` (`migration`, `batch`) VALUES (?, ?)", table)
     }
 
-    fn rem_migrated_table(&self) -> String {
-        "DELETE FROM `migrations` WHERE  `migration` = ?".to_string()
+    fn rem_migrated_table(&self, table: &str) -> String {
+        format!("DELETE FROM `{}` WHERE  `migration` = ?", table)
     }
+
 
     fn record_exists(&self,table: &str,column: &str) -> String{
         format!("SELECT COUNT(*) AS 'count' FROM `{}` WHERE `{}` = ?", table, column)

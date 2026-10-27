@@ -14,7 +14,7 @@ pub trait Migration: Send + Sync {
 }
 
 pub async fn run_migrations(rollback: i64, passive: bool, fresh: bool) -> Result<(), DbError> {
-    let migrations = get_all_migrations();
+    let mut migrations = get_all_migrations();
     let mut batch = 1;
     let mut schema = Schema::new().await?;
     let mut migrated_count = 0;
@@ -34,7 +34,17 @@ pub async fn run_migrations(rollback: i64, passive: bool, fresh: bool) -> Result
     } else {
         vec![]
     };
-    let downs = schema.get_ran_migrations_gt(batch - (rollback + 1)).await?;
+
+    // let downs = schema.get_ran_migrations_gt(batch - (rollback + 1)).await?;
+    let downs = if passive || rollback <= 0 {
+        vec![]
+    }else {
+        schema.get_ran_migrations_gt(batch - (rollback + 1)).await?
+    };
+    // roll back newest first so dependent tables are dropped before their parents
+    if rollback > 0 {
+        migrations.reverse();
+    }
 
     if passive {
         title(TitleKind::Info, "Running model generator.");
@@ -44,8 +54,13 @@ pub async fn run_migrations(rollback: i64, passive: bool, fresh: bool) -> Result
 
     for mig in migrations {
         let start = Instant::now();
+        // if rollback <= 0 {
+        //     mig.up(&mut schema).await?;
         if rollback <= 0 {
+            // forget tables left over from an already-ran migration
+            schema.clear_pending();
             mig.up(&mut schema).await?;
+
             if !passive && !migration_list.contains(&mig.name().to_string()) {
                 // run migration
                 schema.execute_migration(mig.name(), &start.into()).await?;
@@ -68,7 +83,10 @@ pub async fn run_migrations(rollback: i64, passive: bool, fresh: bool) -> Result
     if passive {
         for model_data in schema.to_struct().into_iter() {
             let start = Instant::now();
-            let model_name = Str::ucfirst(&Str::singular(&model_data.table));
+            // let model_name = Str::ucfirst(&Str::singular(&model_data.table));
+
+            // blog_posts -> BlogPost (ucfirst gave `Blog_post`)
+            let model_name = Str::studly(&Str::singular(&model_data.table));
             match save_generated_model(model_name.clone(), Some(model_data)).await {
                 Ok(_) => {
                     operation(&format!("Model generate: {}", &model_name), start.elapsed(), Status::Done);

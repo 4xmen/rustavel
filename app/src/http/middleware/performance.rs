@@ -23,6 +23,8 @@
 use std::time::Instant;
 
 use axum::{extract::Request, middleware::Next, response::Response};
+
+use rustavel_core::config::CONFIG;
 use rustavel_core::facades::datetime::format_duration;
 
 /// Logs the elapsed time for processing an HTTP request.
@@ -42,10 +44,16 @@ pub async fn performance_middleware(mut request: Request, next: Next) -> Respons
     let elapsed = start.elapsed();
     let status = response.status();
 
-    println!(
-        "[PERF] {method} {path} -> {status} | {}",
-        format_duration(elapsed),
-    );
+    // println!(
+    //     "[PERF] {method} {path} -> {status} | {}",
+    //     format_duration(elapsed),
+    // );
 
+    if CONFIG.app.debug {
+        println!(
+            "[PERF] {method} {path} -> {status} | {}",
+            format_duration(elapsed),
+        );
+    }
     response
 }

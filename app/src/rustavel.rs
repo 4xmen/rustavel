@@ -29,10 +29,20 @@ async fn main() {
 
     // load minijinja template
 
-    let views_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src")
-        .join("resources")
-        .join("views");
+    // let views_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+    //     .join("src")
+    //     .join("resources")
+    //     .join("views");
+
+    // APP_VIEWS_PATH for deployed binaries; the source tree otherwise
+    let views_dir = std::env::var("APP_VIEWS_PATH")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| {
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("src")
+                .join("resources")
+                .join("views")
+        });
 
     let mut env = Environment::new();
     env.set_loader(path_loader(views_dir));
@@ -57,9 +67,18 @@ async fn main() {
 
     logger::info(&format!("Try server on http://{}", app_start_point));
 
+    // let listener = tokio::net::TcpListener::bind(app_start_point.clone())
+    //     .await
+    //     .unwrap();
+
+
     let listener = tokio::net::TcpListener::bind(app_start_point.clone())
         .await
-        .unwrap();
+        .unwrap_or_else(|e| {
+            eprintln!("can't listen on {}: {}", app_start_point, e);
+            std::process::exit(1);
+        });
+
 
     logger::success(&format!("Starting server on http://{}", app_start_point));
     axum::serve(listener, app).await.unwrap();

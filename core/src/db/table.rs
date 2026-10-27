@@ -180,13 +180,22 @@ impl Table {
             | ColumnDataType::DTLongText => "String".to_string(),
             ColumnDataType::DTJson => "serde_json::Value".to_string(),
             ColumnDataType::DTDate => "time::Date".to_string(),
+
+            // ColumnDataType::DTDateTime
+            // | ColumnDataType::DTTimestamp
+            // | ColumnDataType::DTTimestamps => "time::PrimitiveDateTime".to_string(),
+
             ColumnDataType::DTDateTime
-            | ColumnDataType::DTTimestamp
-            | ColumnDataType::DTTimestamps => "time::PrimitiveDateTime".to_string(),
+            | ColumnDataType::DTTimestamp => "time::PrimitiveDateTime".to_string(),
+            // created_at / updated_at are created as NULL-able columns
+            ColumnDataType::DTTimestamps => "Option<time::PrimitiveDateTime>".to_string(),
             ColumnDataType::DTTime => "time::Time".to_string(),
             ColumnDataType::DTSoftDelete => "Option<time::PrimitiveDateTime>".to_string(),
             ColumnDataType::DTEnum | ColumnDataType::DTSet => "String".to_string(),
-            ColumnDataType::DTMorph => "i64".to_string(),
+            // ColumnDataType::DTMorph => "i64".to_string(),
+            ColumnDataType::DTMorph => {
+                if CONFIG.database.connection == DatabaseEngine::Mysql { "u64" } else { "i64" }.to_string()
+            }
             ColumnDataType::DTNone => "()".to_string(),
         };
 
@@ -194,14 +203,36 @@ impl Table {
             rust_type = format!("Option<{}>", rust_type);
         }
 
+        // if column.unsigned && CONFIG.database.connection == DatabaseEngine::Mysql {
+        //     rust_type = rust_type.replace("i", "u");
+        // }
+
         if column.unsigned && CONFIG.database.connection == DatabaseEngine::Mysql {
-            rust_type = rust_type.replace("i", "u");
+            // replace("i", "u") also rewrote names like `time::PrimitiveDateTime`
+            for (signed, unsigned) in [("i8", "u8"), ("i16", "u16"), ("i32", "u32"), ("i64", "u64")] {
+                if rust_type.contains(signed) {
+                    rust_type = rust_type.replace(signed, unsigned);
+                    break;
+                }
+            }
         }
 
+        // if column.data_type == ColumnDataType::DTTimestamps {
+        //     format!(
+        //         "pub created_at: {},\n    pub updated_at: {}",
+        //         rust_type, rust_type
+        //     )
+        // } else {
         if column.data_type == ColumnDataType::DTTimestamps {
             format!(
                 "pub created_at: {},\n    pub updated_at: {}",
                 rust_type, rust_type
+            )
+        } else if column.data_type == ColumnDataType::DTMorph {
+            let type_ty = if column.nullable { "Option<String>" } else { "String" };
+            format!(
+                "pub {0}_type: {1},\n    pub {0}_id: {2}",
+                column.name, type_ty, rust_type
             )
         } else {
             format!("pub {}: {}", column.name, rust_type)

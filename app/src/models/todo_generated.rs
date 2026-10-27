@@ -9,8 +9,8 @@ pub struct Todo {
     pub id: u64,
     pub title: String,
     pub done: bool,
-    pub created_at: time::PrimitiveDateTime,
-    pub updated_at: time::PrimitiveDateTime,
+    pub created_at: Option<time::PrimitiveDateTime>,
+    pub updated_at: Option<time::PrimitiveDateTime>,
     pub deleted_at: Option<time::PrimitiveDateTime>,
 }
 

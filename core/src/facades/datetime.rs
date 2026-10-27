@@ -21,6 +21,7 @@ use time::{
     macros::format_description,
     Weekday,
     Month,
+    UtcOffset,
     // format_description::parse
 };
 
@@ -62,7 +63,9 @@ const HMS: &[FormatItem<'static>] =
 /// Format: `YYYY_MM_DD_HHMM`
 /// Example: `2026_02_14_1345`
 const COMPACT: &[FormatItem<'static>] =
-    format_description!("[year]_[month]_[day]_[hour][minute]");
+    // format_description!("[year]_[month]_[day]_[hour][minute]");
+    format_description!("[year]_[month]_[day]_[hour][minute][second]");
+
 
 /// =============================
 /// NOW HELPERS (UTC)
@@ -74,6 +77,22 @@ const COMPACT: &[FormatItem<'static>] =
 /// - Logging
 /// - API responses
 /// - `TIMESTAMP WITH TIME ZONE` columns
+///
+
+
+/// Offset from APP_TIMEZONE: `UTC` or a fixed offset such as `+03:30`.
+/// IANA names (`Asia/Tehran`) need a tz database and fall back to UTC.
+fn app_offset() -> UtcOffset {
+    let tz = CONFIG.app.timezone.trim();
+    if tz.eq_ignore_ascii_case("utc") {
+        return UtcOffset::UTC;
+    }
+    UtcOffset::parse(tz, format_description!("[offset_hour sign:mandatory]:[offset_minute]"))
+        .unwrap_or_else(|_| {
+            eprintln!("APP_TIMEZONE `{}` is not UTC or +HH:MM, using UTC", tz);
+            UtcOffset::UTC
+        })
+}
 #[inline]
 pub fn now() -> OffsetDateTime {
     OffsetDateTime::now_utc()
@@ -270,7 +289,10 @@ fn is_leap(year: i32) -> bool {
 
 
 #[inline]
+// fn jdate_imp(dt: OffsetDateTime, format: &str) -> String {
+
 fn jdate_imp(dt: OffsetDateTime, format: &str) -> String {
+    let dt = dt.to_offset(app_offset());
 
     let gy = dt.year();
     let gm = dt.month() as u8;
@@ -305,12 +327,13 @@ fn jdate_imp(dt: OffsetDateTime, format: &str) -> String {
                 Weekday::Tuesday => "۳ش",
                 Weekday::Wednesday => "۴ش",
                 Weekday::Thursday => "۵ش",
-                Weekday::Friday => "جمه",
+                Weekday::Friday => "جمعه",
                 Weekday::Saturday => "شنب",
                 Weekday::Sunday => "۱ش",
             }),
             'Y' => out.push_str(&j.year.to_string()),
-            'y' => out.push_str(&(j.year % 100).to_string()),
+            // 'y' => out.push_str(&(j.year % 100).to_string()),
+            'y' => out.push_str(&format!("{:02}", j.year % 100)),
 
             'm' => push_2(&mut out, j.month),
             'n' => out.push_str(&j.month.to_string()),
@@ -320,15 +343,21 @@ fn jdate_imp(dt: OffsetDateTime, format: &str) -> String {
 
             // month names (basic Persian/English placeholder)
             'F' => out.push_str(jalali_month_name(j.month)),
-            'M' => out.push_str(&jalali_month_name(j.month)[..3]),
+            // 'M' => out.push_str(&jalali_month_name(j.month)[..3]),
+            // Persian letters are 2 bytes each: cut by chars, not bytes
+            'M' => out.extend(jalali_month_name(j.month).chars().take(3)),
+
 
             // weekday still Gregorian (if needed)
             'H' => push_2(&mut out, hour),
             'i' => push_2(&mut out, minute),
             's' => push_2(&mut out, second),
 
-            'a' => out.push_str(if is_pm { "ق‌ظ" } else { "ب‌ظ" }),
-            'A' => out.push_str(if is_pm { "صبح" } else { "عصر" }),
+            // 'a' => out.push_str(if is_pm { "ق‌ظ" } else { "ب‌ظ" }),
+            // 'A' => out.push_str(if is_pm { "صبح" } else { "عصر" }),
+
+            'a' => out.push_str(if is_pm { "ب‌ظ" } else { "ق‌ظ" }),
+            'A' => out.push_str(if is_pm { "عصر" } else { "صبح" }),
 
             // fallback
             other => out.push(other),
@@ -399,6 +428,7 @@ fn push_2(out: &mut String, n: u8) {
 
 #[inline]
 fn format_php_imp(dt: OffsetDateTime, format: &str) -> String {
+    let dt = dt.to_offset(app_offset());
 
     let year = dt.year();
     let month = dt.month();
@@ -440,8 +470,10 @@ fn format_php_imp(dt: OffsetDateTime, format: &str) -> String {
                 Weekday::Sunday => "Sunday",
             }),
             'N' => out.push_str(&((weekday.number_from_monday()).to_string())),
-            'w' => out.push_str(&(weekday.number_from_sunday().to_string())),
-            'z' => out.push_str(&ordinal.to_string()),
+            // 'w' => out.push_str(&(weekday.number_from_sunday().to_string())),
+            'w' => out.push_str(&(weekday.number_days_from_sunday().to_string())),
+            // 'z' => out.push_str(&ordinal.to_string()),
+            'z' => out.push_str(&(ordinal - 1).to_string()),
 
             // month
             'F' => out.push_str(&month.to_string()),
@@ -471,7 +503,8 @@ fn format_php_imp(dt: OffsetDateTime, format: &str) -> String {
 
             // year
             'Y' => out.push_str(&year.to_string()),
-            'y' => out.push_str(&(year % 100).to_string()),
+            // 'y' => out.push_str(&(year % 100).to_string()),
+            'y' => out.push_str(&format!("{:02}", year % 100)),
 
             // time
             'a' => out.push_str(if is_pm { "pm" } else { "am" }),
@@ -503,15 +536,29 @@ fn format_php_imp(dt: OffsetDateTime, format: &str) -> String {
             }
 
             'r' => {
+                // out.push_str(&format!(
+                //     "{}, {:02} {} {} {:02}:{:02}:{:02}",
+                //     weekday,
+                //     day,
+                //     month,
+                //     year,
+                //     hour,
+                //     minute,
+                //     second
+                // ));
+                let (off_h, off_m, _) = dt.offset().as_hms();
                 out.push_str(&format!(
-                    "{}, {:02} {} {} {:02}:{:02}:{:02}",
-                    weekday,
+                    "{}, {:02} {} {} {:02}:{:02}:{:02} {}{:02}{:02}",
+                    &weekday.to_string()[..3],
                     day,
-                    month,
+                    &month.to_string()[..3],
                     year,
                     hour,
                     minute,
-                    second
+                    second,
+                    if dt.offset().is_negative() { '-' } else { '+' },
+                    off_h.unsigned_abs(),
+                    off_m.unsigned_abs()
                 ));
             }
 
@@ -712,7 +759,7 @@ impl TimeExt for PrimitiveDateTime {
     }
     fn ldate(&self, format: &str) -> String {
         let datetime = self.assume_utc();
-        println!("what: {}",CONFIG.app.locale);
+        // println!("what: {}",CONFIG.app.locale);
         if CONFIG.app.locale == "fa" {
             jdate_imp(datetime,format)
         }else{

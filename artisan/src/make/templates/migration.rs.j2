@@ -37,6 +37,12 @@ impl Migration for {{  name }} {
         {% if is_create %}
         schema.drop_table("{{ create }}").await?;
         {% endif %}
+        {% if is_table %}
+        // TODO: undo the changes made in up(), e.g.
+        // schema.table("{{ table }}", |table| { table.drop_column("..."); });
+        // schema.execute_migration("{{ final_name }} (down)", &std::time::Instant::now().into()).await?;
+        // Without this, rollback only forgets the migration; the columns stay.
+        {% endif %}
         Ok(())
     }
 

@@ -24,7 +24,7 @@
 //! CheckMate: check/validate، smart
 
 
-use proc_macro::TokenStream;
+// use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::format_ident;
 use quote::quote;
@@ -239,78 +239,108 @@ pub fn is_option_type(ty: &Type) -> bool {
     false
 }
 
-/// Returns `true` if `s` matches one of the supported date or
-/// date‑time formats, otherwise `false`.
+// Returns `true` if `s` matches one of the supported date or
+// date‑time formats, otherwise `false`.
+//
+// Supported separators: `-` or `/` between year, month and day.
+// Month and day may be 1 or 2 digits (no leading zero required).
+// Time part (optional) is separated from the date by a single space
+// and consists of hour, minute and optional second, each 1‑2 digits.
+//
+// Examples of valid strings:
+// * `2025-31-01`
+// * `2025/1/31`
+// * `2025-01-31 20:21:01`
+// * `2025/1/31 1:1:11`
+// pub fn is_valid_datetime(s: &str) -> bool {
+//     // Split date and optional time
+//     let mut parts = s.splitn(2, ' ');
+//     let date_part = parts.next().unwrap();
+//     let time_part = parts.next();
+//
+//     // ---------- date validation ----------
+//     // Accept '-' or '/' as separator, but it must be the same for the whole date.
+//     let sep = if date_part.contains('-') {
+//         '-'
+//     } else if date_part.contains('/') {
+//         '/'
+//     } else {
+//         return false;
+//     };
+//     let date_fields: Vec<&str> = date_part.split(sep).collect();
+//     if date_fields.len() != 3 {
+//         return false;
+//     }
+//
+//     // Year: 1‑4 digits (we only care about format, not range)
+//     if !date_fields[0].chars().all(|c| c.is_ascii_digit()) {
+//         return false;
+//     }
+//
+//     // Month and day: 1‑2 digits, no leading zeros required
+//     for f in &date_fields[1..] {
+//         if f.is_empty() || f.len() > 2 || !f.chars().all(|c| c.is_ascii_digit()) {
+//             return false;
+//         }
+//     }
+//
+//     // ---------- time validation (optional) ----------
+//     if let Some(t) = time_part {
+//         // Time must be separated from date by exactly one space
+//         // and contain 2 or 3 fields separated by ':'
+//         let time_fields: Vec<&str> = t.split(':').collect();
+//         if time_fields.len() < 2 || time_fields.len() > 3 {
+//             return false;
+//         }
+//
+//         // Hour and minute: 1‑2 digits
+//         for f in &time_fields[0..2] {
+//             if f.is_empty() || f.len() > 2 || !f.chars().all(|c| c.is_ascii_digit()) {
+//                 return false;
+//             }
+//         }
+//
+//         // Optional seconds: same rules if present
+//         if time_fields.len() == 3 {
+//             let sec = time_fields[2];
+//             if sec.is_empty() || sec.len() > 2 || !sec.chars().all(|c| c.is_ascii_digit()) {
+//                 return false;
+//             }
+//         }
+//     }
+//
+//     true
+// }
+
+/// Returns `true` if `s` is `YYYY-MM-DD` or `YYYY-MM-DD HH:MM:SS`.
 ///
-/// Supported separators: `-` or `/` between year, month and day.
-/// Month and day may be 1 or 2 digits (no leading zero required).
-/// Time part (optional) is separated from the date by a single space
-/// and consists of hour, minute and optional second, each 1‑2 digits.
-///
-/// Examples of valid strings:
-/// * `2025-31-01`
-/// * `2025/1/31`
-/// * `2025-01-31 20:21:01`
-/// * `2025/1/31 1:1:11`
+/// These are exactly the formats `macros_core` parses at runtime, so a rule
+/// that compiles can also be evaluated.
 pub fn is_valid_datetime(s: &str) -> bool {
-    // Split date and optional time
-    let mut parts = s.splitn(2, ' ');
-    let date_part = parts.next().unwrap();
-    let time_part = parts.next();
-
-    // ---------- date validation ----------
-    // Accept '-' or '/' as separator, but it must be the same for the whole date.
-    let sep = if date_part.contains('-') {
-        '-'
-    } else if date_part.contains('/') {
-        '/'
-    } else {
-        return false;
-    };
-    let date_fields: Vec<&str> = date_part.split(sep).collect();
-    if date_fields.len() != 3 {
-        return false;
-    }
-
-    // Year: 1‑4 digits (we only care about format, not range)
-    if !date_fields[0].chars().all(|c| c.is_ascii_digit()) {
-        return false;
-    }
-
-    // Month and day: 1‑2 digits, no leading zeros required
-    for f in &date_fields[1..] {
-        if f.is_empty() || f.len() > 2 || !f.chars().all(|c| c.is_ascii_digit()) {
-            return false;
+    let b = s.as_bytes();
+    let digits = |from: usize, to: usize| b[from..to].iter().all(u8::is_ascii_digit);
+    let date_ok = b.len() >= 10
+        && digits(0, 4)
+        && b[4] == b'-'
+        && digits(5, 7)
+        && b[7] == b'-'
+        && digits(8, 10);
+    match b.len() {
+        10 => date_ok,
+        19 => {
+            date_ok
+                && b[10] == b' '
+                && digits(11, 13)
+                && b[13] == b':'
+                && digits(14, 16)
+                && b[16] == b':'
+                && digits(17, 19)
         }
+        _ => false,
     }
-
-    // ---------- time validation (optional) ----------
-    if let Some(t) = time_part {
-        // Time must be separated from date by exactly one space
-        // and contain 2 or 3 fields separated by ':'
-        let time_fields: Vec<&str> = t.split(':').collect();
-        if time_fields.len() < 2 || time_fields.len() > 3 {
-            return false;
-        }
-
-        // Hour and minute: 1‑2 digits
-        for f in &time_fields[0..2] {
-            if f.is_empty() || f.len() > 2 || !f.chars().all(|c| c.is_ascii_digit()) {
-                return false;
-            }
-        }
-
-        // Optional seconds: same rules if present
-        if time_fields.len() == 3 {
-            let sec = time_fields[2];
-            if sec.is_empty() || sec.len() > 2 || !sec.chars().all(|c| c.is_ascii_digit()) {
-                return false;
-            }
-        }
-    }
-
-    true
 }
+
+
 
 /// If the given type is `Option<T>`, returns `Some(&T)`.
 /// Otherwise returns `None`.
@@ -527,15 +557,23 @@ impl Rule {
             Rule::Confirmed(val) => {
                 let confirm = format_ident!("{}", val);
                 if is_option_type(field_ty) {
+                    // quote! {
+                    //     if let Some(value) = (&self.#field_ident).as_ref() {
+                    //         if let Some(value2) = (&self.#confirm).as_ref() {
+                    //             if value != value2 {
+                    //                 errors.add(#field_name, format!("{} not confirmed",&#field_name));
+                    //             }
+                    //         }
+                    //     }
+                    // }
+
                     quote! {
-                        if let Some(value) = (&self.#field_ident).as_ref() {
-                            if let Some(value2) = (&self.#confirm).as_ref() {
-                                if value != value2 {
-                                    errors.add(#field_name, format!("{} not confirmed",&#field_name));
-                                }
-                            }
+                        // a value without a matching confirmation (missing or different) fails
+                        if self.#field_ident.is_some() && self.#field_ident != self.#confirm {
+                            errors.add(#field_name, format!("{} not confirmed",&#field_name));
                         }
                     }
+
                 } else {
                     quote! {
                         if &self.#field_ident != &self.#confirm{
@@ -603,14 +641,16 @@ impl Rule {
                     if is_option {
                         quote! {
                             if let Some(value) = &self.#field_ident {
-                                if value.len() < #val as usize {
+                                // if value.len() < #val as usize {
+                                if value.chars().count() < #val as usize {
                                     errors.add(#field_name, format!("String length must be at least `{}` characters",&#val));
                                 }
                             }
                         }
                     } else {
                         quote! {
-                            if self.#field_ident.len() < #val as usize {
+                            // if self.#field_ident.len() < #val as usize {
+                            if self.#field_ident.chars().count() < #val as usize {
                                  errors.add(#field_name, format!("String length must be at least `{}` characters",&#val));
                             }
                         }
@@ -619,14 +659,17 @@ impl Rule {
                     if is_option {
                         quote! {
                             if let Some(value) = self.#field_ident {
-                                if macros_core::convert_to_i64(value) < #val  {
+                                // if macros_core::convert_to_i64(value) < #val  {
+                                if (value as f64) < (#val as f64) {
                                     errors.add(#field_name, format!("{} must be greater than or equal to {}",&#field_name,#val));
                                 }
                             }
                         }
                     } else {
                         quote! {
-                            if macros_core::convert_to_i64(self.#field_ident) < #val  {
+                            // if macros_core::convert_to_i64(self.#field_ident) < #val  {
+                               if (self.#field_ident as f64) < (#val as f64) {
+
                                 errors.add(#field_name, format!("{} must be greater than or equal to {}",&#field_name,#val));
                             }
                         }
@@ -647,15 +690,18 @@ impl Rule {
                     if is_option {
                         quote! {
                             if let Some(value) = &self.#field_ident {
-                                if value.len() > #val as usize {
+                                // if value.len() > #val as usize {
+                                if value.chars().count() > #val as usize {
+                                    // errors.add(#field_name, format!("String length must not exceed {} characters.",&#val));
+                                    // errors.add(#field_name, "max");
                                     errors.add(#field_name, format!("String length must not exceed {} characters.",&#val));
-                                    errors.add(#field_name, "max");
                                 }
                             }
                         }
                     } else {
                         quote! {
-                            if self.#field_ident.len() > #val as usize {
+                            // if self.#field_ident.len() > #val as usize {
+                            if self.#field_ident.chars().count() > #val as usize {
                                 errors.add(#field_name, format!("String length must not exceed {} characters.",&#val));
                             }
                         }
@@ -663,15 +709,18 @@ impl Rule {
                 } else if is_numeric_type(field_ty) {
                     if is_option {
                         quote! {
-                            if let macros_core::convert_to_i64(Some(value)) = self.#field_ident {
-                                if value < #val {
+                            // if let macros_core::convert_to_i64(Some(value)) = self.#field_ident {
+                            //     if value < #val {
+                            if let Some(value) = self.#field_ident {
+                                if (value as f64) > (#val as f64) {
                                    errors.add(#field_name, format!("{} must be less than or equal to {}",&#field_name,#val));
                                 }
                             }
                         }
                     } else {
                         quote! {
-                            if macros_core::convert_to_i64(self.#field_ident) > #val {
+                            // if macros_core::convert_to_i64(self.#field_ident) > #val {
+                            if (self.#field_ident as f64) > (#val as f64) {
                                 errors.add(#field_name, format!("{} must be less than or equal to {}",&#field_name,#val));
                             }
                         }
@@ -692,14 +741,16 @@ impl Rule {
                     if is_option {
                         quote! {
                             if let Some(value) = &self.#field_ident {
-                                if value.len() != #val as usize {
+                                // if value.len() != #val as usize {
+                                if value.chars().count() != #val as usize {
                                     errors.add(#field_name, format!("String length must equal {} characters.",&#val));
                                 }
                             }
                         }
                     } else {
                         quote! {
-                            if self.#field_ident.len() != #val as usize {
+                            // if self.#field_ident.len() != #val as usize {
+                            if self.#field_ident.chars().count() != #val as usize {
                                 errors.add(#field_name, format!("String length must equal {} characters.",&#val));
                             }
                         }
@@ -918,7 +969,17 @@ impl Rule {
                     }
                 }
             }
+
+            // Rule::In(values) => {
+            //     if is_option_type(field_ty) {
             Rule::In(values) => {
+                if !is_string_type(field_ty) {
+                    return Error::new_spanned(
+                        field_name,
+                        format!("in must be string `{}`", field_name),
+                    )
+                        .to_compile_error();
+                }
                 if is_option_type(field_ty) {
                     quote! {
                         if let Some(value) = (&self.#field_ident).as_ref() {
@@ -937,8 +998,19 @@ impl Rule {
                     }
                 }
             }
+
+            // Rule::NotIn(values) => {
+            //     if is_option_type(field_ty) {
             Rule::NotIn(values) => {
+                if !is_string_type(field_ty) {
+                    return Error::new_spanned(
+                        field_name,
+                        format!("not_in must be string `{}`", field_name),
+                    )
+                        .to_compile_error();
+                }
                 if is_option_type(field_ty) {
+
                     quote! {
                         if let Some(value) = (&self.#field_ident).as_ref() {
                             let allowed = #values.split(',').collect::<Vec<_>>();
@@ -1145,7 +1217,8 @@ impl Rule {
                         if is_datetime_type(field_ty) {
                             quote! {
                             if let Some(value) = (self.#field_ident).as_ref() {
-                                match macros_core::is_after_option_datetime_ex(value, #date) {
+                                // match macros_core::is_after_option_datetime_ex(value, #date) {
+                                match macros_core::is_after_option_datetime_ex(*value, #date) {
                                     None => errors.add(#field_name, format!("Datetime formats invalid: {},{}",&value,&#date)),
                                     Some(true) => (),
                                     Some(false)  => errors.add(#field_name,
@@ -1157,7 +1230,8 @@ impl Rule {
                         } else if is_date_type(field_ty) {
                             quote! {
                             if let Some(value) = (self.#field_ident).as_ref() {
-                                match macros_core::is_after_option_date_ex(value, #date) {
+                                // match macros_core::is_after_option_date_ex(value, #date) {
+                                match macros_core::is_after_option_date_ex(*value, #date) {
                                     None => errors.add(#field_name, format!("Date formats invalid: {},{}",&value,&#date)),
                                     Some(true) => (),
                                     Some(false)  => errors.add(#field_name,
@@ -1241,7 +1315,8 @@ impl Rule {
                         if is_datetime_type(field_ty) {
                             quote! {
                             if let Some(value) = (self.#field_ident).as_ref() {
-                                match macros_core::is_before_option_datetime_ex(value, #date) {
+                                // match macros_core::is_before_option_datetime_ex(value, #date) {
+                                match macros_core::is_before_option_datetime_ex(*value, #date){
                                     None => errors.add(#field_name, format!("Datetime formats invalid: {},{}",&value,&#date)),
                                     Some(true) => (),
                                     Some(false)  => errors.add(#field_name,
@@ -1253,7 +1328,8 @@ impl Rule {
                         } else if is_date_type(field_ty) {
                             quote! {
                             if let Some(value) = (self.#field_ident).as_ref() {
-                                match macros_core::is_before    _option_date_ex(value, #date) {
+                                // match macros_core::is_before     _option_date_ex(value, #date) {
+                                match macros_core::is_before_option_date_ex(*value, #date) {
                                     None => errors.add(#field_name, format!("Date formats invalid: {},{}",&value,&#date)),
                                     Some(true) => (),
                                     Some(false)  => errors.add(#field_name,
@@ -1308,178 +1384,274 @@ impl Rule {
                 }
                 quote! {}
             }
-            Rule::Exists(meta) => {
-                let mut tokens = TokenStream::new();
-                // Safe: one of the branches will always assign wanted_token, else returns
-                #[allow(unused_assignments)]
-                let mut wanted_token: Option<TokenStream> = None;
 
-                let db = meta.split(',').collect::<Vec<_>>();
+            // Rule::Exists(meta) => {
+            //     let mut tokens = TokenStream::new();
+            //     // Safe: one of the branches will always assign wanted_token, else returns
+            //     #[allow(unused_assignments)]
+            //     let mut wanted_token: Option<TokenStream> = None;
+            //
+            //     let db = meta.split(',').collect::<Vec<_>>();
+            //     if db.len() != 2 {
+            //         return Error::new_spanned(
+            //             field_name,
+            //             format!("Exists must have to value like: table,column. Exm: users,email. Your meta: {} ", &meta),
+            //         )
+            //             .to_compile_error()
+            //             .into();
+            //     }
+            //
+            //     let table = db.get(0).unwrap().to_string();
+            //     let column = db.get(1).unwrap().to_string();
+            //
+            //     let is_option = is_option_type(field_ty);
+            //     if is_string_type(field_ty) {
+            //         if is_option {
+            //             wanted_token = Some(quote! {
+            //                 let mut wanted = "";
+            //                 if let Some(value) = self.#field_ident{
+            //                     wanted = value;
+            //                 }
+            //             }
+            //                 .into());
+            //         } else {
+            //             wanted_token =Some( quote! {
+            //                 let wanted = &self.#field_ident.clone();
+            //             }
+            //                 .into());
+            //         }
+            //     } else if is_numeric_type(field_ty) {
+            //         if is_option {
+            //             wanted_token = Some(quote! {
+            //                 let mut wanted = "";
+            //                 if let Some(value) = self.#field_ident{
+            //                     wanted = value.to_string();
+            //                 }
+            //             }
+            //                 .into());
+            //         } else {
+            //             wanted_token = Some(quote! {
+            //                 let wanted = &self.#field_ident.to_string();
+            //             }
+            //                 .into());
+            //         }
+            //     } else {
+            //         return Error::new_spanned(
+            //             field_name,
+            //             format!(
+            //                 "unsupported type requried numberic or string `{}`",
+            //                 field_name
+            //             ),
+            //         )
+            //             .to_compile_error()
+            //             .into();
+            //     }
+            //
+            //     let db_token: TokenStream = quote! {
+            //         if !rustavel_core::db::get_static_schema()
+            //         .await.exists_record(#table, #column, wanted).await {
+            //             errors.add(#field_name, format!("The record not exists: {}", wanted));
+            //         }
+            //     }
+            //         .into();
+            //
+            //     if let Some(tokens2) = wanted_token {
+            //         tokens.extend(tokens2);
+            //     }
+            //     tokens.extend(db_token);
+            //     tokens.into()
+            // }
+            // Rule::Unique(meta) => {
+            //     let mut tokens = TokenStream::new();
+            //     // Safe: one of the branches will always assign wanted_token2, else returns
+            //     #[allow(unused_assignments)]
+            //     let mut wanted_token2: Option<TokenStream> = None;
+            //
+            //     let db = meta.split(',').collect::<Vec<_>>();
+            //     let db_len = db.len();
+            //     if db_len < 2 || db_len > 3 {
+            //         return Error::new_spanned(
+            //             field_name,
+            //             format!("Unique must have to value like: table,column or table,column,except_field. Exm: users,email or users,email,id . Your meta: {} ", &meta),
+            //         ).to_compile_error()
+            //             .into();
+            //     }
+            //     let table = db.get(0).unwrap().to_string();
+            //     let column = db.get(1).unwrap().to_string();
+            //
+            //     let is_option = is_option_type(field_ty);
+            //     if is_string_type(field_ty) {
+            //         if is_option {
+            //             wanted_token2 = Some(
+            //                 quote! {
+            //                     let mut wanted = "";
+            //                     if let Some(value) = self.#field_ident{
+            //                         wanted = value;
+            //                     }
+            //                 }
+            //                     .into(),
+            //             );
+            //         } else {
+            //             wanted_token2 = Some(
+            //                 quote! {
+            //                     let wanted = &self.#field_ident.clone();
+            //                 }
+            //                     .into(),
+            //             );
+            //         }
+            //     } else if is_numeric_type(field_ty) {
+            //         if is_option {
+            //             wanted_token2 = Some(
+            //                 quote! {
+            //                     let mut wanted = "";
+            //                     if let Some(value) = self.#field_ident{
+            //                         wanted = value.to_string();
+            //                     }
+            //                 }
+            //                     .into(),
+            //             );
+            //         } else {
+            //             wanted_token2 = Some(
+            //                 quote! {
+            //                     let wanted = &self.#field_ident.to_string();
+            //                 }
+            //                     .into(),
+            //             );
+            //         }
+            //     } else {
+            //         return Error::new_spanned(
+            //             field_name,
+            //             format!(
+            //                 "unsupported type requried numberic or string `{}`",
+            //                 field_name
+            //             ),
+            //         )
+            //             .to_compile_error()
+            //             .into();
+            //     }
+            //
+            //     let mut db_token: TokenStream = TokenStream::new();
+            //     if db_len == 2 {
+            //         db_token = quote! {
+            //             if rustavel_core::db::get_static_schema()
+            //             .await.exists_record(#table, #column, wanted).await {
+            //                 errors.add(#field_name, format!("The record exists: {}", wanted));
+            //             }
+            //         }
+            //             .into();
+            //     } else if db_len == 3 {
+            //         let except_val = db.get(2).unwrap().to_string();
+            //         let except = format_ident!("{}", &except_val);
+            //         db_token = quote!{
+            //             if rustavel_core::db::get_static_schema()
+            //             .await.exists_record_except(#table, #column, wanted, #except_val,&macros_core::convert_to_string(&self.#except)).await {
+            //                 errors.add(#field_name, format!("The record exists: {}", wanted));
+            //             }
+            //         }.into();
+            //     }
+            //
+            //     if let Some(tokens2) = wanted_token2 {
+            //         tokens.extend(tokens2);
+            //     }
+            //     tokens.extend(db_token);
+            //     tokens.into()
+            // }
+
+            Rule::Exists(meta) => {
+                let db = meta.split(',').map(str::trim).collect::<Vec<_>>();
                 if db.len() != 2 {
                     return Error::new_spanned(
                         field_name,
                         format!("Exists must have to value like: table,column. Exm: users,email. Your meta: {} ", &meta),
                     )
-                        .to_compile_error()
-                        .into();
+                        .to_compile_error();
                 }
-
-                let table = db.get(0).unwrap().to_string();
-                let column = db.get(1).unwrap().to_string();
-
-                let is_option = is_option_type(field_ty);
-                if is_string_type(field_ty) {
-                    if is_option {
-                        wanted_token = Some(quote! {
-                            let mut wanted = "";
-                            if let Some(value) = self.#field_ident{
-                                wanted = value;
-                            }
-                        }
-                            .into());
-                    } else {
-                        wanted_token =Some( quote! {
-                            let wanted = &self.#field_ident.clone();
-                        }
-                            .into());
-                    }
-                } else if is_numeric_type(field_ty) {
-                    if is_option {
-                        wanted_token = Some(quote! {
-                            let mut wanted = "";
-                            if let Some(value) = self.#field_ident{
-                                wanted = value.to_string();
-                            }
-                        }
-                            .into());
-                    } else {
-                        wanted_token = Some(quote! {
-                            let wanted = &self.#field_ident.to_string();
-                        }
-                            .into());
-                    }
-                } else {
+                if !is_string_type(field_ty) && !is_numeric_type(field_ty) {
                     return Error::new_spanned(
                         field_name,
-                        format!(
-                            "unsupported type requried numberic or string `{}`",
-                            field_name
-                        ),
+                        format!("unsupported type requried numberic or string `{}`", field_name),
                     )
-                        .to_compile_error()
-                        .into();
+                        .to_compile_error();
                 }
-
-                let db_token: TokenStream = quote! {
-                    if !rustavel_core::db::get_static_schema()
-                    .await.exists_record(#table, #column, wanted).await {
-                        errors.add(#field_name, format!("The record not exists: {}", wanted));
+                let (table, column) = (db[0], db[1]);
+                let body = quote! {
+                    let found = match rustavel_core::db::get_static_schema().await {
+                        Some(schema) => schema.exists_record(#table, #column, &wanted).await,
+                        None => None,
+                    };
+                    match found {
+                        Some(true) => {}
+                        Some(false) => errors.add(#field_name, format!("The record not exists: {}", wanted)),
+                        None => errors.add(#field_name, "The record could not be checked"),
                     }
-                }
-                    .into();
-
-                if let Some(tokens2) = wanted_token {
-                    tokens.extend(tokens2);
-                }
-                tokens.extend(db_token);
-                tokens.into()
+                };
+                wrap_db_rule(field_ident, field_ty, body)
             }
             Rule::Unique(meta) => {
-                let mut tokens = TokenStream::new();
-                // Safe: one of the branches will always assign wanted_token2, else returns
-                #[allow(unused_assignments)]
-                let mut wanted_token2: Option<TokenStream> = None;
-
-                let db = meta.split(',').collect::<Vec<_>>();
-                let db_len = db.len();
-                if db_len < 2 || db_len > 3 {
+                let db = meta.split(',').map(str::trim).collect::<Vec<_>>();
+                if db.len() < 2 || db.len() > 3 {
                     return Error::new_spanned(
                         field_name,
                         format!("Unique must have to value like: table,column or table,column,except_field. Exm: users,email or users,email,id . Your meta: {} ", &meta),
-                    ).to_compile_error()
-                        .into();
+                    ).to_compile_error();
                 }
-                let table = db.get(0).unwrap().to_string();
-                let column = db.get(1).unwrap().to_string();
-
-                let is_option = is_option_type(field_ty);
-                if is_string_type(field_ty) {
-                    if is_option {
-                        wanted_token2 = Some(
-                            quote! {
-                                let mut wanted = "";
-                                if let Some(value) = self.#field_ident{
-                                    wanted = value;
-                                }
-                            }
-                                .into(),
-                        );
-                    } else {
-                        wanted_token2 = Some(
-                            quote! {
-                                let wanted = &self.#field_ident.clone();
-                            }
-                                .into(),
-                        );
-                    }
-                } else if is_numeric_type(field_ty) {
-                    if is_option {
-                        wanted_token2 = Some(
-                            quote! {
-                                let mut wanted = "";
-                                if let Some(value) = self.#field_ident{
-                                    wanted = value.to_string();
-                                }
-                            }
-                                .into(),
-                        );
-                    } else {
-                        wanted_token2 = Some(
-                            quote! {
-                                let wanted = &self.#field_ident.to_string();
-                            }
-                                .into(),
-                        );
-                    }
-                } else {
+                if !is_string_type(field_ty) && !is_numeric_type(field_ty) {
                     return Error::new_spanned(
                         field_name,
-                        format!(
-                            "unsupported type requried numberic or string `{}`",
-                            field_name
-                        ),
+                        format!("unsupported type requried numberic or string `{}`", field_name),
                     )
-                        .to_compile_error()
-                        .into();
+                        .to_compile_error();
                 }
-
-                let mut db_token: TokenStream = TokenStream::new();
-                if db_len == 2 {
-                    db_token = quote! {
-                        if rustavel_core::db::get_static_schema()
-                        .await.exists_record(#table, #column, wanted).await {
-                            errors.add(#field_name, format!("The record exists: {}", wanted));
+                let (table, column) = (db[0], db[1]);
+                let lookup = match db.get(2) {
+                    Some(except_col) => {
+                        let except = format_ident!("{}", except_col);
+                        quote! {
+                            schema.exists_record_except(#table, #column, &wanted, #except_col, &macros_core::convert_to_string(&self.#except)).await
                         }
                     }
-                        .into();
-                } else if db_len == 3 {
-                    let except_val = db.get(2).unwrap().to_string();
-                    let except = format_ident!("{}", &except_val);
-                    db_token = quote!{
-                        if rustavel_core::db::get_static_schema()
-                        .await.exists_record_except(#table, #column, wanted, #except_val,&macros_core::convert_to_string(&self.#except)).await {
-                            errors.add(#field_name, format!("The record exists: {}", wanted));
-                        }
-                    }.into();
-                }
-
-                if let Some(tokens2) = wanted_token2 {
-                    tokens.extend(tokens2);
-                }
-                tokens.extend(db_token);
-                tokens.into()
+                    None => quote! { schema.exists_record(#table, #column, &wanted).await },
+                };
+                let body = quote! {
+                    let found = match rustavel_core::db::get_static_schema().await {
+                        Some(schema) => #lookup,
+                        None => None,
+                    };
+                    match found {
+                        Some(false) => {}
+                        Some(true) => errors.add(#field_name, format!("The record exists: {}", wanted)),
+                        None => errors.add(#field_name, "The record could not be checked"),
+                    }
+                };
+                wrap_db_rule(field_ident, field_ty, body)
             }
+
+
             _ => quote! {},
+        }
+    }
+}
+
+/// Wraps a database rule so `wanted` holds the field value as a String.
+/// `None` in an `Option` field skips the check (use `required` to forbid it).
+fn wrap_db_rule(
+    field_ident: &syn::Ident,
+    field_ty: &Type,
+    body: proc_macro2::TokenStream,
+) -> proc_macro2::TokenStream {
+    if is_option_type(field_ty) {
+        quote! {
+            if let Some(value) = &self.#field_ident {
+                let wanted = value.to_string();
+                #body
+            }
+        }
+    } else {
+        quote! {
+            {
+                let wanted = self.#field_ident.to_string();
+                #body
+            }
         }
     }
 }

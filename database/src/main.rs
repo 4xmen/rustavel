@@ -2,7 +2,6 @@ use std::time::Instant;
 use clap::{Parser, Subcommand};
 use rustavel_artisan::db::seed::SeedArgs;
 use rustavel_core::facades::terminal_ui::{operation, title, Status, TitleKind};
-use rustavel_core::logger;
 use anyhow::Result;
 include!(concat!(env!("OUT_DIR"), "/generated_seeders_import.rs"));
 
@@ -50,8 +49,11 @@ enum Command {
     ///     cli-db migrate --fresh --seed
     Migrate {
         /// Rollback the specified number of cli-db steps.
-        #[arg(long, default_value_t = 0)]
+        // #[arg(long, default_value_t = 0)]
+        // rollback: i64,
+        #[arg(long, default_value_t = 0, value_parser = clap::value_parser!(i64).range(0..))]
         rollback: i64,
+
 
         /// Run cli-dbs in passive mode.
         #[arg(long)]
@@ -97,9 +99,16 @@ async fn main() {
     let cli = Cli::parse();
 
     // Execute the selected command.
+    // if let Err(error) = run(cli).await {
+    //     logger::error(&format!("{:?}", error));
+    // }
+
     if let Err(error) = run(cli).await {
-        logger::error(&format!("{:?}", error));
+        // the logger prints from a background task,which exit() would cut off
+        eprintln!("\x1b[31m{:?}\x1b[0m", error);
+        std::process::exit(1);
     }
+
 }
 
 
@@ -137,7 +146,7 @@ async fn run(cli: Cli) -> Result<(), anyhow::Error> {
                     }
                     Err(e) => {
                         operation(&format!("Seeding :{}", e), start.elapsed(), Status::Failed);
-                    }
+                        return Err(e);                    }
                 }
             }
         }

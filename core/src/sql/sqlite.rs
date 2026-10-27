@@ -181,7 +181,8 @@ impl SqlGenerator for SqliteGenerator {
 
         let def = match &column.default {
             DefaultValue::Null => "",
-            DefaultValue::String(val) => &format!("DEFAULT '{}'", val),
+            // DefaultValue::String(val) => &format!("DEFAULT '{}'", val),
+            DefaultValue::String(val) => &format!("DEFAULT '{}'", val.replace('\'', "''")),
             DefaultValue::JsonArray => "DEFAULT '[]'",
             DefaultValue::CurrenTimestamp => "DEFAULT CURRENT_TIMESTAMP",
             DefaultValue::Bool(v) => {
@@ -269,7 +270,8 @@ impl SqlGenerator for SqliteGenerator {
                 let values = match &column.option {
                     ColumnOption::Values(items) => items
                         .iter()
-                        .map(|v| format!("'{}'", v))
+                        // .map(|v| format!("'{}'", v))
+                        .map(|v| format!("'{}'", v.replace('\'', "''")))
                         .collect::<Vec<_>>()
                         .join(", "),
                     _ => String::new(),
@@ -336,7 +338,13 @@ impl SqlGenerator for SqliteGenerator {
             ""
         };
 
+        // if *action == TableAction::Alter {
+        //     "-- SQLite does not support add foreign key on alter \n".to_string()
         if *action == TableAction::Alter {
+            logger::warn(&format!(
+                "SQLite can't add a foreign key to an existing table, skipped: {}",
+                key.column_name
+            ));
             "-- SQLite does not support add foreign key on alter \n".to_string()
         }else{
             format!(
@@ -346,11 +354,16 @@ impl SqlGenerator for SqliteGenerator {
         }
 
     }
-    fn drop_column(&self, column_name: &str) -> String {
-        format!(
-            "-- SQLite does not support DROP COLUMN directly: `{}`",
-            column_name
-        )
+    // fn drop_column(&self, column_name: &str) -> String {
+    //     format!(
+    //         "-- SQLite does not support DROP COLUMN directly: `{}`",
+    //         column_name
+    //     )
+    // }
+
+    fn drop_column(&self, table_name: &str, column_name: &str) -> String {
+        // supported since SQLite 3.35 (bundled by sqlx)
+        format!("ALTER TABLE \"{}\" DROP COLUMN \"{}\";", table_name, column_name)
     }
 
     fn table_sql(
@@ -379,33 +392,66 @@ impl SqlGenerator for SqliteGenerator {
 
 
 
-    fn get_ran(&self) -> String {
-        "SELECT migration FROM migrations".to_string()
+    // fn get_ran(&self) -> String {
+    //     "SELECT migration FROM migrations".to_string()
+    // }
+
+    // fn get_ran_gt(&self) -> String {
+    //     "SELECT migration FROM migrations WHERE batch > ?".to_string()
+    // }
+
+
+    // fn get_next_batch_number(&self) -> String {
+    //     "SELECT MAX(batch) AS batch FROM migrations".to_string()
+    // }
+
+    // fn add_migrated_table(&self) -> String {
+    //     "INSERT INTO migrations (migration, batch) VALUES (?, ?)".to_string()
+    // }
+
+    // fn rem_migrated_table(&self) -> String {
+    //     "DELETE FROM migrations WHERE migration = ?".to_string()
+    // }
+
+    // fn record_exists(&self, table: &str, column: &str) -> String {
+    //     format!("SELECT COUNT(*) AS 'count' FROM '{}' WHERE '{}' = ?", table, column)
+    // }
+    //
+    // fn record_exists_except(&self,table: &str,column: &str, except: &str) -> String{
+    //     format!("SELECT COUNT(*) AS 'count' FROM '{}' WHERE '{}' = ? AND '{}' <> ?", table, column,except)
+    // }
+
+
+    fn get_ran(&self, table: &str) -> String {
+        format!("SELECT migration FROM \"{}\"", table)
     }
 
-    fn get_ran_gt(&self) -> String {
-        "SELECT migration FROM migrations WHERE batch > 0".to_string()
+    fn get_ran_gt(&self, table: &str) -> String {
+        format!("SELECT migration FROM \"{}\" WHERE batch > ?", table)
     }
 
 
-    fn get_next_batch_number(&self) -> String {
-        "SELECT MAX(batch) AS batch FROM migrations".to_string()
+    fn get_next_batch_number(&self, table: &str) -> String {
+        format!("SELECT MAX(batch) AS batch FROM \"{}\"", table)
     }
 
-    fn add_migrated_table(&self) -> String {
-        "INSERT INTO migrations (migration, batch) VALUES (?, ?)".to_string()
+    fn add_migrated_table(&self, table: &str) -> String {
+        format!("INSERT INTO \"{}\" (migration, batch) VALUES (?, ?)", table)
     }
 
-    fn rem_migrated_table(&self) -> String {
-        "DELETE FROM migrations WHERE migration = ?".to_string()
+    fn rem_migrated_table(&self, table: &str) -> String {
+        format!("DELETE FROM \"{}\" WHERE migration = ?", table)
     }
 
+
+
+
+    // identifiers need double quotes: in SQLite 'email' is a string literal
     fn record_exists(&self, table: &str, column: &str) -> String {
-        format!("SELECT COUNT(*) AS 'count' FROM '{}' WHERE '{}' = ?", table, column)
+        format!("SELECT COUNT(*) AS count FROM \"{}\" WHERE \"{}\" = ?", table, column)
     }
 
     fn record_exists_except(&self,table: &str,column: &str, except: &str) -> String{
-        format!("SELECT COUNT(*) AS 'count' FROM '{}' WHERE '{}' = ? AND '{}' <> ?", table, column,except)
+        format!("SELECT COUNT(*) AS count FROM \"{}\" WHERE \"{}\" = ? AND \"{}\" <> ?", table, column,except)
     }
-
 }

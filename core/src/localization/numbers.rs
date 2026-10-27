@@ -58,7 +58,11 @@ where
         where
             E: de::Error,
         {
-            let normalized = normalize_digits(v);
+            // let normalized = normalize_digits(v);
+
+            // in numbers a Persian writer's `/` is the decimal point (۱۷۵/۵);
+            // strings and dates keep their slashes
+            let normalized = normalize_digits(v).replace('/', ".");
             normalized
                 .parse::<T>()
                 .map_err(|e| de::Error::custom(format!("Failed to parse '{normalized}' → {e}")))

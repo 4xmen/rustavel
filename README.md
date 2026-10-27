@@ -30,8 +30,10 @@ while respecting the values of the Rust ecosystem: correctness, clarity, and per
 
 ```bash
 cargo artisan make model User -m -c # model + migration + controller
-cargo artisan make migration CreateTodos  -t todos # migration
-cargo artisan make migrate # do migrate / may rollback
+#cargo artisan make migration CreateTodos  -t todos # migration
+#cargo artisan make migrate # do migrate / may rollback
+cargo artisan make migration CreateTodos -c todos # migration that creates a table (-t alters one)
+cargo artisan migrate # do migrate / may rollback
 cargo artisan serv # run app
 cargo artisan key-generate # key generate
 ```

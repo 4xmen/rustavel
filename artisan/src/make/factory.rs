@@ -5,7 +5,8 @@ use minijinja::Environment;
 use minijinja::value::Serde;
 use rustavel_core::facades::file_content::FileContent;
 use rustavel_core::facades::terminal_ui::{operation, Status};
-use crate::general::lib::register_mod_file;
+// use crate::general::lib::register_mod_file;
+use crate::general::lib::{ensure_new_file, register_mod_file};
 use crate::make::make_error::MakeError;
 
 #[derive(Args, Debug)]
@@ -63,6 +64,7 @@ pub async fn factory(args: &NewFactoryArgs) -> Result<(), MakeError> {
     let generated_path = base.join(format!("{}.rs", Str::snake(&factory_name,"_")));
 
     // Write controller file
+    ensure_new_file(&generated_path)?;
     FileContent::put(generated_path.to_str().unwrap(), &rendered).await?;
 
 
