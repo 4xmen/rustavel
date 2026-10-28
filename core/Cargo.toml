@@ -1,6 +1,6 @@
 [package]
 name = "rustavel-core"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 rust-version.workspace = true
 
@@ -24,4 +24,5 @@ rand.workspace = true
 argon2.workspace = true
 bcrypt.workspace = true
 minijinja.workspace = true
+lettre.workspace = true
 #jalali-rs = "0.1.1"

@@ -10,6 +10,7 @@ pub mod db;
 pub mod http;
 pub mod localization;
 pub mod macros;
+pub mod mail;
 
 
 
