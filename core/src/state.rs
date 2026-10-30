@@ -5,8 +5,9 @@ use minijinja::value::Serde;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;
+use axum::extract::FromRef;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, FromRef)]
 pub struct AppState {
     pub routes: Arc<HashMap<String, String>>,
     pub templates: Arc<Environment<'static>>,

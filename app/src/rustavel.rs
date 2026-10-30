@@ -46,7 +46,7 @@ async fn main() {
 
     let mut env = Environment::new();
     env.set_loader(path_loader(views_dir));
-
+    
     let state = AppState {
         routes: routes_map,
         templates: Arc::new(env),
