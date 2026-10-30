@@ -1,7 +1,7 @@
 use crate::config::CONFIG;
 use crate::config::database::DatabaseEngine;
 use crate::db::table::{ColumnDataType, Table, TableAction};
-use crate::facades::terminal_ui::{Status, operation};
+use crate::helper::terminal_ui::{Status, operation};
 use crate::logger;
 use crate::sql::database_client::{DatabaseClient, DbError, MySqlClient, SqliteClient};
 use crate::sql::generator::SqlGenerator;

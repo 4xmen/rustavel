@@ -14,7 +14,7 @@ impl File {
     /// # Examples
     ///
     /// ```rust,ignore
-    /// use rustavel_core::facades::file::File;
+    /// use rustavel_core::helper::file::File;
     /// File::create_link("storage/app/public", "public/storage").unwrap();
     /// ```
     ///

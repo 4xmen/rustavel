@@ -25,7 +25,7 @@ use std::time::Instant;
 use axum::{extract::Request, middleware::Next, response::Response};
 
 use rustavel_core::config::CONFIG;
-use rustavel_core::facades::datetime::format_duration;
+use rustavel_core::helper::datetime::format_duration;
 
 /// Logs the elapsed time for processing an HTTP request.
 pub async fn performance_middleware(mut request: Request, next: Next) -> Response {

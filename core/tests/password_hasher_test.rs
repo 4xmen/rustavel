@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use rustavel_core::facades::password::PasswordDriver;
-    use rustavel_core::facades::password::PasswordHasher;
+    use rustavel_core::helper::password::PasswordDriver;
+    use rustavel_core::helper::password::PasswordHasher;
 
     /// Creates a hasher for each supported password driver.
     fn drivers() -> Vec<(&'static str, PasswordHasher)> {

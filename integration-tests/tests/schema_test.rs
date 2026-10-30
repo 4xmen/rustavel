@@ -1,6 +1,6 @@
 use std::time::Instant;
 use rustavel_core::db::schema::Schema;
-use rustavel_core::facades::number::random;
+use rustavel_core::helper::number::random;
 #[tokio::test]
 async fn schema_create_and_drop_table_check_column() {
     let mut schema = Schema::new().await.unwrap();

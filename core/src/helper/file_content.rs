@@ -23,7 +23,7 @@ impl FileContent {
     /// # Example
     ///
     /// ```rust
-    /// use rustavel_core::facades::file_content::FileContent;
+    /// use rustavel_core::helper::file_content::FileContent;
     /// async fn run()  {
     ///     FileContent::put("example.txt","hello, world!").await;
     /// }
@@ -60,7 +60,7 @@ impl FileContent {
     /// # Example
     ///
     /// ```rust
-    /// use rustavel_core::facades::file_content::FileContent;
+    /// use rustavel_core::helper::file_content::FileContent;
     /// async fn run()  {
     ///     let txt = FileContent::get("example.txt").await;
     /// }

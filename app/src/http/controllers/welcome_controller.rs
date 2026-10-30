@@ -1,8 +1,9 @@
 use std::time::Instant;
 use axum::{extract::State, response::IntoResponse, Extension};
+// use minijinja::functions::debug;
 use serde::Serialize;
 use rustavel_core::config::CONFIG;
-use rustavel_core::facades::datetime::format_duration;
+use rustavel_core::helper::datetime::format_duration;
 use rustavel_core::state::AppState;
 
 #[derive(Serialize)]
@@ -24,6 +25,6 @@ pub async fn index(
         title: CONFIG.app.name.clone(),
         elapsed_time: Some(elapsed_ms),
     };
-
+    
     state.view("welcome.j2", Some(sample))
 }

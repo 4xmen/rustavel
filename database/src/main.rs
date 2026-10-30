@@ -1,7 +1,7 @@
 use std::time::Instant;
 use clap::{Parser, Subcommand};
 use rustavel_artisan::db::seed::SeedArgs;
-use rustavel_core::facades::terminal_ui::{operation, title, Status, TitleKind};
+use rustavel_core::helper::terminal_ui::{operation, title, Status, TitleKind};
 use anyhow::Result;
 include!(concat!(env!("OUT_DIR"), "/generated_seeders_import.rs"));
 

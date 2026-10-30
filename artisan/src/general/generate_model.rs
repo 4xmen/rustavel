@@ -1,7 +1,7 @@
 use illuminate_str::Str;
 use minijinja::{ Environment};
 use minijinja::value::Serde;
-use rustavel_core::facades::file_content::FileContent;
+use rustavel_core::helper::file_content::FileContent;
 use crate::make::make_error::MakeError;
 use rustavel_core::db::schema::ModelData;
 const MODEL_GENERATED_TEMPLATE: &str = include_str!("../make/templates/model_generated.rs.j2");

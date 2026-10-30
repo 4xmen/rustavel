@@ -1,6 +1,6 @@
 // Bugs 31, 32, 33, 34 and 35
 use rustavel_core::config::CONFIG;
-use rustavel_core::facades::datetime::TimeExt;
+use rustavel_core::helper::datetime::TimeExt;
 use rustavel_core::localization::digits::normalize_digits;
 use time::macros::datetime;
 

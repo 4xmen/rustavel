@@ -9,8 +9,8 @@ use time::macros::{ datetime};
 // use time::PrimitiveDateTime;
 // use rustavel_core::sql::query::QueryDsl;
 use crate::models::Todo;
-use rustavel_core::facades::datetime::now_primitive;
-use rustavel_core::facades::datetime::TimeExt;
+use rustavel_core::helper::datetime::now_primitive;
+use rustavel_core::helper::datetime::TimeExt;
 
 
 pub async fn index(State(_state): State<AppState>) -> impl IntoResponse {

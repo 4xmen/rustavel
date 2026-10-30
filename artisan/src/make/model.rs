@@ -6,8 +6,8 @@ use crate::make::migration::{NewMigArgs, migrate};
 use clap::Args;
 use illuminate_str::Str;
 use minijinja::{Environment, context};
-use rustavel_core::facades::file_content::FileContent;
-use rustavel_core::facades::terminal_ui::{Status, operation};
+use rustavel_core::helper::file_content::FileContent;
+use rustavel_core::helper::terminal_ui::{Status, operation};
 use tokio::time::Instant;
 
 #[allow(unused)]

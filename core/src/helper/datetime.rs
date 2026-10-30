@@ -138,7 +138,7 @@ pub fn now_rfc2822() -> String {
 ///
 /// # Example
 /// ```
-/// #  use rustavel_core::facades::datetime::parse_ymd;
+/// #  use rustavel_core::helper::datetime::parse_ymd;
 /// let d = parse_ymd("2026-02-14").unwrap();
 /// ```
 #[inline]
@@ -684,8 +684,8 @@ pub trait TimeExt {
     /// # Example
     ///
     /// ```rust
-    /// # use crate::rustavel_core::facades::datetime::TimeExt;
-    /// use rustavel_core::facades::datetime::now;
+    /// # use crate::rustavel_core::helper::datetime::TimeExt;
+    /// use rustavel_core::helper::datetime::now;
     /// let datetime = now();
     /// let formatted = datetime.jdate("Y/m/d");
     /// ```
@@ -703,8 +703,8 @@ pub trait TimeExt {
     /// # Example
     ///
     /// ```rust
-    /// # use crate::rustavel_core::facades::datetime::TimeExt;
-    /// use rustavel_core::facades::datetime::now;
+    /// # use crate::rustavel_core::helper::datetime::TimeExt;
+    /// use rustavel_core::helper::datetime::now;
     /// let datetime = now();
     /// let formatted = datetime.ldate("Y-m-d");
     /// ```

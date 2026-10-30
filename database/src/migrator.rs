@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use illuminate_str::Str;
 use rustavel_artisan::general::generate_model::save_generated_model;
 use rustavel_core::db::schema::Schema;
-use rustavel_core::facades::terminal_ui::*;
+use rustavel_core::helper::terminal_ui::*;
 use rustavel_core::sql::database_client::DbError;
 use std::time::Instant;
 #[async_trait]
