@@ -298,21 +298,24 @@ Every error that can be made unrepresentable through types should be made unrepr
 
 Only `main` (or a `build_app()` function called by both `main` and tests) is allowed to know about **all** modules. No module should know about the complete `AppState`.
 
-### P5. Unidirectional Dependencies
 
-```text
-          adapters (sqlx, axum, redis, smtp)
-                 │  depend on
-                 ▼
-          module (service + ports/traits)
-                 │  depends on
-                 ▼
-          core (types and traits; no IO)
-```
+### P5. Explicit and Layered Dependencies
 
-- `core` does not depend on `axum`, `sqlx`, or any IO.
-- Modules do not depend on the **implementations** of other modules; they depend only on traits they define themselves (or on another module's public type when there is a direct, acyclic dependency).
-- A cycle is a design error. Solutions: move the dependency behind a trait, turn one side into an event, or extract a third shared crate.
+Rustavel does not require a pure, dependency-free Core crate.
+
+The project may use framework and infrastructure dependencies such as Axum, SQLx, Tokio, Redis, and MiniJinja when they provide meaningful value to the framework.
+
+However:
+
+1. Dependencies must belong to clearly defined modules with explicit ownership.
+2. Optional integrations must be independently selectable through Cargo features whenever practical.
+3. Enabling one capability must not unnecessarily pull unrelated integrations into the consumer's dependency graph.
+4. Infrastructure-specific types should remain inside their owning modules unless exposing them is an intentional part of the public API.
+5. Dependencies and their initialization must remain explicit and traceable.
+6. Runtime service discovery and hidden global wiring remain prohibited.
+
+**The goal is not to eliminate dependencies. The goal is to control their boundaries, costs, and visibility.**
+
 
 ### P6. Queries Use Traits or Direct Calls; Side Effects Use Events
 
