@@ -1,4 +1,5 @@
 use std::env;
+use crate::config::env::env_bool;
 
 #[derive(Debug, Clone)]
 pub struct AppConfig {
@@ -44,7 +45,7 @@ impl AppConfig {
         }
 
         if let Ok(v) = env::var("APP_DEBUG") {
-            cfg.debug = v == "true" || v == "1";
+            cfg.debug =  env_bool(&v, true);
         }
 
         if let Ok(v) = env::var("APP_IP") {
@@ -62,7 +63,7 @@ impl AppConfig {
         if let Ok(v) = env::var("APP_KEY") {
             cfg.key = v;
         }
-        
+
 
         if let Ok(v) = env::var("APP_LOCALE") {
             cfg.locale = v;

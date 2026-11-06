@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, str::FromStr};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DatabaseEngine {
@@ -41,11 +41,7 @@ impl DatabaseConfig {
         let mut cfg = Self::default();
 
         if let Ok(v) = env::var("DB_CONNECTION") {
-            if let Some(connection) = DatabaseEngine::from_str(&v) {
-                cfg.connection = connection;
-            } else {
-                eprintln!("Invalid DB_CONNECTION value: {}", v);
-            }
+            cfg.connection = v.parse().unwrap_or_else(|e| panic!("DB_CONNECTION: {e}"));
         }
 
         if let Ok(v) = env::var("DB_HOST") {
@@ -89,12 +85,18 @@ impl DatabaseConfig {
     }
 }
 
-impl DatabaseEngine {
-    fn from_str(s: &str) -> Option<Self> {
-        match s.to_lowercase().as_str() {
-            "mysql" => Some(DatabaseEngine::Mysql),
-            "sqlite" => Some(DatabaseEngine::Sqlite),
-            _ => None,
+
+impl FromStr for DatabaseEngine {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_lowercase().as_str() {
+            "mysql" => Ok(Self::Mysql),
+            "sqlite" => Ok(Self::Sqlite),
+            // Disabling encryption must be explicit, never a fallback.
+            other => Err(format!(
+                "unknown database driver `{other}` (expected: sqlite, mysql)"
+            )),
         }
     }
 }

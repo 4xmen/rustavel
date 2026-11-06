@@ -1,8 +1,8 @@
-use std::env;
+use std::{env, str::FromStr};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MailDriver {
-    Stmp,
+    Smtp,
     SendMail,
     Log,
     Array,
@@ -32,7 +32,7 @@ impl Default for MailConfig {
             mailer: MailDriver::SendMail,
             host: "smtp.example.com".into(),
             port: 587,
-            username: "smtp.example.com".into(),
+            username: "hello@example.com".into(),
             password: "secret".into(),
             encryption: MailEncryptType::Tls,
             from_address: "smtp.example.com".into(),
@@ -46,11 +46,7 @@ impl MailConfig {
         let mut cfg = Self::default();
 
         if let Ok(v) = env::var("MAIL_MAILER") {
-            if let Some(mailer) = MailDriver::from_str(&v) {
-                cfg.mailer = mailer;
-            } else {
-                eprintln!("Invalid MAIL_MAILER value: {}", v);
-            }
+            cfg.mailer = v.parse().unwrap_or_else(|e| panic!("MAIL_MAILER: {e}"));
         }
 
         if let Ok(v) = env::var("MAIL_HOST") {
@@ -58,7 +54,7 @@ impl MailConfig {
         }
 
         if let Ok(v) = env::var("MAIL_PORT") {
-            cfg.port = v.parse().expect("APP_PORT must be a number");
+            cfg.port = v.parse().expect("MAIL_PORT must be a number");
         }
 
         if let Ok(v) = env::var("MAIL_USERNAME") {
@@ -69,13 +65,11 @@ impl MailConfig {
             cfg.password = v;
         }
 
+
         if let Ok(v) = env::var("MAIL_ENCRYPTION") {
-            if let Some(encryption) = MailEncryptType::from_str(&v) {
-                cfg.encryption = encryption;
-            } else {
-                eprintln!("Invalid MAIL_ENCRYPTION value: {}", v);
-            }
+            cfg.encryption = v.parse().unwrap_or_else(|e| panic!("MAIL_ENCRYPTION: {e}"));
         }
+
         if let Ok(v) = env::var("MAIL_FROM_ADDRESS") {
             cfg.from_address = v;
         }
@@ -87,23 +81,37 @@ impl MailConfig {
     }
 }
 
-impl MailDriver {
-    fn from_str(s: &str) -> Option<Self> {
-        match s.to_lowercase().as_str() {
-            "smpt" => Some(MailDriver::Stmp),
-            "sendmail" => Some(MailDriver::SendMail),
-            "log" => Some(MailDriver::Log),
-            "array" => Some(MailDriver::Array),
-            _ => None,
+
+// Using the standard `FromStr` trait gives us `.parse::<MailDriver>()`
+// for free and avoids name clashes with an inherent `from_str` method.
+impl FromStr for MailDriver {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_lowercase().as_str() {
+            "smtp" => Ok(Self::Smtp),
+            "sendmail" => Ok(Self::SendMail),
+            "log" => Ok(Self::Log),
+            "array" => Ok(Self::Array),
+            other => Err(format!(
+                "unknown mail driver `{other}` (expected: smtp, sendmail, log, array)"
+            )),
         }
     }
 }
-impl MailEncryptType {
-    fn from_str(s: &str) -> Option<Self> {
-        match s.to_lowercase().as_str() {
-            "ssl" => Some(MailEncryptType::Ssl),
-            "tls" => Some(MailEncryptType::Tls),
-            _ => Some(MailEncryptType::None)
+
+impl FromStr for MailEncryptType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_lowercase().as_str() {
+            "tls" => Ok(Self::Tls),
+            "ssl" => Ok(Self::Ssl),
+            // Disabling encryption must be explicit, never a fallback.
+            "none" | "" => Ok(Self::None),
+            other => Err(format!(
+                "unknown mail encryption `{other}` (expected: tls, ssl, none)"
+            )),
         }
     }
 }

@@ -1,4 +1,5 @@
 use std::{env, str::FromStr};
+use crate::config::env::{env_bool, env_parse};
 
 /// HTTP layer configuration (middleware stack defaults).
 ///
@@ -108,28 +109,5 @@ impl CorsConfig {
             allow_credentials: env_bool("CORS_ALLOW_CREDENTIALS", d.allow_credentials),
             max_age_secs: env_parse("CORS_MAX_AGE_SECS", d.max_age_secs),
         }
-    }
-}
-
-// ---- small helpers (fail fast on invalid values, like the rest of the config) ----
-
-fn env_parse<T: FromStr>(key: &str, default: T) -> T {
-    match env::var(key) {
-        Ok(v) => v
-            .trim()
-            .parse()
-            .unwrap_or_else(|_| panic!("{key} has an invalid value: {v}")),
-        Err(_) => default,
-    }
-}
-
-fn env_bool(key: &str, default: bool) -> bool {
-    match env::var(key) {
-        Ok(v) => match v.trim().to_lowercase().as_str() {
-            "1" | "true" | "yes" | "on" => true,
-            "0" | "false" | "no" | "off" => false,
-            _ => panic!("{key} must be a boolean (true/false), got: {v}"),
-        },
-        Err(_) => default,
     }
 }
