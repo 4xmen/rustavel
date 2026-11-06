@@ -5,6 +5,7 @@ pub mod database;
 
 pub mod mail;
 pub mod http;
+pub mod env;
 
 #[derive(Debug)]
 pub struct Config {
