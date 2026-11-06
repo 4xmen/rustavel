@@ -31,13 +31,30 @@ pub fn web_routes() -> BuiltRoutes<AppState> {
             .name("destroy");
     });
 
-    route.build().unwrap_or_else(|e| {
+    route.post("/login", test_controller::login);
+
+
+    let mut web = route.build().unwrap_or_else(|e| {
         eprintln!("{:?}", e);
         std::process::exit(1);
-    })
+    });
+
+    let sessions = SessionManager::new();
+
+    web.router = web.router.merge(static_files::static_files())
+        .layer(middleware::from_fn(csrf::verify))
+        .layer(middleware::from_fn_with_state(sessions, session::layer));
+
+    web
+
 }
 
 use axum::extract::State;
+use axum::middleware;
+use tower::ServiceExt;
+use rustavel_core::config::CONFIG;
+use rustavel_core::http::{csrf, session, static_files};
+use rustavel_core::http::session::SessionManager;
 use rustavel_core::state::AppState;
 use crate::http::middleware::performance::performance_middleware;
 // import AppState

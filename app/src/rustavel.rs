@@ -9,10 +9,6 @@ mod routes;
 use rustavel_core::config::CONFIG;
 use rustavel_core::logger;
 use rustavel_core::state::AppState;
-// use crate::http::controllers::test_controller::register;
-// use axum::Router;
-// use axum::routing::post;
-use axum::extract::DefaultBodyLimit;
 use minijinja::{Environment, path_loader};
 use rustavel_core::route::http_middleware;
 
@@ -20,20 +16,16 @@ use rustavel_core::route::http_middleware;
 async fn main() {
     let web = routes::web::web_routes();
     let api = routes::api::api_routes();
+    
+
 
     let built = web.merge(api).unwrap_or_else(|e| {
         eprintln!("{:?}", e);
         std::process::exit(1);
     });
-
+    
     let routes_map = Arc::new(built.names.clone());
 
-    // load minijinja template
-
-    // let views_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-    //     .join("src")
-    //     .join("resources")
-    //     .join("views");
 
     // APP_VIEWS_PATH for deployed binaries; the source tree otherwise
     let views_dir = std::env::var("APP_VIEWS_PATH")
