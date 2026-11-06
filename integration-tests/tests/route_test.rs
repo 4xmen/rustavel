@@ -1,7 +1,7 @@
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use rustavel_core::routing::BuiltRoutes;
-use rustavel_core::routing::Route;
+use rustavel_core::route::routing::BuiltRoutes;
+use rustavel_core::route::routing::Route;
 
 #[derive(Clone, Debug)]
 struct Dummy;

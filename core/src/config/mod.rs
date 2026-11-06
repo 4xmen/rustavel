@@ -4,12 +4,14 @@ pub mod app;
 pub mod database;
 
 pub mod mail;
+pub mod http;
 
 #[derive(Debug)]
 pub struct Config {
     pub app: app::AppConfig,
     pub database: database::DatabaseConfig,
     pub mail: mail::MailConfig,
+    pub http: http::HttpConfig,
     // pub cache: CacheConfig, [sample how to add another one next time]
 }
 
@@ -21,6 +23,7 @@ impl Config {
             app: app::AppConfig::from_env(),
             database: database::DatabaseConfig::from_env(),
             mail: mail::MailConfig::from_env(),
+            http: http::HttpConfig::from_env(),
             // cache: CacheConfig::from_env(), [sample how to add another one next time]
         }
     }

@@ -4,7 +4,7 @@ use crate::http::controllers::welcome_controller;
 use crate::http::middleware::log_middleware;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use rustavel_core::routing::{BuiltRoutes, Route};
+use rustavel_core::route::routing::{BuiltRoutes, Route};
 
 
 pub fn web_routes() -> BuiltRoutes<AppState> {

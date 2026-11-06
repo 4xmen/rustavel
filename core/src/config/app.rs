@@ -9,7 +9,6 @@ pub struct AppConfig {
     pub port: u16,
     pub timezone: String,
     pub key: String,
-    pub max_upload_size: usize,
     pub locale: String,
     pub fallback_locale: String,
     pub faker_locale: String,
@@ -25,7 +24,6 @@ impl Default for AppConfig {
             port: 3000,
             timezone: "UTC".into(),
             key: "".into(),
-            max_upload_size: 2 * 1024 * 1024, // 2mb default axum limit
             locale: "en".into(),
             fallback_locale: "en".into(),
             faker_locale: "en".into(),
@@ -64,10 +62,7 @@ impl AppConfig {
         if let Ok(v) = env::var("APP_KEY") {
             cfg.key = v;
         }
-
-        if let Ok(v) = env::var("APP_MAX_UPLOAD_SIZE") {
-            cfg.max_upload_size = v.parse().expect("APP_MAX_UPLOAD_SIZE must be a number");
-        }
+        
 
         if let Ok(v) = env::var("APP_LOCALE") {
             cfg.locale = v;

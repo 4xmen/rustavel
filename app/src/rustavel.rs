@@ -14,6 +14,7 @@ use rustavel_core::state::AppState;
 // use axum::routing::post;
 use axum::extract::DefaultBodyLimit;
 use minijinja::{Environment, path_loader};
+use rustavel_core::route::http_middleware;
 
 #[tokio::main]
 async fn main() {
@@ -53,10 +54,8 @@ async fn main() {
     };
 
     // take type annotation
-    let app = built
-        .router
-        .layer(DefaultBodyLimit::max(CONFIG.app.max_upload_size))
-        .with_state(state);
+
+    let app = http_middleware::apply(built.router, &CONFIG.http).with_state(state);
 
     //
     // let app: Router<AppState> = Router::new()

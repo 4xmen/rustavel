@@ -131,7 +131,7 @@ macro_rules! define_method {
         /// # use axum::extract::State;
         /// # use axum::http::StatusCode;
         /// # use axum::response::IntoResponse;
-        /// # use rustavel_core::routing::Route;
+        /// # use rustavel_core::route::routing::Route;
         /// # use rustavel_core::state::AppState;
         ///
         /// let mut route = Route::new();
@@ -238,7 +238,7 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
     /// # use axum::extract::State;
     /// # use axum::http::StatusCode;
     /// # use axum::response::IntoResponse;
-    /// # use rustavel_core::routing::Route;
+    /// # use rustavel_core::route::routing::Route;
     /// # use rustavel_core::state::AppState;
     ///
     /// let mut route = Route::new();
@@ -282,7 +282,7 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
     /// # use axum::extract::State;
     /// # use axum::http::StatusCode;
     /// # use axum::response::IntoResponse;
-    /// # use rustavel_core::routing::Route;
+    /// # use rustavel_core::route::routing::Route;
     /// # use rustavel_core::state::AppState;
     ///
     /// let mut route = Route::new();
@@ -404,7 +404,7 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
     /// # use axum::extract::State;
     /// # use axum::http::StatusCode;
     /// # use axum::response::IntoResponse;
-    /// # use rustavel_core::routing::Route;
+    /// # use rustavel_core::route::routing::Route;
     /// # use rustavel_core::state::AppState;
     ///
     /// let mut route = Route::new();
@@ -597,7 +597,7 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
     /// # use axum::extract::State;
     /// # use axum::http::StatusCode;
     /// # use axum::response::IntoResponse;
-    /// # use rustavel_core::routing::Route;
+    /// # use rustavel_core::route::routing::Route;
     /// # use rustavel_core::state::AppState;
     /// let mut route = Route::new();
     /// route.get("/users", hello).name("user.index");
@@ -646,7 +646,7 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
     /// # use axum::extract::State;
     /// # use axum::http::StatusCode;
     /// # use axum::response::IntoResponse;
-    /// # use rustavel_core::routing::Route;
+    /// # use rustavel_core::route::routing::Route;
     /// # use rustavel_core::state::AppState;
     /// let mut route = Route::new();
     /// route.group(|r| {

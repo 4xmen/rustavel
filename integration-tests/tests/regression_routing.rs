@@ -1,6 +1,6 @@
 // Bugs 1 and 2: name()/middleware() inside a group
 use axum::{body::Body, extract::Request, http::StatusCode, middleware::Next, response::{IntoResponse, Response}};
-use rustavel_core::routing::Route;
+use rustavel_core::route::routing::Route;
 use tower::ServiceExt;
 
 async fn deny(_req: Request<Body>, _next: Next) -> Response {
