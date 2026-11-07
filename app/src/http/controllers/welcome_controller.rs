@@ -26,5 +26,5 @@ pub async fn index(
         elapsed_time: Some(elapsed_ms),
     };
     
-    state.view("welcome.j2", Some(sample))
+    state.view_with("welcome.j2", sample)
 }

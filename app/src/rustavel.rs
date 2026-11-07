@@ -1,4 +1,3 @@
-
 use std::path::Path;
 use std::sync::Arc;
 
@@ -6,40 +5,34 @@ mod http;
 mod models;
 mod routes;
 
+use minijinja::{Environment, path_loader};
 use rustavel_core::config::CONFIG;
 use rustavel_core::logger;
-use rustavel_core::state::AppState;
-use minijinja::{Environment, path_loader};
+use rustavel_core::mvc::view::{register_csrf_functions, register_global_func, resolve_views_dir};
 use rustavel_core::route::http_middleware;
+use rustavel_core::state::AppState;
 
 #[tokio::main]
 async fn main() {
     let web = routes::web::web_routes();
     let api = routes::api::api_routes();
-    
-
 
     let built = web.merge(api).unwrap_or_else(|e| {
         eprintln!("{:?}", e);
         std::process::exit(1);
     });
-    
+
     let routes_map = Arc::new(built.names.clone());
 
-
     // APP_VIEWS_PATH for deployed binaries; the source tree otherwise
-    let views_dir = std::env::var("APP_VIEWS_PATH")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| {
-            Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("src")
-                .join("resources")
-                .join("views")
-        });
+    let views_dir = resolve_views_dir().expect("Could not resolve views directory");
 
     let mut env = Environment::new();
     env.set_loader(path_loader(views_dir));
-    
+
+    register_global_func(&mut env,routes_map.clone());
+    register_csrf_functions(&mut env);
+
     let state = AppState {
         routes: routes_map,
         templates: Arc::new(env),
@@ -62,14 +55,12 @@ async fn main() {
     //     .await
     //     .unwrap();
 
-
     let listener = tokio::net::TcpListener::bind(app_start_point.clone())
         .await
         .unwrap_or_else(|e| {
             eprintln!("can't listen on {}: {}", app_start_point, e);
             std::process::exit(1);
         });
-
 
     logger::success(&format!("Starting server on http://{}", app_start_point));
     axum::serve(listener, app).await.unwrap();

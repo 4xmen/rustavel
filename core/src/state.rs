@@ -1,11 +1,12 @@
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse};
-use minijinja::Environment;
+use minijinja::{context, Environment, Value};
 use minijinja::value::Serde;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;
 use axum::extract::FromRef;
+use crate::http::session::Session;
 
 #[derive(Clone, Debug, FromRef)]
 pub struct AppState {
@@ -26,33 +27,66 @@ impl AppState {
     }
 
 
-    /// Renders a MiniJinja template and returns it as an HTML response.
+    /// Renders a MiniJinja template with an empty context and returns an HTML response.
     ///
-    /// If `data` is `Some`, it is passed to the template as its context. If `data`
-    /// is `None`, the template is rendered with an empty context. Returns `200 OK`
-    /// when rendering succeeds, or `500 Internal Server Error` if the template
-    /// cannot be found or rendered.
-    pub fn view<T>(&self, view_file: &str, data: Option<T>) -> impl IntoResponse  + use<T>
-    where
-        T: Serialize,
-    {
-        // Render the template.
-
+    /// Returns `200 OK` when rendering succeeds, or `500 Internal Server Error`
+    /// if the template cannot be found or rendered.
+    pub fn view(&self, view_file: &str) -> impl IntoResponse {
         let result = self
             .templates
             .get_template(view_file)
-            .and_then(|template| match data {
-                Some(data) => template.render(Serde(&data)),
-                None => template.render(()),
-            });
+            .and_then(|template| template.render(()));
 
         match result {
             Ok(html) => (StatusCode::OK, Html(html)).into_response(),
             Err(error) => {
-                eprintln!("Template rendering failed: {error}");
+                tracing::error!("template `{view_file}` failed: {error:#}");
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }
         }
+    }
+
+    /// Renders a MiniJinja template with the provided data as its context.
+    ///
+    /// Returns `200 OK` when rendering succeeds, or `500 Internal Server Error`
+    /// if the template cannot be found or rendered.
+    pub fn view_with<T>(&self, view_file: &str, data: T) -> impl IntoResponse + use<T>
+    where
+        T: Serialize,
+    {
+        let result = self
+            .templates
+            .get_template(view_file)
+            .and_then(|template| template.render(Serde(&data)));
+
+        match result {
+            Ok(html) => (StatusCode::OK, Html(html)).into_response(),
+            Err(error) => {
+                tracing::error!("template `{view_file}` failed: {error:#}");
+                StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            }
+        }
+    }
+
+
+    /// Renders a template with the session's CSRF token injected automatically.
+    /// Every page that contains a form or fetch call should be rendered with this.
+    pub fn protected_view(
+        &self,
+        view_file: &str,
+        ctx: Value,
+        session: &Session,
+    ) -> Result<Html<String>, StatusCode> {
+        let full = context! { csrf_token => session.csrf_token(), ..ctx };
+
+        self.templates
+            .get_template(view_file)
+            .and_then(|t| t.render(full))
+            .map(Html)
+            .map_err(|e| {
+                tracing::error!("template `{view_file}` failed: {e:#}");
+                StatusCode::INTERNAL_SERVER_ERROR
+            })
     }
 
 }

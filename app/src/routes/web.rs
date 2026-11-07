@@ -31,7 +31,8 @@ pub fn web_routes() -> BuiltRoutes<AppState> {
             .name("destroy");
     });
 
-    route.post("/login", test_controller::login);
+    route.get("/login", test_controller::login).name("login.form");
+    route.post("/login", test_controller::login_check).name("login.check");
 
 
     let mut web = route.build().unwrap_or_else(|e| {

@@ -154,14 +154,30 @@ h1 {
     h1 {
         font-size: 1.5rem;
     }
+
     .subtitle {
         font-size: 1rem;
     }
+
     .actions {
         flex-direction: column;
         width: 100%;
     }
+
     .btn {
         width: 100%;
     }
+}
+
+input[type="text"], input[type="email"], input[type="password"], input[type="search"], input[type="tel"], textarea {
+    padding: 10px;
+    width: 100%;
+    border-radius: 7px;
+    background: var(--bg);
+    color: var(--fg);
+    border: 1px solid var(--border);
+}
+
+input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus, input[type="search"]:focus, input[type="tel"]:focus, textarea {
+    outline: 1px solid #ff000011;
 }

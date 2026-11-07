@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome Login</title>
+    <link rel="stylesheet" href="/assets/css/default.css" >
+    {{ csrf_meta() }}
+    <style>
+        #login-form{
+            width: 350px;
+            border: 1px solid var(--border);
+            padding: 1rem;
+            box-shaddow: var(--shadow);
+            background: var(--card);
+            border-radius: 0.5rem;
+        }
+        #login-form label{
+            display: block;
+            margin-bottom: 7px;
+        }
+
+        #login-form input{
+            display: block;
+            margin-bottom: 1rem;
+        }
+        h2{
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <form id="login-form" method="post" enctype="multipart/form-data" action="{{ route("login.check") }}">
+           {{ csrf_field() }}   {# must be the first field for multipart forms #}
+           <h2> Login form sample </h2>
+           <label for="mail"> Email: </label>
+           <input type="email" name="email" id="mail" placeholder="E-mail">
+           <label for="pass"> Password: </label>
+           <input type="password" name="pass" id="pass" placeholder="Password">
+
+           <button type="submit" class="btn btn-primary"> Login </button>
+        </form>
+    </div>
+    {% include "partials/dev/performance.j2" %}
+</body>
+</html>
