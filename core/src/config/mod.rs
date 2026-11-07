@@ -6,6 +6,7 @@ pub mod database;
 pub mod mail;
 pub mod http;
 pub mod env;
+pub mod session;
 
 #[derive(Debug)]
 pub struct Config {
@@ -13,6 +14,7 @@ pub struct Config {
     pub database: database::DatabaseConfig,
     pub mail: mail::MailConfig,
     pub http: http::HttpConfig,
+    pub session: session::SessionConfig,
     // pub cache: CacheConfig, [sample how to add another one next time]
 }
 
@@ -25,6 +27,7 @@ impl Config {
             database: database::DatabaseConfig::from_env(),
             mail: mail::MailConfig::from_env(),
             http: http::HttpConfig::from_env(),
+            session: session::SessionConfig::from_env(),
             // cache: CacheConfig::from_env(), [sample how to add another one next time]
         }
     }
