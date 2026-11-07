@@ -27,6 +27,7 @@ axum-extra = { version = "0.12.6", features = ["routing", "typed-routing"] }
 tower = "0.5.3" # middleware / layers
 axum-params = "0.4"
 tower-http = {version = "0.7" , features = ["full"]}
+futures-util = "0.3"
 
 # ── Templates / Views + Code genrate ─────────────────────────────
 minijinja = { version = "3", features = [
@@ -70,6 +71,7 @@ dialoguer = "0.12"
 
 # ── Crypto / Security ─────────────────────
 ring = "0.17"            # crypto + secure hash
+subtle = "2"  # Constant-time comparison
 crc32fast = "1.5"        # cheap integrity hash
 argon2 = { version = "0.6", features = ["kdf", "getrandom"] } # expensive password crypter
 bcrypt = "0.19" # cheaper password crypter
@@ -78,7 +80,8 @@ data-encoding = "2.11"    # binary encodings
 percent-encoding = "2.3" # URL encode/decode
 
 # ── handle genreal error ────────────────────────
-anyhow = "1.0.104"
+anyhow = "1"
+thiserror = "2"
 
 # ── mail & cache ────────────────────────
 lettre = { version = "0.11.23", features = ["builder", "smtp-transport", "sendmail-transport", "pool", "hostname", "tokio1", "tokio1-native-tls", "ring", "webpki-roots"] }
