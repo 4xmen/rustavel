@@ -5,7 +5,6 @@ use crate::db::table::{
 };
 use crate::logger;
 use std::string::String;
-// use axum::Form;
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -191,6 +190,8 @@ impl SqlGenerator for MySqlGenerator {
         table_name: &str,
         action: &TableAction,
     ) -> (String, String, String,String) {
+        // for multi-col field like morph
+        let mut extra_cols: Vec<String> = Vec::new();
         let mut column_sql = String::new();
         // let mut footer_sql = String::new();
         // let nullable = match column.nullable {
@@ -324,6 +325,7 @@ impl SqlGenerator for MySqlGenerator {
             }
             ColumnDataType::DTTimestamps => {
                 column_sql = "`created_at` TIMESTAMP NULL DEFAULT NULL, `updated_at` TIMESTAMP NULL DEFAULT NULL".to_string();
+                extra_cols.push("`updated_at` TIMESTAMP NULL DEFAULT NULL".to_string());
             }
             ColumnDataType::DTSoftDelete => {
                 column_sql = "`deleted_at` TIMESTAMP NULL DEFAULT NULL".to_string();
@@ -353,22 +355,11 @@ impl SqlGenerator for MySqlGenerator {
                 column_sql = format!("`{}` SET({}) {} {}", column.name, sets, nullable, def);
             }
             ColumnDataType::DTMorph => {
-                column_sql = format!(
-                    "`{}_type` VARCHAR(255) {} {} ,\
-                `{}_id` BIGINT(20) UNSIGNED {} {}",
-                    column.name, nullable, def, column.name, nullable, def
-                );
-                // if *action == TableAction::Alter {
-                //     footer_sql = format!(
-                //         "ADD INDEX `morph_{}_type_{}_id_index` (`{}_type`, `{}_id`)",
-                //         column.name, column.name, column.name, column.name
-                //     )
-                // }else{
-                //     footer_sql = format!(
-                //         "INDEX `morph_{}_type_{}_id_index` (`{}_type`, `{}_id`)",
-                //         column.name, column.name, column.name, column.name
-                //     )
-                // }
+                column_sql = format!("`{}_type` VARCHAR(255) {} {}", column.name, nullable, def);
+                extra_cols.push(format!(
+                    "`{}_id` BIGINT(20) UNSIGNED {} {}",
+                    column.name, nullable, def
+                ));
                 footers.push(format!(
                     "INDEX `morph_{}_type_{}_id_index` (`{}_type`, `{}_id`)",
                     column.name, column.name, column.name, column.name
@@ -426,6 +417,9 @@ impl SqlGenerator for MySqlGenerator {
                 column_sql = format!("CHANGE COLUMN `{}` {}", column.name, column_sql);
             } else {
                 column_sql = format!("ADD COLUMN {}", column_sql);
+            }
+            for extra in &extra_cols {
+                column_sql.push_str(&format!(",\nADD COLUMN {}", extra));
             }
             // inside ALTER TABLE every key/constraint needs its own ADD
             footers = footers.into_iter().map(|f| format!("ADD {}", f)).collect();
