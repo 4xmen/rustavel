@@ -345,3 +345,104 @@ pub fn split_sql_statements(sql: &str) -> Vec<String> {
     }
     statements
 }
+
+
+#[derive(Debug)]
+pub struct PostgresClient {
+    pub pool: sqlx::PgPool,
+}
+
+#[async_trait::async_trait]
+impl DatabaseClient for PostgresClient {
+    /// Runs all statements on ONE connection inside ONE transaction.
+    /// PostgreSQL DDL is transactional (Laravel also wraps Postgres migrations in a
+    /// transaction), so a failed migration is rolled back completely, and
+    /// `SET CONSTRAINTS ALL DEFERRED` only has an effect inside a transaction block.
+    /// On error the `?` drops `tx`, which rolls it back.
+    async fn execute_on_one_connection(&self, statements: &[String]) -> Result<(), DbError> {
+        let mut tx = self.pool.begin().await?;
+        for statement in statements {
+            for single_sql in split_sql_statements(statement) {
+                sqlx::query(AssertSqlSafe(single_sql)).execute(&mut *tx).await?;
+            }
+        }
+        tx.commit().await?;
+        Ok(())
+    }
+
+    async fn execute_params(&self, sql: &str, params: &[&str]) -> Result<(), DbError> {
+        let mut query = sqlx::query(AssertSqlSafe(sql));
+
+        for param in params {
+            query = query.bind(*param);
+        }
+        query.execute(&self.pool).await?;
+        Ok(())
+    }
+
+    /// Not wrapped in a transaction on purpose: some statements
+    /// (e.g. CREATE DATABASE / DROP DATABASE) cannot run inside one.
+    async fn execute(&self, sql: &str) -> Result<(), DbError> {
+        for single_sql in split_sql_statements(sql) {
+            sqlx::query(AssertSqlSafe(single_sql)).execute(&self.pool).await?;
+        }
+        Ok(())
+    }
+
+    async fn fetch_strings(&self, sql: &str) -> Result<Vec<String>, DbError> {
+        let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&self.pool).await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|row| row.get::<String, _>(0))
+            .collect())
+    }
+
+
+    async fn fetch_numbers(&self, sql: &str) -> Result<Vec<i64>, DbError> {
+        let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&self.pool).await?;
+
+        // MAX() on an empty table returns a single NULL row, so decode as Option
+        let mut numbers = Vec::with_capacity(rows.len());
+        for row in rows {
+            if let Some(n) = row.try_get::<Option<i64>, _>(0)? {
+                numbers.push(n);
+            }
+        }
+        Ok(numbers)
+    }
+
+    async fn fetch_strings_params(
+        &self,
+        sql: &str,
+        params: &[&str],
+    ) -> Result<Vec<String>, DbError> {
+        let mut query = sqlx::query(AssertSqlSafe(sql));
+
+        for param in params {
+            query = query.bind(*param);
+        }
+
+        let rows = query.fetch_all(&self.pool).await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|row| row.get::<String, _>(0))
+            .collect())
+    }
+
+    async fn fetch_count_params(&self, sql: &str, params: &[&str]) -> Result<i64, DbError> {
+        let mut query = sqlx::query(AssertSqlSafe(sql));
+
+        for param in params {
+            query = query.bind(*param);
+        }
+
+        let row = query.fetch_one(&self.pool).await?;
+
+        // COUNT(*) is BIGINT in PostgreSQL, so it decodes into i64 directly
+        let count: i64 = row.try_get(0)?;
+
+        Ok(count)
+    }
+}

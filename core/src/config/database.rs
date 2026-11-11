@@ -4,6 +4,7 @@ use std::{env, str::FromStr};
 pub enum DatabaseEngine {
     Mysql,
     Sqlite,
+    PgSql,
 }
 
 #[allow(dead_code)]
@@ -93,9 +94,10 @@ impl FromStr for DatabaseEngine {
         match s.trim().to_lowercase().as_str() {
             "mysql" => Ok(Self::Mysql),
             "sqlite" => Ok(Self::Sqlite),
+            "pgsql" => Ok(Self::PgSql),
             // Disabling encryption must be explicit, never a fallback.
             other => Err(format!(
-                "unknown database driver `{other}` (expected: sqlite, mysql)"
+                "unknown database driver `{other}` (expected: sqlite, mysql, pgsql)"
             )),
         }
     }
