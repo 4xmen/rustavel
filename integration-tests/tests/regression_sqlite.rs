@@ -18,7 +18,13 @@ struct Login { #[validating("exists:reg_users,email")] email: String }
 #[tokio::test]
 async fn sqlite_suite() {
     if !sqlite() { return; }
+
     let mut s = Schema::new().await.unwrap();
+
+    // check default remove last tested tables
+    s.drop_table_if_exists("app_reg_users").await;
+
+
     s.drop_table_if_exists("reg_users").await;
     s.create("reg_users", |t| { t.id(); t.string("email", 100); });
     s.execute_migration("reg_users", &Instant::now().into()).await.unwrap();
