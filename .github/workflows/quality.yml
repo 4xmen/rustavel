@@ -1,0 +1,83 @@
+
+name: Code Quality
+
+# -------------------------------------
+# Workflow Triggers
+# -------------------------------------
+
+on:
+  push:
+    branches:
+      - master
+      - develop
+
+  pull_request:
+    branches:
+      - master
+      - develop
+
+  workflow_dispatch:
+
+# -------------------------------------
+# Workflow Permissions
+# -------------------------------------
+
+permissions:
+  contents: read
+
+# -------------------------------------
+# Code Quality
+# -------------------------------------
+
+jobs:
+  quality:
+    name: Formatting & Linting
+    runs-on: ubuntu-latest
+
+    steps:
+      # -------------------------------------
+      # Checkout Repository
+      # -------------------------------------
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # -------------------------------------
+      # Read Rust Version from Cargo.toml
+      # -------------------------------------
+
+      - name: Read Rust Version
+        id: rust-version
+        run: |
+          VERSION=$(python3 -c '
+          import tomllib
+          with open("Cargo.toml", "rb") as f:
+              cargo = tomllib.load(f)
+          print(cargo["workspace"]["package"]["rust-version"])
+          ')
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      # -------------------------------------
+      # Install Rust Toolchain
+      # -------------------------------------
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.rust-version.outputs.version }}
+          components: rustfmt, clippy
+
+      # -------------------------------------
+      # Check Code Formatting
+      # -------------------------------------
+
+      - name: Check Formatting
+        run: cargo fmt --all -- --check
+
+      # -------------------------------------
+      # Run Clippy
+      # -------------------------------------
+
+      - name: Run Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings

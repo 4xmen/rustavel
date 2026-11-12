@@ -207,7 +207,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ needs.rust-version.outputs.version }}
-          components: rustfmt, clippy
+#          components: rustfmt, clippy
 
       - name: Install SQLite Dependencies
         run: |
@@ -219,13 +219,6 @@ jobs:
           echo "DB_CONNECTION=sqlite" >> "$GITHUB_ENV"
           echo "DB_DATABASE=./rustavel-ci.sqlite" >> "$GITHUB_ENV"
           echo "DB_PREFIX=rv_" >> "$GITHUB_ENV"
-
-      # Run code quality checks once per workflow.
-      - name: Check Formatting
-        run: cargo fmt --all -- --check
-
-      - name: Run Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Prepare SQLite Database
         shell: bash

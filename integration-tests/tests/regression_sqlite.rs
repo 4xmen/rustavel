@@ -45,13 +45,13 @@ async fn sqlite_suite() {
     s.execute_migration("reg_users", &Instant::now().into())
         .await
         .unwrap();
-    std::process::Command::new("sqlite3")
-        .arg(&CONFIG.database.database)
-        .arg(format!(
+
+    s.client
+        .execute(&format!(
             "INSERT INTO {} (email) VALUES ('a@b.com');",
             &table_name
         ))
-        .status()
+        .await
         .unwrap();
 
     let mut failures: Vec<String> = vec![];

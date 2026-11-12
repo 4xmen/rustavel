@@ -88,7 +88,7 @@ pub async fn get_columns() -> &'static Vec<String> {
 pub struct Schema {
     prefix: String,
     generator: Box<dyn SqlGenerator + Send + Sync>,
-    client: Box<dyn DatabaseClient + Send + Sync>,
+    pub client: Box<dyn DatabaseClient + Send + Sync>,
     debug: bool,
     tables: HashMap<String, Table>,
     // current: Option<Table>,
