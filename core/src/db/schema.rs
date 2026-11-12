@@ -11,6 +11,7 @@ use futures::future::join_all;
 use illuminate_str::Str;
 use sqlx::{MySqlPool, PgPool, SqlitePool};
 use std::collections::HashMap;
+use std::sync::Arc;
 use sqlx::postgres::PgConnectOptions;
 use tokio::sync::OnceCell;
 use tokio::time::Instant;
@@ -18,6 +19,8 @@ use crate::sql::postgres::PostgresGenerator;
 
 static TABLES: OnceCell<Vec<String>> = OnceCell::const_new();
 static COLUMNS: OnceCell<Vec<String>> = OnceCell::const_new();
+
+static TABLE_DOT_COLUMN: OnceCell<Arc<Vec<String>>> = OnceCell::const_new();
 
 #[derive(Debug)]
 pub struct ModelData {
@@ -187,7 +190,7 @@ impl Schema {
     /// use rustavel_core::db::schema::Schema;
     /// async fn run()  {
     ///     let s = Schema::new().await.unwrap();
-    ///     s.drop_table_if_exists("test").await;
+    ///     s.drop_table_if_exists("test_table_here").await;
     /// }
     /// ```
     ///
@@ -198,6 +201,47 @@ impl Schema {
         let sql = self
             .generator
             .drop_table_if_exists(&self.fix_table_name(&table_name.into()));
+        match self.client.execute(&sql).await {
+            Ok(_) => true,
+            Err(e) => {
+                if self.debug {
+                    logger::error(&format!("{:?}", e));
+                }
+                false
+            }
+        }
+    }
+
+    /// Drops a table if it exists with raw name without prefix
+    ///
+    /// This method:
+    /// - Use name
+    /// - Generates a DROP TABLE IF EXISTS SQL statement via self.generator.
+    /// - Executes the statement using self.client.
+    ///
+    /// # Behavior
+    /// - Returns true if the SQL executes successfully.
+    /// - Returns false on error. If self.debug is true, the error is logged into log file.
+    ///
+    /// # Parameters
+    /// - table_name: Any type convertible to String representing the table name.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use rustavel_core::db::schema::Schema;
+    /// async fn run()  {
+    ///     let s = Schema::new().await.unwrap();
+    ///     s.drop_table_if_exists("test_table_here").await;
+    /// }
+    /// ```
+    ///
+    /// # Notes
+    /// - The function performs no further validation of table_name.
+    /// - Errors are swallowed (converted to false) after optional logging.
+    pub async fn drop_table_raw_name_if_exists(&self, table_name: impl Into<String>) -> bool {
+        let sql = self
+            .generator
+            .drop_table_if_exists(&table_name.into());
         match self.client.execute(&sql).await {
             Ok(_) => true,
             Err(e) => {
@@ -2061,22 +2105,25 @@ impl Schema {
     /// (unknown table/column or a database error). Validators must treat
     /// `None` as a failure, otherwise `unique` would pass on any error.
     pub async fn exists_record(&self, table: &str, column: &str, wanted: &str) -> Option<bool> {
+
         // ----------------------------------------------------
         // Identifiers are checked against a cached schema whitelist
         // before being placed into the SQL statement.
         // ----------------------------------------------------
         let table = self.fix_table_name(table);
-        let tables = get_tables().await;
-        if !tables.contains(&table) {
-            logger::error(&format!("table not exists {}", table));
-            logger::info("May you need to run migrations or restart app to re-cache tables!?");
-            return None;
-        }
-        let columns = get_columns().await;
-        if !columns.contains(&format!("{}.{}", table, column)) {
-            logger::error(&format!("column `{}` not exists in {}", column, table));
-            logger::info("May you need to run migrations or restart app to re-cache tables!?");
-            return None;
+
+        let tables_columns = self.get_db_tables_columns_names();
+        match tables_columns.await {
+            Ok(columns) => {
+                if !columns.contains(&format!("{}.{}", table, column)) {
+                    logger::error(&format!("table or column `{}` not exists in {}", column, table));
+                    logger::info("May you need to run migrations or restart app to re-cache tables!?");
+                    return None;
+                }
+            },
+            Err(_e) => {
+                return None;
+            }
         }
         let sql = &self.generator.record_exists(&table, column);
         match self.client.fetch_count_params(sql, &[wanted]).await {
@@ -2098,18 +2145,20 @@ impl Schema {
         except_col: &str,
         except_val: &str,
     ) -> Option<bool> {
-        let table = self.fix_table_name(table);
-        let tables = get_tables().await;
-        if !tables.contains(&table) {
-            logger::error(&format!("table not exists {}", table));
-            logger::info("May you need to run migrations or restart app to re-cache tables!?");
-            return None;
-        }
-        let columns = get_columns().await;
-        for col in [column, except_col] {
-            if !columns.contains(&format!("{}.{}", table, col)) {
-                logger::error(&format!("column `{}` not exists in {}", col, table));
-                logger::info("May you need to run migrations or restart app to re-cache tables!?");
+        // ----------------------------------------------------
+        // Identifiers are checked against a cached schema whitelist
+        // before being placed into the SQL statement.
+        // ----------------------------------------------------
+        let tables_columns = self.get_db_tables_columns_names();
+        match tables_columns.await {
+            Ok(columns) => {
+                if !columns.contains(&format!("{}.{}", table, column)) {
+                    logger::error(&format!("table or column `{}` not exists in {}", column, table));
+                    logger::info("May you need to run migrations or restart app to re-cache tables!?");
+                    return None;
+                }
+            },
+            Err(_e) => {
                 return None;
             }
         }
@@ -2185,5 +2234,16 @@ impl Schema {
                 }
             })
             .collect()
+    }
+
+    async fn get_db_tables_columns_names(&self) -> Result<Arc<Vec<String>>, DbError> {
+        let result = TABLE_DOT_COLUMN
+            .get_or_try_init(|| async {
+                let sql = self.generator.get_db_tables_columns_struct();
+                self.client.fetch_strings(&sql).await.map(Arc::new)
+            })
+            .await?;
+
+        Ok(Arc::clone(result))
     }
 }

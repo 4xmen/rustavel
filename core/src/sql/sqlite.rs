@@ -422,4 +422,13 @@ impl SqlGenerator for SqliteGenerator {
     fn record_exists_except(&self,table: &str,column: &str, except: &str) -> String{
         format!("SELECT COUNT(*) AS count FROM \"{}\" WHERE \"{}\" = ? AND \"{}\" <> ?", table, column,except)
     }
+
+    fn get_db_tables_columns_struct(&self) -> String {
+        "SELECT m.name || '.' || p.name AS name
+        FROM sqlite_master m,
+             pragma_table_info(m.name) p
+        WHERE m.type = 'table'
+          AND m.name NOT LIKE 'sqlite_%'
+        ORDER BY m.name, p.cid;".into()
+    }
 }

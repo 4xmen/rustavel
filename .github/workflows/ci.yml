@@ -98,7 +98,7 @@ jobs:
           New-Item -ItemType File -Path $db -Force | Out-Null
           "DB_DATABASE=$db" >> $env:GITHUB_ENV
       - name: Run Tests
-        run: cargo test --workspace --locked -- --test-threads=1
+        run: cargo test --workspace --locked
 
   # -------------------------------------
   # macOS - SQLite
@@ -131,7 +131,7 @@ jobs:
           touch "$DB_FILE"
           echo "DB_DATABASE=$DB_FILE" >> "$GITHUB_ENV"
       - name: Run Tests
-        run: cargo test --workspace --locked -- --test-threads=1
+        run: cargo test --workspace --locked
 
   # -------------------------------------
   # macOS - MySQL
@@ -185,10 +185,10 @@ jobs:
           echo "DB_DATABASE=ci_db" >> "$GITHUB_ENV"
           echo "DB_USERNAME=root" >> "$GITHUB_ENV"
           echo "DB_PASSWORD=" >> "$GITHUB_ENV"
-          echo "DB_PREFIX=rv_" >> "$GITHUB_ENV"
+#          echo "DB_PREFIX=rv_" >> "$GITHUB_ENV" # test withot db prefix
 
       - name: Run Tests
-        run: cargo test --workspace --locked -- --test-threads=1
+        run: cargo test --workspace --locked
 
   # -------------------------------------
   # Linux - SQLite
@@ -314,4 +314,4 @@ jobs:
           echo "DB_PREFIX=rv_" >> "$GITHUB_ENV"
 
       - name: Run Tests
-        run: cargo test --workspace --locked -- --test-threads=1
+        run: cargo test --workspace --locked

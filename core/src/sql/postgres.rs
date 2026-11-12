@@ -546,4 +546,11 @@ impl SqlGenerator for PostgresGenerator {
             ident(except)
         )
     }
+
+    fn get_db_tables_columns_struct(&self) -> String {
+        "SELECT table_name || '.' || column_name AS name
+        FROM information_schema.columns
+        WHERE table_schema NOT IN ('information_schema', 'pg_catalog')
+        ORDER BY table_schema, table_name, ordinal_position;".into()
+    }
 }

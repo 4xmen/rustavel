@@ -1,4 +1,5 @@
 use std::time::Instant;
+use rustavel_core::config::CONFIG;
 use rustavel_core::db::schema::Schema;
 use rustavel_core::helper::number::random;
 #[tokio::test]
@@ -28,7 +29,7 @@ async fn schema_create_and_drop_table_check_column() {
     schema.execute_migration("alter table",&a.into()).await.unwrap();
 
     let tables = schema.get_tables().await.unwrap();
-    assert_eq!(tables.contains(&table_name),true);
+    assert_eq!(tables.contains(&format!("{}{}",CONFIG.database.prefix,&table_name)),true);
     assert_eq!(schema.has_column(table_name.clone(),"other").await.unwrap(),true);
     schema.drop_table(&table_name).await.unwrap();
 

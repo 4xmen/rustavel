@@ -6,6 +6,7 @@ use std::time::Instant;
 #[tokio::test]
 async fn bug11_every_create_in_one_migration_runs() {
     let mut s = Schema::new().await.unwrap();
+
     s.drop_table_if_exists("reg_one").await;
     s.drop_table_if_exists("reg_two").await;
     s.create("reg_one", |t| {

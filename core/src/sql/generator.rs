@@ -60,4 +60,5 @@ pub trait SqlGenerator: Debug + Sync + Send {
     
     fn record_exists_except(&self,table: &str,column: &str, except: &str) -> String;
 
+    fn get_db_tables_columns_struct(&self) -> String;
 }

@@ -528,4 +528,11 @@ impl SqlGenerator for MySqlGenerator {
     fn record_exists_except(&self,table: &str,column: &str, except: &str) -> String{
         format!("SELECT COUNT(*) AS 'count' FROM `{}` WHERE `{}` = ? AND `{}` <> ?", table, column, except)
     }
+
+    fn get_db_tables_columns_struct(&self) -> String {
+        "SELECT CONCAT(TABLE_NAME, '.', COLUMN_NAME) AS name
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+        ORDER BY TABLE_NAME, ORDINAL_POSITION;".into()
+    }
 }
