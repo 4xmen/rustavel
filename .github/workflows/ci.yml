@@ -91,9 +91,14 @@ jobs:
           "DB_CONNECTION=sqlite" >> $env:GITHUB_ENV
           "DB_DATABASE=./rustavel-ci.sqlite" >> $env:GITHUB_ENV
           "DB_PREFIX=rv_" >> $env:GITHUB_ENV
-
+      - name: Prepare SQLite Database
+        shell: pwsh
+        run: |
+          $db = Join-Path $env:GITHUB_WORKSPACE "rustavel-ci.sqlite"
+          New-Item -ItemType File -Path $db -Force | Out-Null
+          "DB_DATABASE=$db" >> $env:GITHUB_ENV
       - name: Run Tests
-        run: cargo test --workspace --locked
+        run: cargo test --workspace --locked -- --test-threads=1
 
   # -------------------------------------
   # macOS - SQLite
@@ -119,8 +124,14 @@ jobs:
           echo "DB_DATABASE=./rustavel-ci.sqlite" >> "$GITHUB_ENV"
           echo "DB_PREFIX=rv_" >> "$GITHUB_ENV"
 
+      - name: Prepare SQLite Database
+        shell: bash
+        run: |
+          DB_FILE="$GITHUB_WORKSPACE/rustavel-ci.sqlite"
+          touch "$DB_FILE"
+          echo "DB_DATABASE=$DB_FILE" >> "$GITHUB_ENV"
       - name: Run Tests
-        run: cargo test --workspace --locked
+        run: cargo test --workspace --locked -- --test-threads=1
 
   # -------------------------------------
   # macOS - MySQL
@@ -177,7 +188,7 @@ jobs:
           echo "DB_PREFIX=rv_" >> "$GITHUB_ENV"
 
       - name: Run Tests
-        run: cargo test --workspace --locked
+        run: cargo test --workspace --locked -- --test-threads=1
 
   # -------------------------------------
   # Linux - SQLite
@@ -216,8 +227,15 @@ jobs:
       - name: Run Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
+      - name: Prepare SQLite Database
+        shell: bash
+        run: |
+          DB_FILE="$GITHUB_WORKSPACE/rustavel-ci.sqlite"
+          touch "$DB_FILE"
+          echo "DB_DATABASE=$DB_FILE" >> "$GITHUB_ENV"
+
       - name: Run Tests
-        run: cargo test --workspace --locked
+        run: cargo test --workspace --locked -- --test-threads=1
 
   # -------------------------------------
   # Linux - MySQL / MariaDB / PostgreSQL
@@ -296,4 +314,4 @@ jobs:
           echo "DB_PREFIX=rv_" >> "$GITHUB_ENV"
 
       - name: Run Tests
-        run: cargo test --workspace --locked
+        run: cargo test --workspace --locked -- --test-threads=1
