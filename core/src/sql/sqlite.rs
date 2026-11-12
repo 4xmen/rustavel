@@ -390,38 +390,6 @@ impl SqlGenerator for SqliteGenerator {
         }
     }
 
-
-
-    // fn get_ran(&self) -> String {
-    //     "SELECT migration FROM migrations".to_string()
-    // }
-
-    // fn get_ran_gt(&self) -> String {
-    //     "SELECT migration FROM migrations WHERE batch > ?".to_string()
-    // }
-
-
-    // fn get_next_batch_number(&self) -> String {
-    //     "SELECT MAX(batch) AS batch FROM migrations".to_string()
-    // }
-
-    // fn add_migrated_table(&self) -> String {
-    //     "INSERT INTO migrations (migration, batch) VALUES (?, ?)".to_string()
-    // }
-
-    // fn rem_migrated_table(&self) -> String {
-    //     "DELETE FROM migrations WHERE migration = ?".to_string()
-    // }
-
-    // fn record_exists(&self, table: &str, column: &str) -> String {
-    //     format!("SELECT COUNT(*) AS 'count' FROM '{}' WHERE '{}' = ?", table, column)
-    // }
-    //
-    // fn record_exists_except(&self,table: &str,column: &str, except: &str) -> String{
-    //     format!("SELECT COUNT(*) AS 'count' FROM '{}' WHERE '{}' = ? AND '{}' <> ?", table, column,except)
-    // }
-
-
     fn get_ran(&self, table: &str) -> String {
         format!("SELECT migration FROM \"{}\"", table)
     }
