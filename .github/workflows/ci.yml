@@ -1,0 +1,299 @@
+
+name: Rustavel CI
+
+# -------------------------------------
+# Workflow Triggers
+# -------------------------------------
+
+on:
+  push:
+    branches:
+      - master
+      - dev
+
+  pull_request:
+    branches:
+      - master
+      - dev
+
+  workflow_dispatch:
+
+# -------------------------------------
+# Workflow Permissions
+# -------------------------------------
+
+permissions:
+  contents: read
+
+# -------------------------------------
+# Cancel outdated workflow runs
+# -------------------------------------
+
+concurrency:
+  group: rustavel-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+
+  # -------------------------------------
+  # Read Rust version from workspace Cargo.toml
+  # -------------------------------------
+
+  rust-version:
+    name: Read Rust Version
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Read Workspace Rust Version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(python3 -c '
+          import tomllib
+          with open("Cargo.toml", "rb") as f:
+              cargo = tomllib.load(f)
+          print(cargo["workspace"]["package"]["rust-version"])
+          ')
+
+          echo "Detected Rust version: $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+  # -------------------------------------
+  # Windows - SQLite
+  # -------------------------------------
+
+  windows:
+    name: Windows - SQLite
+    needs: rust-version
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.rust-version.outputs.version }}
+
+      - name: Configure SQLite Environment
+        shell: pwsh
+        run: |
+          "DB_CONNECTION=sqlite" >> $env:GITHUB_ENV
+          "DB_DATABASE=./rustavel-ci.sqlite" >> $env:GITHUB_ENV
+          "DB_PREFIX=rv_" >> $env:GITHUB_ENV
+
+      - name: Run Tests
+        run: cargo test --workspace --locked
+
+  # -------------------------------------
+  # macOS - SQLite
+  # -------------------------------------
+
+  macos-sqlite:
+    name: macOS - SQLite
+    needs: rust-version
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.rust-version.outputs.version }}
+
+      - name: Configure SQLite Environment
+        run: |
+          echo "DB_CONNECTION=sqlite" >> "$GITHUB_ENV"
+          echo "DB_DATABASE=./rustavel-ci.sqlite" >> "$GITHUB_ENV"
+          echo "DB_PREFIX=rv_" >> "$GITHUB_ENV"
+
+      - name: Run Tests
+        run: cargo test --workspace --locked
+
+  # -------------------------------------
+  # macOS - MySQL
+  # -------------------------------------
+
+  macos-mysql:
+    name: macOS - MySQL
+    needs: rust-version
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.rust-version.outputs.version }}
+
+      - name: Install MySQL
+        run: |
+          brew install mysql@8.4
+          echo "$(brew --prefix mysql@8.4)/bin" >> "$GITHUB_PATH"
+          brew services start mysql@8.4
+
+      - name: Wait for MySQL
+        shell: bash
+        run: |
+          ready=0
+
+          for i in {1..30}; do
+            if mysqladmin ping --silent; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+
+          if [ "$ready" -ne 1 ]; then
+            echo "MySQL failed to start"
+            exit 1
+          fi
+
+          mysql -uroot -e "CREATE DATABASE ci_db"
+
+      - name: Configure MySQL Environment
+        run: |
+          echo "DB_CONNECTION=mysql" >> "$GITHUB_ENV"
+          echo "DB_HOST=127.0.0.1" >> "$GITHUB_ENV"
+          echo "DB_PORT=3306" >> "$GITHUB_ENV"
+          echo "DB_DATABASE=ci_db" >> "$GITHUB_ENV"
+          echo "DB_USERNAME=root" >> "$GITHUB_ENV"
+          echo "DB_PASSWORD=" >> "$GITHUB_ENV"
+          echo "DB_PREFIX=rv_" >> "$GITHUB_ENV"
+
+      - name: Run Tests
+        run: cargo test --workspace --locked
+
+  # -------------------------------------
+  # Linux - SQLite
+  # -------------------------------------
+
+  linux-sqlite:
+    name: Linux - SQLite
+    needs: rust-version
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.rust-version.outputs.version }}
+          components: rustfmt, clippy
+
+      - name: Install SQLite Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev
+
+      - name: Configure SQLite Environment
+        run: |
+          echo "DB_CONNECTION=sqlite" >> "$GITHUB_ENV"
+          echo "DB_DATABASE=./rustavel-ci.sqlite" >> "$GITHUB_ENV"
+          echo "DB_PREFIX=rv_" >> "$GITHUB_ENV"
+
+      # Run code quality checks once per workflow.
+      - name: Check Formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Run Tests
+        run: cargo test --workspace --locked
+
+  # -------------------------------------
+  # Linux - MySQL / MariaDB / PostgreSQL
+  # -------------------------------------
+
+  linux-database:
+    name: Linux - ${{ matrix.database }}
+    needs: rust-version
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        include:
+          - database: mysql
+            image: mysql:8.4
+            port: 3306
+            connection: mysql
+
+          - database: mariadb
+            image: mariadb:11.8
+            port: 3306
+            connection: mysql
+
+          - database: postgres
+            image: postgres:17
+            port: 5432
+            connection: pgsql
+
+    services:
+      db:
+        image: ${{ matrix.image }}
+
+        env:
+          MYSQL_ROOT_PASSWORD: root_password
+          MYSQL_DATABASE: ci_db
+          MYSQL_USER: ci
+          MYSQL_PASSWORD: ci_password
+
+          MARIADB_ROOT_PASSWORD: root_password
+          MARIADB_DATABASE: ci_db
+          MARIADB_USER: ci
+          MARIADB_PASSWORD: ci_password
+
+          POSTGRES_DB: ci_db
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci_password
+
+        ports:
+          - ${{ matrix.port }}:${{ matrix.port }}
+
+        options: >-
+          --health-cmd="${{ matrix.database == 'postgres' && 'pg_isready -U ci -d ci_db' || (matrix.database == 'mariadb' && 'healthcheck.sh --connect --innodb_initialized' || 'mysqladmin ping -h 127.0.0.1 -uroot -proot_password') }}"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.rust-version.outputs.version }}
+
+      - name: Configure Database Environment
+        run: |
+          echo "DB_CONNECTION=${{ matrix.connection }}" >> "$GITHUB_ENV"
+          echo "DB_HOST=127.0.0.1" >> "$GITHUB_ENV"
+          echo "DB_PORT=${{ matrix.port }}" >> "$GITHUB_ENV"
+          echo "DB_DATABASE=ci_db" >> "$GITHUB_ENV"
+          echo "DB_USERNAME=ci" >> "$GITHUB_ENV"
+          echo "DB_PASSWORD=ci_password" >> "$GITHUB_ENV"
+          echo "DB_PREFIX=rv_" >> "$GITHUB_ENV"
+
+      - name: Run Tests
+        run: cargo test --workspace --locked
