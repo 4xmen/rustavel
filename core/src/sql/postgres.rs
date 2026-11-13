@@ -570,4 +570,11 @@ impl SqlGenerator for PostgresGenerator {
         ORDER BY table_schema, table_name, ordinal_position;"
             .into()
     }
+
+    fn rename_column(&self, table_name: &str, old_col_name: &str, new_col_name: &str) -> String {
+        format!(
+            "ALTER TABLE {} RENAME COLUMN {} TO {};",
+            table_name, old_col_name, new_col_name
+        )
+    }
 }

@@ -354,11 +354,11 @@ impl SqlGenerator for MySqlGenerator {
                 column_sql = format!("`{}` SET({}) {} {}", column.name, sets, nullable, def);
             }
             ColumnDataType::DTMorph => {
-                column_sql = format!("`{}_type` VARCHAR(255) {} {}", column.name, nullable, def);
-                extra_cols.push(format!(
-                    "`{}_id` BIGINT(20) UNSIGNED {} {}",
-                    column.name, nullable, def
-                ));
+                column_sql = format!(
+                    "`{}_type` VARCHAR(255) {} {} ,\
+                `{}_id` BIGINT(20) UNSIGNED {} {}",
+                    column.name, nullable, def, column.name, nullable, def
+                );
                 footers.push(format!(
                     "INDEX `morph_{}_type_{}_id_index` (`{}_type`, `{}_id`)",
                     column.name, column.name, column.name, column.name
@@ -416,9 +416,6 @@ impl SqlGenerator for MySqlGenerator {
                 column_sql = format!("CHANGE COLUMN `{}` {}", column.name, column_sql);
             } else {
                 column_sql = format!("ADD COLUMN {}", column_sql);
-            }
-            for extra in &extra_cols {
-                column_sql.push_str(&format!(",\nADD COLUMN {}", extra));
             }
             // inside ALTER TABLE every key/constraint needs its own ADD
             footers = footers.into_iter().map(|f| format!("ADD {}", f)).collect();
@@ -545,5 +542,12 @@ impl SqlGenerator for MySqlGenerator {
         WHERE TABLE_SCHEMA = DATABASE()
         ORDER BY TABLE_NAME, ORDINAL_POSITION;"
             .into()
+    }
+
+    fn rename_column(&self, _table_name: &str, old_col_name: &str, new_col_name: &str) -> String {
+        format!(
+            "RENAME COLUMN `{}` TO `{}`",
+            old_col_name, new_col_name
+        )
     }
 }

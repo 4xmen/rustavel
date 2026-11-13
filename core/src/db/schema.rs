@@ -1558,6 +1558,21 @@ impl Schema {
         //     body.push(self.generator.drop_column(&column));
         // }
 
+        // rename table's cols
+        for (old_name, new_name) in &table.rename_columns {
+            if CONFIG.database.connection == DatabaseEngine::Mysql {
+                body.push(
+                    self.generator
+                        .rename_column(&table.name, old_name, new_name),
+                )
+            } else {
+                post.push(
+                    self.generator
+                        .rename_column(&table.name, old_name, new_name),
+                )
+            }
+        }
+
         for column in &table.drop_columns {
             body.push(self.generator.drop_column(&table.name, column));
         }
@@ -1580,65 +1595,6 @@ impl Schema {
         self.generator
             .table_sql(&table.name, &sql, &Str::implode(";\n", post), &table.action)
     }
-
-    // pub async fn execute_migration(
-    //     &self,
-    //     final_name: &str,
-    //     duration: &Instant,
-    // ) -> Result<(), DbError> {
-    //     // extract last migration data information
-    //     if let Some(table) = &self.current {
-    //         let mut body = vec![];
-    //         let mut foot = vec![];
-    //         let mut post = vec![];
-    //         let mut spliter = String::new();
-    //         for column in &table.columns {
-    //             let (b, f, p, s) = self.generator.column(&column, &table.name, &table.action);
-    //             body.push(b);
-    //             if !f.is_empty() {
-    //                 foot.push(f);
-    //             }
-    //             if !p.is_empty() {
-    //                 post.push(p);
-    //             }
-    //             spliter = s;
-    //         }
-    //         for column in &table.drop_columns {
-    //             body.push(self.generator.drop_column(&column));
-    //         }
-    //         for key in &table.foreign_keys {
-    //             let str = self.generator.foreign_key(&key, &table.name, &table.action);
-    //
-    //             if !str.is_empty() {
-    //                 foot.push(str);
-    //             }
-    //         }
-    //         body.append(&mut foot);
-    //         let sql = Str::implode(&spliter, body);
-    //         let sql = self.generator.table_sql(
-    //             &table.name,
-    //             &sql,
-    //             &Str::implode(";\n", post),
-    //             &table.action,
-    //         );
-    //         // logger::info(&format!("Just4debug develop core: \n {}", sql.trim()));
-    //         // execute generated sql
-    //         match self.client.execute(&sql).await {
-    //             Ok(_) => {
-    //                 // logger::success(&format!("Updated table  : \n {}", &table.name));
-    //                 operation(final_name, duration.elapsed(), Status::Done);
-    //                 Ok(())
-    //             }
-    //             Err(e) => {
-    //                 // logger::error(&format!("{:?}", e));
-    //                 operation(final_name, duration.elapsed(), Status::Failed);
-    //                 Err(e)
-    //             }
-    //         }
-    //     } else {
-    //         Err(DbError::InvalidTable)
-    //     }
-    // }
 
     /// Checks if the migrations repository exists in the database.
     ///
