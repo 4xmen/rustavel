@@ -306,5 +306,8 @@ jobs:
           echo "DB_PASSWORD=ci_password" >> "$GITHUB_ENV"
           echo "DB_PREFIX=rv_" >> "$GITHUB_ENV"
 
-      - name: Run Tests
-        run: cargo test --workspace --locked
+      - name: Tests
+        run: cargo test --workspace --all-features --locked
+
+      - name: Release Build
+        run: cargo build --workspace --all-features --release --locked
