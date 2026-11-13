@@ -3,9 +3,10 @@ use macros::CheckMate;
 use rustavel_core::config::{CONFIG, database::DatabaseEngine};
 use rustavel_core::db::schema::Schema;
 use std::time::Instant;
+use rustavel_core::helper::database::is_sqlite;
 
 fn sqlite() -> bool {
-    let ok = CONFIG.database.connection == DatabaseEngine::Sqlite;
+    let ok = is_sqlite();
     if !ok {
         eprintln!("skipped: run with DB_CONNECTION=Sqlite");
     }

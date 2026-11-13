@@ -18,11 +18,14 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::OnceCell;
 use tokio::time::Instant;
+use crate::helper::database::is_mysql;
 
 static TABLES: OnceCell<Vec<String>> = OnceCell::const_new();
 static COLUMNS: OnceCell<Vec<String>> = OnceCell::const_new();
 
 static TABLE_DOT_COLUMN: OnceCell<Arc<Vec<String>>> = OnceCell::const_new();
+
+
 
 #[derive(Debug)]
 pub struct ModelData {
@@ -1541,6 +1544,7 @@ impl Schema {
     fn table_to_sql(&self, table: &Table) -> String {
         let mut body = vec![];
         let mut foot = vec![];
+        // post sql are single sql
         let mut post = vec![];
         let mut spliter = String::new();
         for column in &table.columns {
@@ -1560,7 +1564,7 @@ impl Schema {
 
         // rename table's cols
         for (old_name, new_name) in &table.rename_columns {
-            if CONFIG.database.connection == DatabaseEngine::Mysql {
+            if is_mysql() {
                 body.push(
                     self.generator
                         .rename_column(&table.name, old_name, new_name),
