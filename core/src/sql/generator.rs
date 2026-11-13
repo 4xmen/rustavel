@@ -25,7 +25,7 @@ pub trait SqlGenerator: Debug + Sync + Send {
         column: &Column,
         table_name: &str,
         action: &TableAction,
-    ) -> (String, String, String,String);
+    ) -> (String, String, String, String);
     fn foreign_key(&self, key: &ForeignKey, table_name: &str, action: &TableAction) -> String;
     // fn drop_column(&self, column_name: &str) -> String;
     fn drop_column(&self, table_name: &str, column_name: &str) -> String;
@@ -55,10 +55,9 @@ pub trait SqlGenerator: Debug + Sync + Send {
     fn add_migrated_table(&self, table: &str) -> String;
     fn rem_migrated_table(&self, table: &str) -> String;
 
-    
-    fn record_exists(&self,table: &str,column: &str) -> String;
-    
-    fn record_exists_except(&self,table: &str,column: &str, except: &str) -> String;
+    fn record_exists(&self, table: &str, column: &str) -> String;
+
+    fn record_exists_except(&self, table: &str, column: &str, except: &str) -> String;
 
     fn get_db_tables_columns_struct(&self) -> String;
 }

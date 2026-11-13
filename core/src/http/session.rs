@@ -1,25 +1,25 @@
-use subtle::ConstantTimeEq;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
+use subtle::ConstantTimeEq;
 
+use crate::config::CONFIG;
+use crate::config::session::SessionDriver;
+use crate::logger;
+use axum::response::IntoResponse;
 use axum::{
     extract::{FromRequestParts, Request, State},
-    http::{header, request::Parts, HeaderMap, HeaderValue, StatusCode},
+    http::{HeaderMap, HeaderValue, StatusCode, header, request::Parts},
     middleware::Next,
     response::Response,
 };
-use axum::response::IntoResponse;
 use data_encoding::{BASE64URL_NOPAD, HEXLOWER};
 use ring::{
     digest,
     rand::{SecureRandom, SystemRandom},
 };
-use crate::config::CONFIG;
-use crate::config::session::{ SessionDriver};
-use crate::logger;
 
 const CSRF_KEY: &str = "_csrf";
 const FLASH_PREFIX: &str = "_flash.";
@@ -28,13 +28,17 @@ const CSRF_LEN: usize = 32;
 /// 32 random bytes, base64url encoded. Used for session ids and CSRF tokens.
 fn random_token() -> String {
     let mut buf = [0u8; 32];
-    SystemRandom::new().fill(&mut buf).expect("system RNG failure");
+    SystemRandom::new()
+        .fill(&mut buf)
+        .expect("system RNG failure");
     BASE64URL_NOPAD.encode(&buf)
 }
 
 fn mask_token(raw: &[u8]) -> String {
     let mut pad = vec![0u8; raw.len()];
-    SystemRandom::new().fill(&mut pad).expect("system RNG failure");
+    SystemRandom::new()
+        .fill(&mut pad)
+        .expect("system RNG failure");
     let masked: Vec<u8> = raw.iter().zip(&pad).map(|(a, b)| a ^ b).collect();
     pad.extend_from_slice(&masked);
     BASE64URL_NOPAD.encode(&pad)
@@ -76,7 +80,13 @@ pub struct Session(Arc<Mutex<Inner>>);
 
 impl Session {
     fn new(id: String, data: HashMap<String, String>, existed: bool) -> Self {
-        Self(Arc::new(Mutex::new(Inner { id, old_id: None, existed, data, dirty: false })))
+        Self(Arc::new(Mutex::new(Inner {
+            id,
+            old_id: None,
+            existed,
+            data,
+            dirty: false,
+        })))
     }
 
     pub fn get(&self, key: &str) -> Option<String> {
@@ -134,12 +144,12 @@ impl Session {
 
     // ---- CSRF ----
 
-
-
     /// Creates a fresh raw token and stores it in the session.
     fn rotate_raw(&self) -> Vec<u8> {
         let mut raw = vec![0u8; CSRF_LEN];
-        SystemRandom::new().fill(&mut raw).expect("system RNG failure");
+        SystemRandom::new()
+            .fill(&mut raw)
+            .expect("system RNG failure");
         self.put(CSRF_KEY, BASE64URL_NOPAD.encode(&raw));
         raw
     }
@@ -174,7 +184,8 @@ impl Session {
     }
     fn take_changes(&self) -> Option<(String, Option<String>, HashMap<String, String>)> {
         let s = self.0.lock().unwrap();
-        s.dirty.then(|| (s.id.clone(), s.old_id.clone(), s.data.clone()))
+        s.dirty
+            .then(|| (s.id.clone(), s.old_id.clone(), s.data.clone()))
     }
 }
 
@@ -250,12 +261,18 @@ pub struct SessionManager {
     store: SessionStore,
 }
 
+impl Default for SessionManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SessionManager {
     pub fn new() -> Self {
         let store = match CONFIG.session.driver {
             SessionDriver::Memory => SessionStore::Memory(Arc::default()),
         };
-        Self {  store }
+        Self { store }
     }
 
     fn ttl(&self) -> Duration {
@@ -266,7 +283,10 @@ impl SessionManager {
         let cfg = &CONFIG.session; // global config, same convention as the rest of the project
         let mut c = format!(
             "{}={}; Path=/; HttpOnly; SameSite={}; Max-Age={}",
-            cfg.cookie_name, id, cfg.same_site.as_str(), cfg.lifetime_minutes * 60
+            cfg.cookie_name,
+            id,
+            cfg.same_site.as_str(),
+            cfg.lifetime_minutes * 60
         );
         if cfg.secure {
             c.push_str("; Secure");
@@ -322,4 +342,3 @@ pub async fn layer(State(mgr): State<SessionManager>, mut req: Request, next: Ne
     }
     res
 }
-

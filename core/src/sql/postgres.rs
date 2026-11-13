@@ -1,7 +1,9 @@
 // NOTE: use the same `use ...` imports as the MySQL generator file
 // (SqlGenerator, Column, ColumnDataType, ColumnOption, DefaultValue, ForeignKey, TableAction, logger).
 
-use crate::db::table::{Column, ColumnDataType, ColumnOption, DefaultValue, ForeignKey, TableAction};
+use crate::db::table::{
+    Column, ColumnDataType, ColumnOption, DefaultValue, ForeignKey, TableAction,
+};
 use crate::logger;
 use crate::sql::generator::SqlGenerator;
 
@@ -41,7 +43,7 @@ impl SqlGenerator for PostgresGenerator {
         WHERE table_schema = current_schema()
           AND table_type = 'BASE TABLE'
         "
-            .to_string()
+        .to_string()
     }
 
     fn get_views(&self) -> String {
@@ -50,7 +52,7 @@ impl SqlGenerator for PostgresGenerator {
         FROM information_schema.views
         WHERE table_schema = current_schema()
         "
-            .to_string()
+        .to_string()
     }
 
     fn get_column_listing(&self, table_name: &str) -> String {
@@ -192,8 +194,10 @@ impl SqlGenerator for PostgresGenerator {
     /// * column_sql : column definition(s) (`ADD COLUMN ...` / `ALTER COLUMN ...` on alter)
     /// * footer_sql : constraints that may live inside CREATE TABLE / ALTER TABLE (UNIQUE)
     /// * post_sql   : statements that must run AFTER the table statement, because
-    ///                PostgreSQL cannot declare indexes or comments inline
-    ///                (CREATE INDEX, COMMENT ON COLUMN)
+    /// ```text
+    ///  PostgreSQL cannot declare indexes or comments inline
+    ///  (CREATE INDEX, COMMENT ON COLUMN)
+    /// ```
     fn column(
         &self,
         column: &Column,
@@ -334,7 +338,10 @@ impl SqlGenerator for PostgresGenerator {
             ColumnDataType::DTMorph => {
                 let type_col = ident(&format!("{}_type", column.name));
                 let id_col = ident(&format!("{}_id", column.name));
-                defs.push(format!("{} VARCHAR(255) {}{}", type_col, nullable, default_sql));
+                defs.push(format!(
+                    "{} VARCHAR(255) {}{}",
+                    type_col, nullable, default_sql
+                ));
                 defs.push(format!("{} BIGINT {}{}", id_col, nullable, default_sql));
                 post.push(format!(
                     "CREATE INDEX {} ON {} ({}, {});",
@@ -351,8 +358,7 @@ impl SqlGenerator for PostgresGenerator {
         }
 
         // PostgreSQL has no CHANGE COLUMN: a change is a set of ALTER COLUMN actions
-        let changing =
-            *action == TableAction::Alter && column.change && single.is_some();
+        let changing = *action == TableAction::Alter && column.change && single.is_some();
 
         if let Some((sql_type, check)) = &single {
             let collate = if !column.collation.is_empty() && column.is_string_type() {
@@ -368,7 +374,11 @@ impl SqlGenerator for PostgresGenerator {
                 )];
                 actions.push(format!(
                     "ALTER COLUMN {col} {}",
-                    if column.nullable { "DROP NOT NULL" } else { "SET NOT NULL" }
+                    if column.nullable {
+                        "DROP NOT NULL"
+                    } else {
+                        "SET NOT NULL"
+                    }
                 ));
                 match &default_expr {
                     Some(d) => actions.push(format!("ALTER COLUMN {col} SET DEFAULT {d}")),
@@ -512,11 +522,17 @@ impl SqlGenerator for PostgresGenerator {
     }
 
     fn get_ran_gt(&self, table: &str) -> String {
-        format!(r#"SELECT "migration" FROM {} WHERE "batch" > $1"#, ident(table))
+        format!(
+            r#"SELECT "migration" FROM {} WHERE "batch" > $1"#,
+            ident(table)
+        )
     }
 
     fn get_next_batch_number(&self, table: &str) -> String {
-        format!(r#"SELECT MAX("batch")::BIGINT AS "batch" FROM {}"#, ident(table))
+        format!(
+            r#"SELECT MAX("batch")::BIGINT AS "batch" FROM {}"#,
+            ident(table)
+        )
     }
 
     fn add_migrated_table(&self, table: &str) -> String {
@@ -551,6 +567,7 @@ impl SqlGenerator for PostgresGenerator {
         "SELECT table_name || '.' || column_name AS name
         FROM information_schema.columns
         WHERE table_schema NOT IN ('information_schema', 'pg_catalog')
-        ORDER BY table_schema, table_name, ordinal_position;".into()
+        ORDER BY table_schema, table_name, ordinal_position;"
+            .into()
     }
 }

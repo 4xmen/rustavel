@@ -1,8 +1,7 @@
-use anyhow::Result;
 use crate::seeders;
+use anyhow::Result;
 
 use crate::seeders::todo_seeder::TodoSeeder;
-
 
 pub struct DatabaseSeeder;
 
@@ -14,5 +13,4 @@ impl DatabaseSeeder {
         let _ = seeders!(TodoSeeder);
         Ok(())
     }
-
 }

@@ -1,6 +1,6 @@
-use std::{env, fs, path::PathBuf};
-use std::path::Path;
 use regex::Regex;
+use std::path::Path;
+use std::{env, fs, path::PathBuf};
 
 fn main() {
     // -------------------------------------------------------------------------
@@ -40,13 +40,12 @@ fn main() {
 
     // let mut structs: Vec<&'static str> = Vec::new();
     macro_rules! migration {
-        ($name:ident, $struct_name:ident)=>{{
+        ($name:ident, $struct_name:ident) => {{
             migrations.push((stringify!($name), stringify!($struct_name)));
-        }}
-        // ($name:ident, $struct_name:ident) => {{
-        //     migrations.push(stringify!($name));
-        //     structs.push(stringify!($struct_name));
-        // }};
+        }}; // ($name:ident, $struct_name:ident) => {{
+            //     migrations.push(stringify!($name));
+            //     structs.push(stringify!($struct_name));
+            // }};
     }
 
     {
@@ -98,10 +97,7 @@ fn main() {
     // }
 
     for (migration, struct_name) in &migrations {
-        generated.push_str(&format!(
-            "\t\tBox::new({}::{} ),\n",
-            migration,struct_name
-        ));
+        generated.push_str(&format!("\t\tBox::new({}::{} ),\n", migration, struct_name));
     }
 
     generated.push_str(
@@ -162,8 +158,7 @@ fn main() {
     let seeders_dir = Path::new(&manifest_dir).join("src/seeders");
 
     // Match structs whose name ends with "Seeder".
-    let struct_regex =
-        Regex::new(r"\bstruct\s+([A-Za-z_][A-Za-z0-9_]*Seeder)\b").unwrap();
+    let struct_regex = Regex::new(r"\bstruct\s+([A-Za-z_][A-Za-z0-9_]*Seeder)\b").unwrap();
 
     let mut imports = String::new();
     let mut match_arms = String::new();
@@ -182,10 +177,7 @@ fn main() {
         // Read the source code of the seeder file.
         let source = fs::read_to_string(&path).unwrap();
 
-        let module_name = path
-            .file_stem()
-            .unwrap()
-            .to_string_lossy();
+        let module_name = path.file_stem().unwrap().to_string_lossy();
 
         // Find all Seeder structs in this file.
         for captures in struct_regex.captures_iter(&source) {

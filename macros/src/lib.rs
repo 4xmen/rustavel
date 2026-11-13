@@ -13,16 +13,14 @@
 //! For implementation details of a specific macro, refer to its corresponding
 //! module.
 
-
+use crate::checkmate::*;
+use crate::pawn::pawn_expand;
 use proc_macro::TokenStream;
 use quote::quote;
 use quote::spanned::Spanned;
 use std::collections::HashSet;
-use syn::{ DeriveInput, parse_macro_input};
-use syn::{Error};
-use crate::checkmate::*;
-use crate::pawn::pawn_expand;
-
+use syn::Error;
+use syn::{DeriveInput, parse_macro_input};
 
 mod checkmate;
 mod pawn;
@@ -64,18 +62,18 @@ pub fn mate_validate(input: TokenStream) -> TokenStream {
                 match parse_rules(&attr, &field_names) {
                     Ok(rules) => {
                         // check nullable can't be a non Option<_> type
-                        if rules.iter().any(|r| matches!(r, Rule::Nullable)) {
-                            if !is_option_type(&field.ty) {
-                                return Error::new(
-                                    field.ty.__span(),
-                                    format!(
-                                        "Field '{}' is marked as nullable but is not Option<T>",
-                                        field.ident.as_ref().unwrap()
-                                    ),
-                                )
-                                    .to_compile_error()
-                                    .into();
-                            }
+                        if rules.iter().any(|r| matches!(r, Rule::Nullable))
+                            && !is_option_type(&field.ty)
+                        {
+                            return Error::new(
+                                field.ty.__span(),
+                                format!(
+                                    "Field '{}' is marked as nullable but is not Option<T>",
+                                    field.ident.as_ref().unwrap()
+                                ),
+                            )
+                            .to_compile_error()
+                            .into();
                         }
 
                         let field_ident = field.ident.as_ref().unwrap();
@@ -155,4 +153,3 @@ pub fn derive_factory(input: TokenStream) -> TokenStream {
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
-

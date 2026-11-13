@@ -1,5 +1,5 @@
-use rustavel_core::localization::numbers::apply_normalize_number;
 use rustavel_core::helper::datetime::*;
+use rustavel_core::localization::numbers::apply_normalize_number;
 use serde::{Deserialize, Serialize};
 use time::{Date, PrimitiveDateTime};
 
@@ -52,14 +52,14 @@ fn should_normalize_persian_numbers() {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct NumberOnly {
     #[serde(deserialize_with = "apply_normalize_number")]
     value: u16,
 }
 
 #[test]
-fn should_not_parse()
-{
+fn should_not_parse() {
     let json = r#"{ "value": "۴۲ac" }"#;
 
     let result: Result<NumberOnly, _> = serde_json::from_str(json);

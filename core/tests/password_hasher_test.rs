@@ -23,7 +23,9 @@ mod tests {
 
             assert_ne!(hash, password, "{name}: hash must not expose plaintext");
             assert!(
-                hasher.verify(password, &hash).expect("verification should succeed"),
+                hasher
+                    .verify(password, &hash)
+                    .expect("verification should succeed"),
                 "{name}: correct password should be accepted"
             );
             assert!(
@@ -47,11 +49,15 @@ mod tests {
             assert_ne!(first, second, "{name}: hashes should use different salts");
 
             assert!(
-                hasher.verify(password, &first).expect("verification should succeed"),
+                hasher
+                    .verify(password, &first)
+                    .expect("verification should succeed"),
                 "{name}: first hash should remain valid"
             );
             assert!(
-                hasher.verify(password, &second).expect("verification should succeed"),
+                hasher
+                    .verify(password, &second)
+                    .expect("verification should succeed"),
                 "{name}: second hash should remain valid"
             );
         }

@@ -3,9 +3,9 @@ use once_cell::sync::Lazy;
 pub mod app;
 pub mod database;
 
-pub mod mail;
-pub mod http;
 pub mod env;
+pub mod http;
+pub mod mail;
 pub mod session;
 
 #[derive(Debug)]
@@ -33,4 +33,4 @@ impl Config {
     }
 }
 
-pub static CONFIG: Lazy<Config> = Lazy::new(|| Config::load());
+pub static CONFIG: Lazy<Config> = Lazy::new(Config::load);

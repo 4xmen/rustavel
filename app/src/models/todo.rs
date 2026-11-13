@@ -1,4 +1,2 @@
 use super::Todo;
-impl Todo {
-
-}
+impl Todo {}

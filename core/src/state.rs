@@ -1,12 +1,12 @@
+use crate::http::session::Session;
+use axum::extract::FromRef;
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse};
-use minijinja::{context, Environment, Value};
 use minijinja::value::Serde;
+use minijinja::{Environment, Value, context};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;
-use axum::extract::FromRef;
-use crate::http::session::Session;
 
 #[derive(Clone, Debug, FromRef)]
 pub struct AppState {
@@ -15,7 +15,6 @@ pub struct AppState {
 }
 
 impl AppState {
-
     /// Get route url by route name return str
     /// if the route exsits return
     /// otherwise return #route-name-not-found
@@ -25,7 +24,6 @@ impl AppState {
             None => "#route-name-not-found",
         }
     }
-
 
     /// Renders a MiniJinja template with an empty context and returns an HTML response.
     ///
@@ -68,7 +66,6 @@ impl AppState {
         }
     }
 
-
     /// Renders a template with the session's CSRF token injected automatically.
     /// Every page that contains a form or fetch call should be rendered with this.
     pub fn protected_view(
@@ -88,5 +85,4 @@ impl AppState {
                 StatusCode::INTERNAL_SERVER_ERROR
             })
     }
-
 }

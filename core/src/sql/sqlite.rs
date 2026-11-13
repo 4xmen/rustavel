@@ -1,6 +1,8 @@
 use super::generator::SqlGenerator;
+use crate::db::table::{
+    Column, ColumnDataType, ColumnOption, DefaultValue, ForeignKey, TableAction,
+};
 use crate::logger;
-use crate::db::table::{Column, ColumnDataType, ColumnOption, DefaultValue, ForeignKey, TableAction};
 
 #[derive(Debug)]
 pub struct SqliteGenerator;
@@ -50,7 +52,6 @@ impl SqlGenerator for SqliteGenerator {
             table_name
         )
     }
-
 
     fn get_foreign_keys(&self, table_name: &str) -> String {
         format!("PRAGMA foreign_key_list(\"{}\");", table_name)
@@ -171,7 +172,7 @@ impl SqlGenerator for SqliteGenerator {
         column: &Column,
         table_name: &str,
         action: &TableAction,
-    ) -> (String, String, String,String) {
+    ) -> (String, String, String, String) {
         let mut column_sql = String::new();
         let mut footer_sql = String::new();
         let mut post_sql = String::new();
@@ -223,10 +224,7 @@ impl SqlGenerator for SqliteGenerator {
                     ColumnOption::Float((p, s)) => (p, s),
                     _ => (&20, &6),
                 };
-                column_sql = format!(
-                    "{} decimal({},{}) {} {}",
-                    column.name, p, s, nullable, def
-                );
+                column_sql = format!("{} decimal({},{}) {} {}", column.name, p, s, nullable, def);
             }
 
             ColumnDataType::DTString => {
@@ -317,12 +315,12 @@ impl SqlGenerator for SqliteGenerator {
             if column.change {
                 logger::warn("SQLite does not support CHANGE COLUMN");
             } else {
-                column_sql = format!("ALTER TABLE {} ADD COLUMN {};",table_name, column_sql);
+                column_sql = format!("ALTER TABLE {} ADD COLUMN {};", table_name, column_sql);
                 spilter = String::from("\n");
             }
         }
 
-        (column_sql, footer_sql, post_sql,spilter)
+        (column_sql, footer_sql, post_sql, spilter)
     }
 
     fn foreign_key(&self, key: &ForeignKey, _table_name: &str, action: &TableAction) -> String {
@@ -346,13 +344,12 @@ impl SqlGenerator for SqliteGenerator {
                 key.column_name
             ));
             "-- SQLite does not support add foreign key on alter \n".to_string()
-        }else{
+        } else {
             format!(
                 "FOREIGN KEY(\"{}\") REFERENCES \"{}\"(\"{}\") {} {} ",
                 key.column_name, key.foreign_table, key.referenced_column, update, delete
             )
         }
-
     }
     // fn drop_column(&self, column_name: &str) -> String {
     //     format!(
@@ -363,7 +360,10 @@ impl SqlGenerator for SqliteGenerator {
 
     fn drop_column(&self, table_name: &str, column_name: &str) -> String {
         // supported since SQLite 3.35 (bundled by sqlx)
-        format!("ALTER TABLE \"{}\" DROP COLUMN \"{}\";", table_name, column_name)
+        format!(
+            "ALTER TABLE \"{}\" DROP COLUMN \"{}\";",
+            table_name, column_name
+        )
     }
 
     fn table_sql(
@@ -381,10 +381,7 @@ impl SqlGenerator for SqliteGenerator {
                 )
             }
             TableAction::Alter => {
-                format!(
-                    " {} ; \n {}",
-                    body_sql, post_sql
-                )
+                format!(" {} ; \n {}", body_sql, post_sql)
             }
             _ => "".to_string(),
         }
@@ -398,7 +395,6 @@ impl SqlGenerator for SqliteGenerator {
         format!("SELECT migration FROM \"{}\" WHERE batch > ?", table)
     }
 
-
     fn get_next_batch_number(&self, table: &str) -> String {
         format!("SELECT MAX(batch) AS batch FROM \"{}\"", table)
     }
@@ -411,16 +407,19 @@ impl SqlGenerator for SqliteGenerator {
         format!("DELETE FROM \"{}\" WHERE migration = ?", table)
     }
 
-
-
-
     // identifiers need double quotes: in SQLite 'email' is a string literal
     fn record_exists(&self, table: &str, column: &str) -> String {
-        format!("SELECT COUNT(*) AS count FROM \"{}\" WHERE \"{}\" = ?", table, column)
+        format!(
+            "SELECT COUNT(*) AS count FROM \"{}\" WHERE \"{}\" = ?",
+            table, column
+        )
     }
 
-    fn record_exists_except(&self,table: &str,column: &str, except: &str) -> String{
-        format!("SELECT COUNT(*) AS count FROM \"{}\" WHERE \"{}\" = ? AND \"{}\" <> ?", table, column,except)
+    fn record_exists_except(&self, table: &str, column: &str, except: &str) -> String {
+        format!(
+            "SELECT COUNT(*) AS count FROM \"{}\" WHERE \"{}\" = ? AND \"{}\" <> ?",
+            table, column, except
+        )
     }
 
     fn get_db_tables_columns_struct(&self) -> String {
@@ -429,6 +428,7 @@ impl SqlGenerator for SqliteGenerator {
              pragma_table_info(m.name) p
         WHERE m.type = 'table'
           AND m.name NOT LIKE 'sqlite_%'
-        ORDER BY m.name, p.cid;".into()
+        ORDER BY m.name, p.cid;"
+            .into()
     }
 }

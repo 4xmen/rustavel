@@ -184,18 +184,21 @@ impl Table {
             // ColumnDataType::DTDateTime
             // | ColumnDataType::DTTimestamp
             // | ColumnDataType::DTTimestamps => "time::PrimitiveDateTime".to_string(),
-
-            ColumnDataType::DTDateTime
-            | ColumnDataType::DTTimestamp => "time::PrimitiveDateTime".to_string(),
+            ColumnDataType::DTDateTime | ColumnDataType::DTTimestamp => {
+                "time::PrimitiveDateTime".to_string()
+            }
             // created_at / updated_at are created as NULL-able columns
             ColumnDataType::DTTimestamps => "Option<time::PrimitiveDateTime>".to_string(),
             ColumnDataType::DTTime => "time::Time".to_string(),
             ColumnDataType::DTSoftDelete => "Option<time::PrimitiveDateTime>".to_string(),
             ColumnDataType::DTEnum | ColumnDataType::DTSet => "String".to_string(),
             // ColumnDataType::DTMorph => "i64".to_string(),
-            ColumnDataType::DTMorph => {
-                if CONFIG.database.connection == DatabaseEngine::Mysql { "u64" } else { "i64" }.to_string()
+            ColumnDataType::DTMorph => if CONFIG.database.connection == DatabaseEngine::Mysql {
+                "u64"
+            } else {
+                "i64"
             }
+            .to_string(),
             ColumnDataType::DTNone => "()".to_string(),
         };
 
@@ -209,7 +212,8 @@ impl Table {
 
         if column.unsigned && CONFIG.database.connection == DatabaseEngine::Mysql {
             // replace("i", "u") also rewrote names like `time::PrimitiveDateTime`
-            for (signed, unsigned) in [("i8", "u8"), ("i16", "u16"), ("i32", "u32"), ("i64", "u64")] {
+            for (signed, unsigned) in [("i8", "u8"), ("i16", "u16"), ("i32", "u32"), ("i64", "u64")]
+            {
                 if rust_type.contains(signed) {
                     rust_type = rust_type.replace(signed, unsigned);
                     break;
@@ -229,7 +233,11 @@ impl Table {
                 rust_type, rust_type
             )
         } else if column.data_type == ColumnDataType::DTMorph {
-            let type_ty = if column.nullable { "Option<String>" } else { "String" };
+            let type_ty = if column.nullable {
+                "Option<String>"
+            } else {
+                "String"
+            };
             format!(
                 "pub {0}_type: {1},\n    pub {0}_id: {2}",
                 column.name, type_ty, rust_type
@@ -443,7 +451,7 @@ impl Table {
 
         for col in &self.columns {
             if !col.validate() {
-                errors.push(format!("invalid column: {},{}",self.name,col.name));
+                errors.push(format!("invalid column: {},{}", self.name, col.name));
             }
         }
 
@@ -522,11 +530,14 @@ impl Column {
         //     | ColumnDataType::DTJson => true,
         //     _ => false,
         // }
-        matches!(self.data_type, ColumnDataType::DTString
-            | ColumnDataType::DTLongText
-            | ColumnDataType::DTMediumText
-            | ColumnDataType::DTTinyText
-            | ColumnDataType::DTJson)
+        matches!(
+            self.data_type,
+            ColumnDataType::DTString
+                | ColumnDataType::DTLongText
+                | ColumnDataType::DTMediumText
+                | ColumnDataType::DTTinyText
+                | ColumnDataType::DTJson
+        )
     }
 }
 

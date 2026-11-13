@@ -1,15 +1,14 @@
-use std::time::Instant;
+use anyhow::Result;
 use clap::{Parser, Subcommand};
 use rustavel_artisan::db::seed::SeedArgs;
-use rustavel_core::helper::terminal_ui::{operation, title, Status, TitleKind};
-use anyhow::Result;
+use rustavel_core::helper::terminal_ui::{Status, TitleKind, operation, title};
+use std::time::Instant;
 include!(concat!(env!("OUT_DIR"), "/generated_seeders_import.rs"));
 
 mod factories;
-mod migrator;
 mod migrations;
+mod migrator;
 mod seeders;
-
 
 /// Root CLI definition.
 ///
@@ -21,17 +20,12 @@ mod seeders;
 ///     cli-db seed
 ///     cli-db seed --class UserSeeder
 #[derive(Parser, Debug)]
-#[command(
-    name = "cli-db",
-    version,
-    about = "Database cli-db and seeding CLI"
-)]
+#[command(name = "cli-db", version, about = "Database cli-db and seeding CLI")]
 struct Cli {
     /// The command to execute.
     #[command(subcommand)]
     command: Command,
 }
-
 
 /// Available CLI commands.
 ///
@@ -53,7 +47,6 @@ enum Command {
         // rollback: i64,
         #[arg(long, default_value_t = 0, value_parser = clap::value_parser!(i64).range(0..))]
         rollback: i64,
-
 
         /// Run cli-dbs in passive mode.
         #[arg(long)]
@@ -83,9 +76,6 @@ enum Command {
     Seed(SeedArgs),
 }
 
-
-
-
 /// Application entry point.
 ///
 /// Tokio creates and manages the async runtime for the entire CLI.
@@ -108,9 +98,7 @@ async fn main() {
         eprintln!("\x1b[31m{:?}\x1b[0m", error);
         std::process::exit(1);
     }
-
 }
-
 
 /// Execute the selected CLI command.
 ///
@@ -139,14 +127,15 @@ async fn run(cli: Cli) -> Result<(), anyhow::Error> {
             // class is selected here.
             if seed {
                 let start = Instant::now();
-                title(TitleKind::Info,"Running seeders");
+                title(TitleKind::Info, "Running seeders");
                 match seeders::database_seeder::DatabaseSeeder::run().await {
-                    Ok(_e) =>{
+                    Ok(_e) => {
                         operation("All seeder done", start.elapsed(), Status::Done);
                     }
                     Err(e) => {
                         operation(&format!("Seeding :{}", e), start.elapsed(), Status::Failed);
-                        return Err(e);                    }
+                        return Err(e);
+                    }
                 }
             }
         }
@@ -166,11 +155,9 @@ async fn run(cli: Cli) -> Result<(), anyhow::Error> {
             // whether a specific seeder class should be executed.
             if let Some(class) = args.class {
                 include!(concat!(env!("OUT_DIR"), "/generated_seeders.rs"));
-
-            }else{
+            } else {
                 seeders::database_seeder::DatabaseSeeder::run().await?;
             }
-
         }
     }
 
@@ -185,11 +172,9 @@ where
     let out = fut.await;
     match &out {
         Ok(_output) => {
-            operation( name,start.elapsed(), Status::Done );
-        },
-        Err(_e) => {
-            operation( name,start.elapsed(), Status::Failed )
+            operation(name, start.elapsed(), Status::Done);
         }
+        Err(_e) => operation(name, start.elapsed(), Status::Failed),
     }
     out
 }

@@ -65,7 +65,6 @@ impl MailConfig {
             cfg.password = v;
         }
 
-
         if let Ok(v) = env::var("MAIL_ENCRYPTION") {
             cfg.encryption = v.parse().unwrap_or_else(|e| panic!("MAIL_ENCRYPTION: {e}"));
         }
@@ -80,7 +79,6 @@ impl MailConfig {
         cfg
     }
 }
-
 
 // Using the standard `FromStr` trait gives us `.parse::<MailDriver>()`
 // for free and avoids name clashes with an inherent `from_str` method.

@@ -84,9 +84,7 @@ fn main() {
         let value = env::var(env_key).unwrap_or_else(|_| default.to_string());
 
         // Escape the value so it is a valid Rust string literal.
-        let escaped = value
-            .replace('\\', "\\\\")
-            .replace('"', "\\\"");
+        let escaped = value.replace('\\', "\\\\").replace('"', "\\\"");
 
         generated.push_str(&format!("/// {}\n", doc));
         generated.push_str(&format!(
@@ -103,16 +101,16 @@ fn main() {
 /// Walks up from `CARGO_MANIFEST_DIR` until a `Cargo.toml` containing
 /// `[workspace]` is found. This is the workspace root.
 fn find_workspace_root() -> PathBuf {
-    let mut dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set"));
+    let mut dir =
+        PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set"));
 
     loop {
         let cargo_toml = dir.join("Cargo.toml");
-        if cargo_toml.exists() {
-            if let Ok(contents) = fs::read_to_string(&cargo_toml) {
-                if contents.contains("[workspace]") {
-                    return dir;
-                }
-            }
+        if cargo_toml.exists()
+            && let Ok(contents) = fs::read_to_string(&cargo_toml)
+            && contents.contains("[workspace]")
+        {
+            return dir;
         }
 
         if !dir.pop() {

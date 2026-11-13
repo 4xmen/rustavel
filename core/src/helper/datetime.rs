@@ -12,26 +12,25 @@ use std::fmt::Write;
 use std::time::Duration;
 use time::{
     Date,
+    Month,
     OffsetDateTime,
     PrimitiveDateTime,
     Time,
+    UtcOffset,
+    // format_description::parse
+    Weekday,
     error::Parse,
     format_description::FormatItem,
     format_description::well_known::Rfc2822,
     macros::format_description,
-    Weekday,
-    Month,
-    UtcOffset,
-    // format_description::parse
 };
 
-use serde::{Deserializer, Deserialize};
-use serde::de::{Error};
 use crate::config::CONFIG;
-use crate::localization::digits::{normalize_digits, /*apply_normalized_string */};
+use crate::localization::digits::{normalize_digits /*apply_normalized_string */};
+use serde::de::Error;
+use serde::{Deserialize, Deserializer};
 // use crate::localization::numbers::apply_normalize_number;
 // use jalali_rs::gregorian_to_jalali;
-
 
 #[derive(Clone, Copy)]
 struct Jalali {
@@ -42,23 +41,18 @@ struct Jalali {
 /// =============================
 /// Precompiled Format Definitions
 /// =============================
-
 /// Format: `YYYY-MM-DD`
 /// Example: `2026-02-14`
-const YMD: &[FormatItem<'static>] =
-    format_description!("[year]-[month]-[day]");
+const YMD: &[FormatItem<'static>] = format_description!("[year]-[month]-[day]");
 
 /// Format: `YYYY-MM-DD HH:MM:SS`
 /// Example: `2026-02-14 13:45:22`
 const YMD_HMS: &[FormatItem<'static>] =
     format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
 
-
 /// Format: `HH:MM:SS`
 /// Example: `13:45:22`
-const HMS: &[FormatItem<'static>] =
-    format_description!("[hour]:[minute]:[second]");
-
+const HMS: &[FormatItem<'static>] = format_description!("[hour]:[minute]:[second]");
 
 /// Format: `YYYY_MM_DD_HHMM`
 /// Example: `2026_02_14_1345`
@@ -66,11 +60,9 @@ const COMPACT: &[FormatItem<'static>] =
     // format_description!("[year]_[month]_[day]_[hour][minute]");
     format_description!("[year]_[month]_[day]_[hour][minute][second]");
 
-
 /// =============================
 /// NOW HELPERS (UTC)
 /// =============================
-
 /// Returns the current UTC time as `OffsetDateTime`.
 ///
 /// Recommended for:
@@ -78,8 +70,6 @@ const COMPACT: &[FormatItem<'static>] =
 /// - API responses
 /// - `TIMESTAMP WITH TIME ZONE` columns
 ///
-
-
 /// Offset from APP_TIMEZONE: `UTC` or a fixed offset such as `+03:30`.
 /// IANA names (`Asia/Tehran`) need a tz database and fall back to UTC.
 fn app_offset() -> UtcOffset {
@@ -87,11 +77,14 @@ fn app_offset() -> UtcOffset {
     if tz.eq_ignore_ascii_case("utc") {
         return UtcOffset::UTC;
     }
-    UtcOffset::parse(tz, format_description!("[offset_hour sign:mandatory]:[offset_minute]"))
-        .unwrap_or_else(|_| {
-            eprintln!("APP_TIMEZONE `{}` is not UTC or +HH:MM, using UTC", tz);
-            UtcOffset::UTC
-        })
+    UtcOffset::parse(
+        tz,
+        format_description!("[offset_hour sign:mandatory]:[offset_minute]"),
+    )
+    .unwrap_or_else(|_| {
+        eprintln!("APP_TIMEZONE `{}` is not UTC or +HH:MM, using UTC", tz);
+        UtcOffset::UTC
+    })
 }
 #[inline]
 pub fn now() -> OffsetDateTime {
@@ -133,7 +126,7 @@ pub fn now_rfc2822() -> String {
 /// =============================
 /// PARSING HELPERS
 /// =============================
-
+///
 /// Parses a string formatted as `YYYY-MM-DD` into `Date`.
 ///
 /// # Example
@@ -164,9 +157,7 @@ pub fn parse_ymd_hms(input: &str) -> Result<PrimitiveDateTime, Parse> {
 /// Use this if your database stores naive timestamps
 /// but you treat them as UTC.
 #[inline]
-pub fn parse_ymd_hms_utc(
-    input: &str,
-) -> Result<OffsetDateTime, Parse> {
+pub fn parse_ymd_hms_utc(input: &str) -> Result<OffsetDateTime, Parse> {
     let naive = PrimitiveDateTime::parse(input, YMD_HMS)?;
     Ok(naive.assume_utc())
 }
@@ -177,9 +168,7 @@ pub fn parse_ymd_hms_utc(
 /// - Snapshot file names
 /// - Custom compact identifiers
 #[inline]
-pub fn parse_compact(
-    input: &str,
-) -> Result<PrimitiveDateTime, Parse> {
+pub fn parse_compact(input: &str) -> Result<PrimitiveDateTime, Parse> {
     PrimitiveDateTime::parse(input, COMPACT)
 }
 
@@ -188,12 +177,9 @@ pub fn parse_compact(
 /// Example:
 /// `Sat, 14 Feb 2026 13:45:22 +0000`
 #[inline]
-pub fn parse_rfc2822(
-    input: &str,
-) -> Result<OffsetDateTime, Parse> {
+pub fn parse_rfc2822(input: &str) -> Result<OffsetDateTime, Parse> {
     OffsetDateTime::parse(input, &Rfc2822)
 }
-
 
 /// Returns the current date and time as a PrimitiveDateTime.
 pub fn now_primitive() -> PrimitiveDateTime {
@@ -202,7 +188,6 @@ pub fn now_primitive() -> PrimitiveDateTime {
     // Convert to PrimitiveDateTime by using date() and time().
     PrimitiveDateTime::new(current_time.date(), current_time.time())
 }
-
 
 /// convert string to PrimitiveDateTime
 pub fn parse_to_primitive_datetime(datetime_str: &str) -> Result<PrimitiveDateTime, time::Error> {
@@ -214,21 +199,17 @@ pub fn deserialize_datetime<'de, D>(deserializer: D) -> Result<PrimitiveDateTime
 where
     D: Deserializer<'de>,
 {
-
     let s: String = String::deserialize(deserializer)?;
     let s = normalize_digits(s.trim());
 
-    PrimitiveDateTime::parse(&s, &YMD_HMS)
-        .map_err(Error::custom)  // show 400 error
+    PrimitiveDateTime::parse(&s, &YMD_HMS).map_err(Error::custom) // show 400 error
 }
 
 pub fn serialize_datetime<S>(date: &PrimitiveDateTime, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
-    let s = date
-        .format(&YMD_HMS)
-        .map_err(serde::ser::Error::custom)?;
+    let s = date.format(&YMD_HMS).map_err(serde::ser::Error::custom)?;
     serializer.serialize_str(&s)
 }
 
@@ -236,50 +217,38 @@ pub fn deserialize_date<'de, D>(deserializer: D) -> Result<Date, D::Error>
 where
     D: Deserializer<'de>,
 {
-
     let s: String = String::deserialize(deserializer)?;
     let s = normalize_digits(s.trim());
 
-    Date::parse(&s, &YMD)
-        .map_err(Error::custom)  // show 400 error
+    Date::parse(&s, &YMD).map_err(Error::custom) // show 400 error
 }
 
 pub fn serialize_date<S>(date: &Date, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
-    let s = date
-        .format(&YMD)
-        .map_err(serde::ser::Error::custom)?;
+    let s = date.format(&YMD).map_err(serde::ser::Error::custom)?;
     serializer.serialize_str(&s)
 }
-
 
 pub fn deserialize_time<'de, D>(deserializer: D) -> Result<Time, D::Error>
 where
     D: Deserializer<'de>,
 {
-
     let s: String = String::deserialize(deserializer)?;
 
     let s = s.trim();
 
-    Time::parse(s, &HMS)
-        .map_err(Error::custom)  // show 400 error
+    Time::parse(s, &HMS).map_err(Error::custom) // show 400 error
 }
 
 pub fn serialize_time<S>(time: &Time, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
-    let s = time
-        .format(&HMS)
-        .map_err(serde::ser::Error::custom)?;
+    let s = time.format(&HMS).map_err(serde::ser::Error::custom)?;
     serializer.serialize_str(&s)
 }
-
-
-
 
 /// Returns true if year is leap year (Gregorian)
 #[inline]
@@ -287,8 +256,6 @@ fn is_leap(year: i32) -> bool {
     (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
 }
 
-
-#[inline]
 // fn jdate_imp(dt: OffsetDateTime, format: &str) -> String {
 
 fn jdate_imp(dt: OffsetDateTime, format: &str) -> String {
@@ -308,9 +275,9 @@ fn jdate_imp(dt: OffsetDateTime, format: &str) -> String {
     let is_pm = hour >= 12;
 
     let mut out = String::with_capacity(format.len() + 16);
-    let mut chars = format.chars();
+    let chars = format.chars();
 
-    while let Some(ch) = chars.next() {
+    for ch in chars {
         match ch {
             // Jalali date
             'l' => out.push_str(match weekday {
@@ -347,7 +314,6 @@ fn jdate_imp(dt: OffsetDateTime, format: &str) -> String {
             // Persian letters are 2 bytes each: cut by chars, not bytes
             'M' => out.extend(jalali_month_name(j.month).chars().take(3)),
 
-
             // weekday still Gregorian (if needed)
             'H' => push_2(&mut out, hour),
             'i' => push_2(&mut out, minute),
@@ -355,7 +321,6 @@ fn jdate_imp(dt: OffsetDateTime, format: &str) -> String {
 
             // 'a' => out.push_str(if is_pm { "ق‌ظ" } else { "ب‌ظ" }),
             // 'A' => out.push_str(if is_pm { "صبح" } else { "عصر" }),
-
             'a' => out.push_str(if is_pm { "ب‌ظ" } else { "ق‌ظ" }),
             'A' => out.push_str(if is_pm { "عصر" } else { "صبح" }),
 
@@ -368,27 +333,18 @@ fn jdate_imp(dt: OffsetDateTime, format: &str) -> String {
 }
 
 #[inline]
-fn gregorian_to_jalali(mut gy: i32,  gm: u8,  gd: u8) -> Jalali {
+fn gregorian_to_jalali(mut gy: i32, gm: u8, gd: u8) -> Jalali {
     let g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
 
-    let mut jy = if gy > 1600 {
-        979
-    } else {
-        0
-    };
+    let mut jy = if gy > 1600 { 979 } else { 0 };
 
     gy -= 1600;
 
     let gy2 = if gm > 2 { gy + 1 } else { gy };
 
-    let days =
-        365 * gy
-            + (gy2 + 3) / 4
-            - (gy2 + 99) / 100
-            + (gy2 + 399) / 400
-            - 80
-            + gd as i32
-            + g_d_m[(gm - 1) as usize];
+    let days = 365 * gy + (gy2 + 3) / 4 - (gy2 + 99) / 100 + (gy2 + 399) / 400 - 80
+        + gd as i32
+        + g_d_m[(gm - 1) as usize];
 
     jy += 33 * (days / 12053);
     let mut days = days % 12053;
@@ -444,9 +400,9 @@ fn format_php_imp(dt: OffsetDateTime, format: &str) -> String {
 
     let mut out = String::with_capacity(format.len() + 16);
 
-    let mut chars = format.chars();
+    let chars = format.chars();
 
-    while let Some(ch) = chars.next() {
+    for ch in chars {
         match ch {
             // day
             'd' => out.push_str(&format!("{:02}", day)),
@@ -484,7 +440,11 @@ fn format_php_imp(dt: OffsetDateTime, format: &str) -> String {
                 let days = match month {
                     Month::January => 31,
                     Month::February => {
-                        if is_leap(year) { 29 } else { 28 }
+                        if is_leap(year) {
+                            29
+                        } else {
+                            28
+                        }
                     }
                     Month::March => 31,
                     Month::April => 30,
@@ -588,7 +548,6 @@ fn jalali_month_name(m: u8) -> &'static str {
     }
 }
 
-
 #[inline]
 fn diff_for_humans_impl(datetime: OffsetDateTime) -> String {
     let now = OffsetDateTime::now_utc();
@@ -666,16 +625,12 @@ fn diff_for_humans_impl(datetime: OffsetDateTime) -> String {
     out
 }
 
-
 /// Extension methods for formatting and displaying dates.
 ///
 /// This trait provides localized date formatting utilities,
 /// including Jalali (Shamsi) calendar support and human-readable
 /// relative time formatting similar to Laravel Carbon.
 pub trait TimeExt {
-
-
-
     /// Formats the date as a Jalali (Shamsi) date string.
     ///
     /// The `format` argument follows the crate's supported
@@ -746,24 +701,22 @@ pub trait TimeExt {
     ///
     /// - Unsupported tokens may be ignored or passed through literally
     /// - Assumes Gregorian calendar unless otherwise specified
-    fn format_php(&self, format: &str) -> String ;
+    fn format_php(&self, format: &str) -> String;
 }
 
-
 impl TimeExt for PrimitiveDateTime {
-
     fn jdate(&self, format: &str) -> String {
         let datetime = self.assume_utc();
 
-        jdate_imp(datetime,format)
+        jdate_imp(datetime, format)
     }
     fn ldate(&self, format: &str) -> String {
         let datetime = self.assume_utc();
         // println!("what: {}",CONFIG.app.locale);
         if CONFIG.app.locale == "fa" {
-            jdate_imp(datetime,format)
-        }else{
-            format_php_imp(datetime,format)
+            jdate_imp(datetime, format)
+        } else {
+            format_php_imp(datetime, format)
         }
     }
     fn diff_for_humans(&self) -> String {
@@ -777,73 +730,54 @@ impl TimeExt for PrimitiveDateTime {
     fn format_php(&self, format: &str) -> String {
         let datetime = self.assume_utc();
 
-        format_php_imp(datetime,format)
+        format_php_imp(datetime, format)
     }
 }
 
 impl TimeExt for OffsetDateTime {
-
-
     fn jdate(&self, format: &str) -> String {
-       jdate_imp(*self,format)
+        jdate_imp(*self, format)
     }
     fn ldate(&self, format: &str) -> String {
         if CONFIG.app.locale == "fa" {
-            jdate_imp(*self,format)
-        }else{
-            format_php_imp(*self,format)
+            jdate_imp(*self, format)
+        } else {
+            format_php_imp(*self, format)
         }
     }
     fn diff_for_humans(&self) -> String {
         diff_for_humans_impl(*self)
     }
     fn format_php(&self, format: &str) -> String {
-
-        format_php_imp(*self,format)
+        format_php_imp(*self, format)
     }
 }
 impl TimeExt for Date {
     fn jdate(&self, format: &str) -> String {
-        let datetime = PrimitiveDateTime::new(
-            *self,
-            Time::MIDNIGHT,
-        );
+        let datetime = PrimitiveDateTime::new(*self, Time::MIDNIGHT);
 
         datetime.jdate(format)
     }
     fn ldate(&self, format: &str) -> String {
-
-        let datetime = PrimitiveDateTime::new(
-            *self,
-            Time::MIDNIGHT,
-        );
+        let datetime = PrimitiveDateTime::new(*self, Time::MIDNIGHT);
         if CONFIG.app.locale == "fa" {
             datetime.jdate(format)
-        }else{
+        } else {
             datetime.format_php(format)
         }
-
     }
     fn diff_for_humans(&self) -> String {
-        let datetime = PrimitiveDateTime::new(
-            *self,
-            Time::MIDNIGHT,
-        );
+        let datetime = PrimitiveDateTime::new(*self, Time::MIDNIGHT);
 
         datetime.diff_for_humans()
     }
 
     fn format_php(&self, format: &str) -> String {
-
-        let datetime = PrimitiveDateTime::new(
-            *self,
-            Time::MIDNIGHT,
-        );
+        let datetime = PrimitiveDateTime::new(*self, Time::MIDNIGHT);
 
         datetime.format_php(format)
     }
 }
-
 
 /// Formats a [`Duration`] using seconds, milliseconds, or microseconds.
 ///

@@ -1,12 +1,12 @@
 use axum::{
+    Json,
     body::Body,
     extract::FromRequest,
     http::{Request, StatusCode},
     response::{IntoResponse, Response},
-    Json,
 };
+use macros_core::CheckMateValidator;
 use serde::de::DeserializeOwned;
-use macros_core::{CheckMateValidator};
 
 pub struct ValidatedJson<T>(pub T);
 
@@ -18,15 +18,10 @@ where
 {
     type Rejection = Response;
 
-    async fn from_request(
-        req: Request<Body>,
-        state: &S,
-    ) -> Result<Self, Self::Rejection> {
-
-        let Json(payload) =
-            Json::<T>::from_request(req, state)
-                .await
-                .map_err(IntoResponse::into_response)?;
+    async fn from_request(req: Request<Body>, state: &S) -> Result<Self, Self::Rejection> {
+        let Json(payload) = Json::<T>::from_request(req, state)
+            .await
+            .map_err(IntoResponse::into_response)?;
 
         // if let Err(errors) = payload.validate() {
         if let Err(errors) = payload.validate().await {

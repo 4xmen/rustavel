@@ -19,10 +19,10 @@ pub fn resolve_views_dir() -> Result<PathBuf, ViewsDirError> {
     }
 
     // 2. Directory next to executable
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(exe_dir) = exe_path.parent() {
-            candidates.push(exe_dir.join("resources").join("views"));
-        }
+    if let Ok(exe_path) = std::env::current_exe()
+        && let Some(exe_dir) = exe_path.parent()
+    {
+        candidates.push(exe_dir.join("resources").join("views"));
     }
 
     // 3. Development fallback

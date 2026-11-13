@@ -1,5 +1,5 @@
-use std::marker::PhantomData;
 use crate::mvc::model::Model;
+use std::marker::PhantomData;
 pub struct QueryBuilder<M: Model> {
     select: SelectQuery,
     _marker: PhantomData<M>,
@@ -22,7 +22,6 @@ impl<M: Model> QueryBuilder<M> {
         self.select
     }
 }
-
 
 #[derive(Debug)]
 pub struct SelectQuery {

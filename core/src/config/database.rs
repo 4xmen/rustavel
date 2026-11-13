@@ -75,17 +75,9 @@ impl DatabaseConfig {
             cfg.charset = v;
         }
 
-        // make DATABASE_URL
-        if cfg.connection == DatabaseEngine::Mysql {
-
-
-        } else if cfg.connection == DatabaseEngine::Sqlite {
-
-        }
         cfg
     }
 }
-
 
 impl FromStr for DatabaseEngine {
     type Err = String;

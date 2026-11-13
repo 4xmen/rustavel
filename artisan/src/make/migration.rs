@@ -3,6 +3,7 @@ use crate::make::make_error::MakeError;
 use clap::Args;
 use illuminate_str::Str;
 use minijinja::Environment;
+use minijinja::value::Serde;
 use rustavel_core::helper::datetime::now_compact;
 use rustavel_core::helper::file_content::FileContent;
 use rustavel_core::helper::terminal_ui::{Status, operation};
@@ -10,7 +11,6 @@ use std::fs;
 use std::io;
 use std::path::PathBuf;
 use std::time::Instant;
-use minijinja::value::Serde;
 
 #[allow(unused)]
 const MIGRATION_TEMPLATE: &str = include_str!("templates/migration.rs.j2");
@@ -28,8 +28,6 @@ pub struct NewMigArgs {
     /// The table to be created
     #[arg(short = 'c', long)]
     pub create: Option<String>,
-
-
 
     /// The location where the migration file should be created
     #[arg(short = 'p', long)]
@@ -94,7 +92,7 @@ pub async fn migrate(args: &NewMigArgs) -> Result<bool, MakeError> {
     }
 
     ensure_new_file(&target_path)?;
-    FileContent::put(&target_path.as_path().to_str().unwrap(), &rendered).await?;
+    FileContent::put(target_path.as_path().to_str().unwrap(), &rendered).await?;
 
     // It measures execution time, not disk flush time.
     operation(

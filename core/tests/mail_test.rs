@@ -26,8 +26,7 @@ mod tests {
 
     #[test]
     fn creates_address_with_name() {
-        let address =
-            Address::with_name("user@example.com", "John Doe");
+        let address = Address::with_name("user@example.com", "John Doe");
 
         assert_eq!(address.email, "user@example.com");
         assert_eq!(address.name.as_deref(), Some("John Doe"));
@@ -37,13 +36,9 @@ mod tests {
     fn adds_recipients_without_replacing_existing_ones() {
         let mut envelope = Envelope::new();
 
-        envelope.add_to([
-            Address::new("alice@example.com"),
-        ]);
+        envelope.add_to([Address::new("alice@example.com")]);
 
-        envelope.add_to([
-            Address::new("bob@example.com"),
-        ]);
+        envelope.add_to([Address::new("bob@example.com")]);
 
         assert_eq!(envelope.to.len(), 2);
         assert_eq!(envelope.to[0].email, "alice@example.com");
@@ -55,19 +50,11 @@ mod tests {
         let mut envelope = Envelope::new();
 
         envelope.set_subject("Order shipped");
-        envelope.set_from(
-            Address::with_name("orders@example.com", "Orders"),
-        );
+        envelope.set_from(Address::with_name("orders@example.com", "Orders"));
 
-        assert_eq!(
-            envelope.subject.as_deref(),
-            Some("Order shipped")
-        );
+        assert_eq!(envelope.subject.as_deref(), Some("Order shipped"));
 
-        assert_eq!(
-            envelope.from.as_ref().unwrap().email,
-            "orders@example.com"
-        );
+        assert_eq!(envelope.from.as_ref().unwrap().email, "orders@example.com");
     }
 
     #[test]
@@ -80,10 +67,7 @@ mod tests {
         envelope.set_metadata("order_id", "123");
         envelope.set_metadata("order_id", "456");
 
-        assert_eq!(
-            envelope.tags,
-            vec!["orders", "transactional", "important"]
-        );
+        assert_eq!(envelope.tags, vec!["orders", "transactional", "important"]);
 
         assert_eq!(
             envelope.metadata.get("order_id").map(String::as_str),

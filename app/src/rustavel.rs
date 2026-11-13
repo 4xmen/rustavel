@@ -1,4 +1,3 @@
-use std::path::Path;
 use std::sync::Arc;
 
 mod http;
@@ -30,7 +29,7 @@ async fn main() {
     let mut env = Environment::new();
     env.set_loader(path_loader(views_dir));
 
-    register_global_func(&mut env,routes_map.clone());
+    register_global_func(&mut env, routes_map.clone());
     register_csrf_functions(&mut env);
 
     let state = AppState {

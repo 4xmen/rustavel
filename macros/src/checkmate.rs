@@ -23,6 +23,8 @@
 //! existing validators do not address.
 //! CheckMate: check/validate، smart
 
+// disable clippy becuz  of mistake advice
+#![allow(clippy::all)]
 
 // use proc_macro::TokenStream;
 use proc_macro2::Span;
@@ -81,8 +83,6 @@ pub enum Rule {
     Array,
     Json,
 }
-
-
 
 /// Helper function to find the #[validating] attribute on a field
 /// Clones the attribute if found
@@ -340,8 +340,6 @@ pub fn is_valid_datetime(s: &str) -> bool {
     }
 }
 
-
-
 /// If the given type is `Option<T>`, returns `Some(&T)`.
 /// Otherwise returns `None`.
 fn extract_option_inner_type(ty: &Type) -> Option<&Type> {
@@ -573,7 +571,6 @@ impl Rule {
                             errors.add(#field_name, format!("{} not confirmed",&#field_name));
                         }
                     }
-
                 } else {
                     quote! {
                         if &self.#field_ident != &self.#confirm{
@@ -588,8 +585,8 @@ impl Rule {
                         field_name,
                         format!("Email must be string  `{}`", field_name),
                     )
-                        .to_compile_error()
-                        .into();
+                    .to_compile_error()
+                    .into();
                 }
                 let is_option = is_option_type(field_ty);
                 if !is_option {
@@ -614,8 +611,8 @@ impl Rule {
                         field_name,
                         format!("Url must be string  `{}`", field_name),
                     )
-                        .to_compile_error()
-                        .into();
+                    .to_compile_error()
+                    .into();
                 }
                 let is_option = is_option_type(field_ty);
                 if !is_option {
@@ -679,8 +676,8 @@ impl Rule {
                         field_name,
                         format!("unsupported type for `min` rule:  `{}`", field_name),
                     )
-                        .to_compile_error()
-                        .into();
+                    .to_compile_error()
+                    .into();
                 }
             }
             Rule::Max(val) => {
@@ -730,8 +727,8 @@ impl Rule {
                         field_name,
                         format!("unsupported type for `max` rule:  `{}`", field_name),
                     )
-                        .to_compile_error()
-                        .into();
+                    .to_compile_error()
+                    .into();
                 }
             }
             Rule::Size(val) => {
@@ -779,8 +776,8 @@ impl Rule {
                         field_name,
                         format!("invalid data type for size  `{}`", field_name),
                     )
-                        .to_compile_error()
-                        .into();
+                    .to_compile_error()
+                    .into();
                 }
             }
             Rule::StartsWith(prefix) => {
@@ -807,8 +804,8 @@ impl Rule {
                         field_name,
                         format!(" starts_with must be string  `{}`", field_name),
                     )
-                        .to_compile_error()
-                        .into();
+                    .to_compile_error()
+                    .into();
                 }
             }
             Rule::EndsWith(suffix) => {
@@ -835,8 +832,8 @@ impl Rule {
                         field_name,
                         format!(" ends with must be string  `{}`", field_name),
                     )
-                        .to_compile_error()
-                        .into();
+                    .to_compile_error()
+                    .into();
                 }
             }
             Rule::Ascii => {
@@ -845,8 +842,8 @@ impl Rule {
                         field_name,
                         format!(" ascii must be string  `{}`", field_name),
                     )
-                        .to_compile_error()
-                        .into();
+                    .to_compile_error()
+                    .into();
                 }
                 let is_option = is_option_type(field_ty);
                 if !is_option {
@@ -871,8 +868,8 @@ impl Rule {
                         field_name,
                         format!("alphanumeric must be string  `{}`", field_name),
                     )
-                        .to_compile_error()
-                        .into();
+                    .to_compile_error()
+                    .into();
                 }
                 let is_option = is_option_type(field_ty);
                 if !is_option {
@@ -897,8 +894,8 @@ impl Rule {
                         field_name,
                         format!(" hex_color must be string  `{}`", field_name),
                     )
-                        .to_compile_error()
-                        .into();
+                    .to_compile_error()
+                    .into();
                 }
                 let is_option = is_option_type(field_ty);
                 if !is_option {
@@ -923,8 +920,8 @@ impl Rule {
                         field_name,
                         format!(" lowercase must be string  `{}`", field_name),
                     )
-                        .to_compile_error()
-                        .into();
+                    .to_compile_error()
+                    .into();
                 }
                 let is_option = is_option_type(field_ty);
                 if !is_option {
@@ -949,8 +946,8 @@ impl Rule {
                         field_name,
                         format!(" uppercase must be string  `{}`", field_name),
                     )
-                        .to_compile_error()
-                        .into();
+                    .to_compile_error()
+                    .into();
                 }
                 let is_option = is_option_type(field_ty);
                 if !is_option {
@@ -978,7 +975,7 @@ impl Rule {
                         field_name,
                         format!("in must be string `{}`", field_name),
                     )
-                        .to_compile_error();
+                    .to_compile_error();
                 }
                 if is_option_type(field_ty) {
                     quote! {
@@ -1007,10 +1004,9 @@ impl Rule {
                         field_name,
                         format!("not_in must be string `{}`", field_name),
                     )
-                        .to_compile_error();
+                    .to_compile_error();
                 }
                 if is_option_type(field_ty) {
-
                     quote! {
                         if let Some(value) = (&self.#field_ident).as_ref() {
                             let allowed = #values.split(',').collect::<Vec<_>>();
@@ -1034,8 +1030,8 @@ impl Rule {
                         field_name,
                         format!(" ip must be string  `{}`", field_name),
                     )
-                        .to_compile_error()
-                        .into();
+                    .to_compile_error()
+                    .into();
                 }
                 let is_option = is_option_type(field_ty);
                 if !is_option {
@@ -1061,8 +1057,8 @@ impl Rule {
                         field_name,
                         format!(" date must be string or date  `{}`", field_name),
                     )
-                        .to_compile_error()
-                        .into();
+                    .to_compile_error()
+                    .into();
                 }
                 if is_string_type(field_ty) {
                     if !is_option {
@@ -1091,8 +1087,8 @@ impl Rule {
                         field_name,
                         format!(" datetime must be string or datetime  `{}`", field_name),
                     )
-                        .to_compile_error()
-                        .into();
+                    .to_compile_error()
+                    .into();
                 }
                 if is_string_type(field_ty) {
                     if !is_option {
@@ -1120,8 +1116,8 @@ impl Rule {
                         field_name,
                         format!(" time must be string or time `{}`", field_name),
                     )
-                        .to_compile_error()
-                        .into();
+                    .to_compile_error()
+                    .into();
                 }
                 let is_option = is_option_type(field_ty);
                 if !is_option {
@@ -1155,8 +1151,8 @@ impl Rule {
                         field_name,
                         format!("date must be string or date|time `{}`", field_name),
                     )
-                        .to_compile_error()
-                        .into();
+                    .to_compile_error()
+                    .into();
                 }
                 let is_option = is_option_type(field_ty);
                 // non option dates
@@ -1253,8 +1249,8 @@ impl Rule {
                         field_name,
                         format!("date must be string or date|time `{}`", field_name),
                     )
-                        .to_compile_error()
-                        .into();
+                    .to_compile_error()
+                    .into();
                 }
                 let is_option = is_option_type(field_ty);
                 // non option dates
@@ -1350,8 +1346,8 @@ impl Rule {
                         field_name,
                         format!(" json must be string  `{}`", field_name),
                     )
-                        .to_compile_error()
-                        .into();
+                    .to_compile_error()
+                    .into();
                 }
                 let is_option = is_option_type(field_ty);
                 if !is_option {
@@ -1379,8 +1375,8 @@ impl Rule {
                             field_name
                         ),
                     )
-                        .to_compile_error()
-                        .into();
+                    .to_compile_error()
+                    .into();
                 }
                 quote! {}
             }
@@ -1556,7 +1552,6 @@ impl Rule {
             //     tokens.extend(db_token);
             //     tokens.into()
             // }
-
             Rule::Exists(meta) => {
                 let db = meta.split(',').map(str::trim).collect::<Vec<_>>();
                 if db.len() != 2 {
@@ -1569,9 +1564,12 @@ impl Rule {
                 if !is_string_type(field_ty) && !is_numeric_type(field_ty) {
                     return Error::new_spanned(
                         field_name,
-                        format!("unsupported type requried numberic or string `{}`", field_name),
+                        format!(
+                            "unsupported type requried numberic or string `{}`",
+                            field_name
+                        ),
                     )
-                        .to_compile_error();
+                    .to_compile_error();
                 }
                 let (table, column) = (db[0], db[1]);
                 let body = quote! {
@@ -1598,9 +1596,12 @@ impl Rule {
                 if !is_string_type(field_ty) && !is_numeric_type(field_ty) {
                     return Error::new_spanned(
                         field_name,
-                        format!("unsupported type requried numberic or string `{}`", field_name),
+                        format!(
+                            "unsupported type requried numberic or string `{}`",
+                            field_name
+                        ),
                     )
-                        .to_compile_error();
+                    .to_compile_error();
                 }
                 let (table, column) = (db[0], db[1]);
                 let lookup = match db.get(2) {
@@ -1625,7 +1626,6 @@ impl Rule {
                 };
                 wrap_db_rule(field_ident, field_ty, body)
             }
-
 
             _ => quote! {},
         }

@@ -1,9 +1,9 @@
-use data_encoding::BASE64;
-use std::fs;
-use rand::rngs::SysRng;
-use std::path::{Path, PathBuf};
-use rand::TryRng;
 use crate::make::make_error::MakeError;
+use data_encoding::BASE64;
+use rand::TryRng;
+use rand::rngs::SysRng;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 /// Generate a secure Laravel-style `APP_KEY` for the `.env` file.
 ///
@@ -18,7 +18,6 @@ pub fn generate_laravel_app_key() -> String {
 
     format!("base64:{}", BASE64.encode(&key))
 }
-
 
 /// Insert or update a key-value pair in the `.env` file in the current directory.
 ///
@@ -63,12 +62,12 @@ pub fn set_env_value(key: &str, value: &str) -> std::io::Result<()> {
     fs::write(env_path, content)
 }
 
-
-
 /// Ensure a module is registered in mod.rs (idempotent)
 pub async fn register_mod_file(mod_file: &Path, module_name: &str) -> Result<(), MakeError> {
     // Read existing mod.rs content or create empty if missing
-    let content = tokio::fs::read_to_string(mod_file).await.unwrap_or_else(|_| String::new());
+    let content = tokio::fs::read_to_string(mod_file)
+        .await
+        .unwrap_or_else(|_| String::new());
 
     let line = format!("pub mod {};", module_name);
 

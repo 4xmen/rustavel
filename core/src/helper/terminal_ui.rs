@@ -1,6 +1,6 @@
 use colored::*;
 use std::time::Duration;
-use terminal_size::{terminal_size, Width};
+use terminal_size::{Width, terminal_size};
 
 #[warn(dead_code)]
 /// Available status results for an operation
@@ -27,7 +27,7 @@ pub fn title(kind: TitleKind, message: &str) {
 pub fn operation(name: &str, duration: Duration, status: Status) {
     let mut term_width = terminal_width().unwrap_or(80) - 7;
     if term_width > 147 {
-        term_width =  147;
+        term_width = 147;
     }
 
     let time_ms = duration.as_secs_f64() * 1000.0;
@@ -40,8 +40,7 @@ pub fn operation(name: &str, duration: Duration, status: Status) {
     };
 
     // layout calculation
-    let fixed_len =
-        name.len() +
+    let fixed_len = name.len() +
             1 +                 // space
             time_str.len() +
             1 +                 // space

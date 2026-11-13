@@ -1,11 +1,11 @@
 use axum::{
-    body::{to_bytes, Body, Bytes},
+    body::{Body, Bytes, to_bytes},
     extract::Request,
-    http::{header, Method, StatusCode},
+    http::{Method, StatusCode, header},
     middleware::Next,
     response::Response,
 };
-use futures_util::{stream, StreamExt};
+use futures_util::{StreamExt, stream};
 use percent_encoding::percent_decode_str;
 
 use crate::{config::CONFIG, http::session::Session};
@@ -139,7 +139,11 @@ fn first_field_token(buf: &[u8], boundary: &str) -> Peek {
     let close = format!("\r\n--{boundary}");
 
     if buf.len() < open.len() {
-        return if open.as_bytes().starts_with(buf) { Peek::NeedMore } else { Peek::Missing };
+        return if open.as_bytes().starts_with(buf) {
+            Peek::NeedMore
+        } else {
+            Peek::Missing
+        };
     }
     if !buf.starts_with(open.as_bytes()) {
         return Peek::Missing;
@@ -164,7 +168,10 @@ fn first_field_token(buf: &[u8], boundary: &str) -> Peek {
 }
 
 fn multipart_boundary(content_type: &str) -> Option<String> {
-    if !content_type.to_ascii_lowercase().starts_with("multipart/form-data") {
+    if !content_type
+        .to_ascii_lowercase()
+        .starts_with("multipart/form-data")
+    {
         return None;
     }
     content_type

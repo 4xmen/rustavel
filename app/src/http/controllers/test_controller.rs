@@ -1,14 +1,14 @@
 use axum::{extract::State, http::StatusCode, response::IntoResponse};
 use axum_params::Params;
-use minijinja::context;
 use macros::CheckMate;
+use minijinja::context;
+use rustavel_core::helper::datetime::*;
+use rustavel_core::http::session::Session;
 use rustavel_core::localization::digits::apply_normalized_string;
 use rustavel_core::localization::numbers::apply_normalize_number;
-use rustavel_core::helper::datetime::*;
 use rustavel_core::state::AppState;
 use serde::{Deserialize, Serialize};
 use time::{Date, PrimitiveDateTime};
-use rustavel_core::http::session::Session;
 // use time::Date;
 // use time::Time;
 
@@ -73,20 +73,13 @@ pub async fn register(
     // println!("{}", test);
     (StatusCode::OK, "hello world2")
 }
-pub async fn login(
-    State(state): State<AppState>,
-    session: Session,
-) -> impl IntoResponse {
+pub async fn login(State(state): State<AppState>, session: Session) -> impl IntoResponse {
     //
     // println!("st:{:?} , ses: {:?}", state, session );
     // (StatusCode::OK, "hello world2")
-    state.protected_view("auth/login.j2",context! {}, &session)
+    state.protected_view("auth/login.j2", context! {}, &session)
 }
-pub async fn login_check(
-    State(state): State<AppState>,
-) -> impl IntoResponse {
-
+pub async fn login_check(State(state): State<AppState>) -> impl IntoResponse {
     println!("{state:?}");
     (StatusCode::OK, "hello world2")
 }
-

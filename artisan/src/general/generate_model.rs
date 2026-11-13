@@ -1,11 +1,10 @@
-use illuminate_str::Str;
-use minijinja::{ Environment};
-use minijinja::value::Serde;
-use rustavel_core::helper::file_content::FileContent;
 use crate::make::make_error::MakeError;
+use illuminate_str::Str;
+use minijinja::Environment;
+use minijinja::value::Serde;
 use rustavel_core::db::schema::ModelData;
+use rustavel_core::helper::file_content::FileContent;
 const MODEL_GENERATED_TEMPLATE: &str = include_str!("../make/templates/model_generated.rs.j2");
-
 
 #[derive(serde::Serialize)]
 struct ModelContext {
@@ -16,15 +15,17 @@ struct ModelContext {
     field_list: String,
 }
 
-pub async fn save_generated_model(model_name: String, data: Option<ModelData>)  -> Result<(), MakeError>{
-
+pub async fn save_generated_model(
+    model_name: String,
+    data: Option<ModelData>,
+) -> Result<(), MakeError> {
     let mut env = Environment::new();
     env.add_template("model_generated", MODEL_GENERATED_TEMPLATE)?;
     let base = std::env::current_dir()?.join("app/src/models");
     // let generated_path = base.join(format!("{}_generated.rs", model_name.to_lowercase()));
     let generated_path = base.join(format!("{}_generated.rs", Str::snake(&model_name, "_")));
 
-    let ctx = if let Some(model_data) = data  {
+    let ctx = if let Some(model_data) = data {
         ModelContext {
             name: model_name,
             fields: model_data.model.trim().to_owned(),
@@ -32,7 +33,7 @@ pub async fn save_generated_model(model_name: String, data: Option<ModelData>)  
             table: model_data.table,
             pkey: model_data.primary_key,
         }
-    }else{
+    } else {
         ModelContext {
             name: model_name,
             fields: "".to_string(),

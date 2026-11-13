@@ -1,9 +1,9 @@
-use std::collections::HashMap;
 use macros::CheckMate;
+use rustavel_core::helper::datetime::*;
 use rustavel_core::localization::digits::apply_normalized_string;
 use rustavel_core::localization::numbers::apply_normalize_number;
-use rustavel_core::helper::datetime::*;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use time::{Date, OffsetDateTime, PrimitiveDateTime};
 
 #[derive(Debug, Serialize, Deserialize, CheckMate)]
@@ -53,16 +53,15 @@ pub struct TestPayload {
 }
 
 // helper for check error
-fn assert_has_error(
-    map: &HashMap<String, Vec<String>>,
-    field: &str,
-    expected_substring: &str,
-) {
-    let field_errors = map.get(field)
+fn assert_has_error(map: &HashMap<String, Vec<String>>, field: &str, expected_substring: &str) {
+    let field_errors = map
+        .get(field)
         .unwrap_or_else(|| panic!("Field '{}' should have errors", field));
 
     assert!(
-        field_errors.iter().any(|msg| msg.contains(expected_substring)),
+        field_errors
+            .iter()
+            .any(|msg| msg.contains(expected_substring)),
         "Expected '{}' inside errors of '{}'. Got: {:?}",
         expected_substring,
         field,
@@ -90,7 +89,7 @@ async fn test_validator_correct() {
     };
 
     let data = payload.validate().await;
-    assert_eq!(data.is_ok(), true);
+    assert!(data.is_ok());
 }
 #[tokio::test]
 async fn test_validator_not_correct() {
@@ -108,7 +107,7 @@ async fn test_validator_not_correct() {
         pass_confirm: Some("pass_not_confirm".to_string()),
         role: "admin".to_string(),
         items: vec!["item1".to_string(), "item2".to_string()],
-        omg: Some( "2019-12-29".to_string() ),
+        omg: Some("2019-12-29".to_string()),
     };
 
     let result = payload.validate().await;
@@ -150,5 +149,4 @@ async fn test_validator_not_correct() {
 
     // --------- dob ----------
     assert_has_error(map, "dob", "must be earlier than 2013-01-01");
-
 }

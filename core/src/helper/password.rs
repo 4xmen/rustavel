@@ -1,11 +1,6 @@
-
 use argon2::{
     Argon2,
-    password_hash::{
-        PasswordHasher as _,
-        PasswordVerifier as _,
-        phc::PasswordHash,
-    },
+    password_hash::{PasswordHasher as _, PasswordVerifier as _, phc::PasswordHash},
 };
 
 /// Selects the algorithm and work factor used for password hashing.
@@ -35,14 +30,10 @@ impl PasswordHasher {
     pub fn hash(&self, password: &str) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         // Dispatch hashing to the selected driver.
         match self.driver {
-            PasswordDriver::Argon2 => {
-                Ok(Argon2::default()
-                    .hash_password(password.as_bytes())?
-                    .to_string())
-            }
-            PasswordDriver::Bcrypt { cost } => {
-                Ok(bcrypt::non_truncating_hash(password, cost)?)
-            }
+            PasswordDriver::Argon2 => Ok(Argon2::default()
+                .hash_password(password.as_bytes())?
+                .to_string()),
+            PasswordDriver::Bcrypt { cost } => Ok(bcrypt::non_truncating_hash(password, cost)?),
         }
     }
 
@@ -65,9 +56,7 @@ impl PasswordHasher {
                     Err(error) => Err(Box::new(error)),
                 }
             }
-            PasswordDriver::Bcrypt { .. } => {
-                Ok(bcrypt::non_truncating_verify(password, hash)?)
-            }
+            PasswordDriver::Bcrypt { .. } => Ok(bcrypt::non_truncating_verify(password, hash)?),
         }
     }
 }

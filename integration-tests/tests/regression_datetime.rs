@@ -12,7 +12,9 @@ fn bug31_jdate_month_short_name() {
 
 #[test]
 fn bug32_persian_am_pm() {
-    if CONFIG.app.timezone != "UTC" { return; }
+    if CONFIG.app.timezone != "UTC" {
+        return;
+    }
     assert_eq!(datetime!(2026-10-22 15:00:00 UTC).jdate("a"), "ب‌ظ");
     assert_eq!(datetime!(2026-10-22 09:00:00 UTC).jdate("a"), "ق‌ظ");
 }
@@ -26,17 +28,36 @@ fn bug33_normalize_digits() {
 
 #[test]
 fn bug34_format_php_like_php() {
-    if CONFIG.app.timezone != "UTC" { return; }
-    assert_eq!(datetime!(2026-10-25 10:00:00 UTC).format_php("w"), "0", "Sunday");
-    assert_eq!(datetime!(2026-01-01 10:00:00 UTC).format_php("z"), "0", "1 January");
+    if CONFIG.app.timezone != "UTC" {
+        return;
+    }
+    assert_eq!(
+        datetime!(2026-10-25 10:00:00 UTC).format_php("w"),
+        "0",
+        "Sunday"
+    );
+    assert_eq!(
+        datetime!(2026-01-01 10:00:00 UTC).format_php("z"),
+        "0",
+        "1 January"
+    );
     assert_eq!(datetime!(2005-01-01 10:00:00 UTC).format_php("y"), "05");
-    assert_eq!(datetime!(2026-10-22 15:04:05 UTC).format_php("r"), "Thu, 22 Oct 2026 15:04:05 +0000");
+    assert_eq!(
+        datetime!(2026-10-22 15:04:05 UTC).format_php("r"),
+        "Thu, 22 Oct 2026 15:04:05 +0000"
+    );
 }
 
 #[test]
 fn bug35_app_timezone_is_used() {
     // run with APP_TIMEZONE=+03:30 (see the guide)
-    if CONFIG.app.timezone != "+03:30" { eprintln!("skipped: run with APP_TIMEZONE=+03:30"); return; }
+    if CONFIG.app.timezone != "+03:30" {
+        eprintln!("skipped: run with APP_TIMEZONE=+03:30");
+        return;
+    }
     // 22:00 UTC is 01:30 the next day in Tehran
-    assert_eq!(datetime!(2026-10-22 22:00:00 UTC).jdate("Y-m-d H:i"), "1405-08-01 01:30");
+    assert_eq!(
+        datetime!(2026-10-22 22:00:00 UTC).jdate("Y-m-d H:i"),
+        "1405-08-01 01:30"
+    );
 }

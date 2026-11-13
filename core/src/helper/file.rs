@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 #[derive(Debug)]
-pub struct File ;
+pub struct File;
 
 impl File {
     /// Create a symbolic link between source and destination paths

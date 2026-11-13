@@ -1,11 +1,11 @@
 use std::time::Duration;
 
 use axum::{
+    Router,
     extract::{DefaultBodyLimit, Request},
-    http::{header, HeaderValue, Method, StatusCode},
+    http::{HeaderValue, Method, StatusCode, header},
     middleware::{self, Next},
     response::Response,
-    Router,
 };
 use tower_http::{
     catch_panic::CatchPanicLayer,
@@ -151,7 +151,10 @@ pub async fn csrf_guard(req: Request, next: Next) -> Result<Response, StatusCode
     }
 
     if let Some(origin) = h.get(header::ORIGIN).and_then(|v| v.to_str().ok()) {
-        let host = h.get(header::HOST).and_then(|v| v.to_str().ok()).unwrap_or("");
+        let host = h
+            .get(header::HOST)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
         let origin_host = origin.split("://").nth(1).unwrap_or("");
         return if origin_host == host {
             Ok(next.run(req).await)

@@ -1,5 +1,5 @@
-use std::{env, str::FromStr};
 use crate::config::env::{env_bool, env_parse};
+use std::env;
 
 /// HTTP layer configuration (middleware stack defaults).
 ///

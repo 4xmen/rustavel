@@ -1,14 +1,12 @@
+use crate::http::controllers::test_controller::register;
 use crate::http::middleware::log_middleware;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use rustavel_core::route::routing::{BuiltRoutes, Route};
 use rustavel_core::state::AppState; // import AppState
-use crate::http::controllers::test_controller::register;
 
 pub fn api_routes() -> BuiltRoutes<AppState> {
     let mut route = Route::new();
-
-
 
     route.group(|r| {
         r.name("api")
@@ -23,7 +21,7 @@ pub fn api_routes() -> BuiltRoutes<AppState> {
                 users.get("index", hello_api).name("index");
                 users.get("create", hello_api).name("create");
             });
-            v1.post("register",register).name("register");
+            v1.post("register", register).name("register");
         })
     });
 

@@ -12,44 +12,41 @@ pub mod build_config {
 }
 pub mod factory;
 
-use std::collections::HashMap;
-use serde::Serialize;
-use regex::Regex;
 use once_cell::sync::Lazy;
-use time::macros::{ format_description};
+use regex::Regex;
+use serde::Serialize;
+use std::collections::HashMap;
+use time::macros::format_description;
 
-use time::{
-    Date,
-    PrimitiveDateTime,
-    format_description::{ FormatItem},
-};
+use time::{Date, PrimitiveDateTime, format_description::FormatItem};
 
 // use serde_json::de::IoRead;
 // use serde_json::Deserializer;
 use std::net::IpAddr;
 
-pub static EMAIL_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").unwrap()
-});
+pub static EMAIL_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").unwrap());
 
-pub static URL_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^(https?|ftps?)://[^\s/$.?#].[^\s]*$").unwrap()
-});
+pub static URL_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^(https?|ftps?)://[^\s/$.?#].[^\s]*$").unwrap());
 
-pub static HEX_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^#?([a-fA-F0-9]{3}|[a-fA-F0-9]{6})$").unwrap()
-});
+pub static HEX_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^#?([a-fA-F0-9]{3}|[a-fA-F0-9]{6})$").unwrap());
 
+pub static DATETIME_FORMAT: &[FormatItem<'static>] =
+    format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
 
-pub static DATETIME_FORMAT : &[FormatItem<'static>] =
-format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
+pub static DATE_FORMAT: &[FormatItem<'static>] = format_description!("[year]-[month]-[day]");
 
-pub static DATE_FORMAT : &[FormatItem<'static>] =
-format_description!("[year]-[month]-[day]");
-
-#[derive(Debug,Serialize)]
+#[derive(Debug, Serialize)]
 pub struct ValidationErrors {
     pub errors: HashMap<String, Vec<String>>,
+}
+
+impl Default for ValidationErrors {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ValidationErrors {
@@ -93,7 +90,6 @@ pub trait CheckMateValidator {
 /// assert_eq!(is_valid_email("invalid-email"), false);
 /// ```
 pub fn is_valid_email(value: &str) -> bool {
-
     EMAIL_REGEX.is_match(value)
 }
 
@@ -116,9 +112,6 @@ pub fn is_valid_url(value: &str) -> bool {
     URL_REGEX.is_match(value)
 }
 
-
-
-
 /// Validate if the given string is a valid hexadecimal color.
 ///
 /// Supports formats like:
@@ -127,7 +120,6 @@ pub fn is_valid_url(value: &str) -> bool {
 /// - FFF
 /// - FFFFFF
 pub fn is_valid_hex_color(value: &str) -> bool {
-
     HEX_REGEX.is_match(value)
 }
 
@@ -146,7 +138,6 @@ pub fn is_valid_hex_color(value: &str) -> bool {
 pub fn is_valid_ascii(s: &str) -> bool {
     s.is_ascii()
 }
-
 
 /// Returns `true` if all characters in the string are ASCII alphanumeric.
 ///
@@ -191,55 +182,39 @@ pub fn is_valid_json(value: &str) -> bool {
     // Use Deserializer to parse a single JSON value and ensure no trailing non-whitespace data.
     // This approach gives more control and can be faster than `serde_json::from_str` for this check.
     if serde_json::from_str::<serde_json::Value>(value).is_err() {
-       return  false;
+        return false;
     }
 
     true
 }
 /// Validate if the given string is a valid date (YYYY-MM-DD).
 pub fn is_valid_date(value: &str) -> bool {
-    match PrimitiveDateTime::parse(&format!("{value} 00:00:00"), &DATETIME_FORMAT) {
-        Ok(_) => {
-            true
-        }
-        Err(_) => false,
-    }
+    PrimitiveDateTime::parse(&format!("{value} 00:00:00"), &DATETIME_FORMAT).is_ok()
 }
 
 /// Validate if the given string is a valid datetime (YYYY-MM-DD HH:MM:SS).
 pub fn is_valid_datetime(value: &str) -> bool {
-    match PrimitiveDateTime::parse(&value, &DATETIME_FORMAT) {
-        Ok(_) => {
-            true
-        }
-        Err(_) => false,
-    }
+    PrimitiveDateTime::parse(value, &DATETIME_FORMAT).is_ok()
 }
 
 /// Validate if the given string is a valid time (HH:MM:SS).
 pub fn is_valid_time(value: &str) -> bool {
-    match PrimitiveDateTime::parse(&format!("2010-10-10 {value}"), &DATETIME_FORMAT) {
-        Ok(_) => {
-            true
-        }
-        Err(_) => false,
-    }
+    PrimitiveDateTime::parse(&format!("2010-10-10 {value}"), &DATETIME_FORMAT).is_ok()
 }
 
 /// Validate if `value` is after the given date (YYYY-MM-DD).
 pub fn is_after(value: &str, target: &str) -> bool {
-    let value_date = PrimitiveDateTime::parse(value, &*DATETIME_FORMAT).unwrap();
-    let target_date = PrimitiveDateTime::parse(target, &*DATETIME_FORMAT).unwrap();
+    let value_date = PrimitiveDateTime::parse(value, DATETIME_FORMAT).unwrap();
+    let target_date = PrimitiveDateTime::parse(target, DATETIME_FORMAT).unwrap();
     value_date > target_date
 }
 
 /// Validate if `value` is before the given date (YYYY-MM-DD).
 pub fn is_before(value: &str, target: &str) -> bool {
-    let value_date = PrimitiveDateTime::parse(value, &*DATETIME_FORMAT).unwrap();
-    let target_date = PrimitiveDateTime::parse(target, &*DATETIME_FORMAT).unwrap();
+    let value_date = PrimitiveDateTime::parse(value, DATETIME_FORMAT).unwrap();
+    let target_date = PrimitiveDateTime::parse(target, DATETIME_FORMAT).unwrap();
     value_date < target_date
 }
-
 
 pub fn is_after_option(value: &str, target: &str) -> Option<bool> {
     let mut target_temp = target.to_string();
@@ -256,8 +231,8 @@ pub fn is_after_option(value: &str, target: &str) -> Option<bool> {
         value_temp = format!("{} 00:00:00", value);
     }
 
-    let value_date = PrimitiveDateTime::parse(&value_temp, &*DATETIME_FORMAT).ok()?;
-    let target_date = PrimitiveDateTime::parse(&target_temp, &*DATETIME_FORMAT).ok()?;
+    let value_date = PrimitiveDateTime::parse(&value_temp, DATETIME_FORMAT).ok()?;
+    let target_date = PrimitiveDateTime::parse(&target_temp, DATETIME_FORMAT).ok()?;
     Some(value_date > target_date)
 }
 
@@ -271,31 +246,21 @@ fn parse_target_datetime(target: &str) -> Result<PrimitiveDateTime, time::error:
 }
 
 pub fn is_after_option_datetime_ex(value: PrimitiveDateTime, target: &str) -> Option<bool> {
-
     // match PrimitiveDateTime::parse(&format!("{target} 00:00:00"), &DATETIME_FORMAT) {
     match parse_target_datetime(target) {
-        Ok(target_date) => {
-            Some(value > target_date)
-        }
+        Ok(target_date) => Some(value > target_date),
         Err(_) => None,
     }
-
 }
 pub fn is_after_option_date_ex(value: Date, target: &str) -> Option<bool> {
-
     // match Date::parse(target, &DATE_FORMAT) {
 
     // a datetime target like `2024-01-01 10:00:00` compares by its date part
     match Date::parse(target.get(..10).unwrap_or(target), &DATE_FORMAT) {
-        Ok(target_date) => {
-            Some(value > target_date)
-        }
+        Ok(target_date) => Some(value > target_date),
         Err(_) => None,
     }
-
 }
-
-
 
 pub fn is_before_option(value: &str, target: &str) -> Option<bool> {
     let mut target_temp = target.to_string();
@@ -312,35 +277,26 @@ pub fn is_before_option(value: &str, target: &str) -> Option<bool> {
         value_temp = format!("{} 00:00:00", value);
     }
 
-    let value_date = PrimitiveDateTime::parse(&value_temp, &*DATETIME_FORMAT).ok()?;
-    let target_date = PrimitiveDateTime::parse(&target_temp, &*DATETIME_FORMAT).ok()?;
+    let value_date = PrimitiveDateTime::parse(&value_temp, DATETIME_FORMAT).ok()?;
+    let target_date = PrimitiveDateTime::parse(&target_temp, DATETIME_FORMAT).ok()?;
     Some(value_date < target_date)
 }
 
-
 pub fn is_before_option_datetime_ex(value: PrimitiveDateTime, target: &str) -> Option<bool> {
-
     // match PrimitiveDateTime::parse(&format!("{target} 00:00:00"), &DATETIME_FORMAT) {
     match parse_target_datetime(target) {
-        Ok(target_date) => {
-            Some(value < target_date)
-        }
+        Ok(target_date) => Some(value < target_date),
         Err(_) => None,
     }
-
 }
 pub fn is_before_option_date_ex(value: Date, target: &str) -> Option<bool> {
-
     // match Date::parse(target, &DATE_FORMAT) {
 
     // a datetime target like `2024-01-01 10:00:00` compares by its date part
     match Date::parse(target.get(..10).unwrap_or(target), &DATE_FORMAT) {
-        Ok(target_date) => {
-            Some(value < target_date)
-        }
+        Ok(target_date) => Some(value < target_date),
         Err(_) => None,
     }
-
 }
 
 // Helper function to convert any numeric type to i64
@@ -358,5 +314,3 @@ where
 {
     value.to_string()
 }
-
-

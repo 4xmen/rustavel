@@ -58,7 +58,6 @@ impl SqlGenerator for MySqlGenerator {
         )
     }
 
-
     fn get_foreign_keys(&self, table_name: &str) -> String {
         format!(
             "
@@ -189,7 +188,7 @@ impl SqlGenerator for MySqlGenerator {
         column: &Column,
         table_name: &str,
         action: &TableAction,
-    ) -> (String, String, String,String) {
+    ) -> (String, String, String, String) {
         // for multi-col field like morph
         let mut extra_cols: Vec<String> = Vec::new();
         let mut column_sql = String::new();
@@ -429,8 +428,12 @@ impl SqlGenerator for MySqlGenerator {
                 column.name
             ));
         }
-        (column_sql, footers.join(",\n"), String::new(),String::from(",\n"))
-
+        (
+            column_sql,
+            footers.join(",\n"),
+            String::new(),
+            String::from(",\n"),
+        )
     }
 
     fn foreign_key(&self, key: &ForeignKey, table_name: &str, action: &TableAction) -> String {
@@ -501,7 +504,6 @@ impl SqlGenerator for MySqlGenerator {
         }
     }
 
-
     fn get_ran(&self, table: &str) -> String {
         format!("SELECT `migration` FROM `{}`", table)
     }
@@ -514,25 +516,34 @@ impl SqlGenerator for MySqlGenerator {
     }
 
     fn add_migrated_table(&self, table: &str) -> String {
-        format!("INSERT INTO `{}` (`migration`, `batch`) VALUES (?, ?)", table)
+        format!(
+            "INSERT INTO `{}` (`migration`, `batch`) VALUES (?, ?)",
+            table
+        )
     }
 
     fn rem_migrated_table(&self, table: &str) -> String {
         format!("DELETE FROM `{}` WHERE  `migration` = ?", table)
     }
 
-
-    fn record_exists(&self,table: &str,column: &str) -> String{
-        format!("SELECT COUNT(*) AS 'count' FROM `{}` WHERE `{}` = ?", table, column)
+    fn record_exists(&self, table: &str, column: &str) -> String {
+        format!(
+            "SELECT COUNT(*) AS 'count' FROM `{}` WHERE `{}` = ?",
+            table, column
+        )
     }
-    fn record_exists_except(&self,table: &str,column: &str, except: &str) -> String{
-        format!("SELECT COUNT(*) AS 'count' FROM `{}` WHERE `{}` = ? AND `{}` <> ?", table, column, except)
+    fn record_exists_except(&self, table: &str, column: &str, except: &str) -> String {
+        format!(
+            "SELECT COUNT(*) AS 'count' FROM `{}` WHERE `{}` = ? AND `{}` <> ?",
+            table, column, except
+        )
     }
 
     fn get_db_tables_columns_struct(&self) -> String {
         "SELECT CONCAT(TABLE_NAME, '.', COLUMN_NAME) AS name
         FROM INFORMATION_SCHEMA.COLUMNS
         WHERE TABLE_SCHEMA = DATABASE()
-        ORDER BY TABLE_NAME, ORDINAL_POSITION;".into()
+        ORDER BY TABLE_NAME, ORDINAL_POSITION;"
+            .into()
     }
 }

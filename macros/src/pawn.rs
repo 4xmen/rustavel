@@ -3,15 +3,13 @@
 //! This crate only exports the [`Pawn`] derive; the runtime trait and the
 //! fluent builders live in the `factory` crate, which re-exports this macro.
 
+use macros_core::build_config;
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-use syn::{
-     Data, DeriveInput, Expr, ExprLit, Fields, Ident, Lit, LitInt, Path, Token,
-};
-use macros_core::build_config;
+use syn::{Data, DeriveInput, Expr, ExprLit, Fields, Ident, Lit, LitInt, Path, Token};
 
 /// Expands the derive input into a `Pawn` implementation.
 pub fn pawn_expand(input: DeriveInput) -> syn::Result<TokenStream2> {
@@ -25,14 +23,14 @@ pub fn pawn_expand(input: DeriveInput) -> syn::Result<TokenStream2> {
                 return Err(syn::Error::new(
                     input.ident.span(),
                     "Factory can only be derived for structs with named fields",
-                ))
+                ));
             }
         },
         _ => {
             return Err(syn::Error::new(
                 input.ident.span(),
                 "Factory can only be derived for structs",
-            ))
+            ));
         }
     };
 
@@ -126,7 +124,7 @@ fn fake_init(attr: &syn::Attribute) -> syn::Result<TokenStream2> {
                     "unknown fake generator `{other}`; \
                      expected name, username, email, password, or lorem"
                 ),
-            ))
+            ));
         }
     };
     Ok(expr)

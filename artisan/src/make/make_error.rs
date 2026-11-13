@@ -1,12 +1,11 @@
+use minijinja::Error as TemplateError;
 use std::io;
-use minijinja::{ Error as TemplateError};
 #[derive(Debug)]
 #[allow(dead_code)]
 pub enum MakeError {
     Template(TemplateError),
     Io(io::Error),
 }
-
 
 impl From<TemplateError> for MakeError {
     fn from(err: TemplateError) -> Self {
@@ -19,4 +18,3 @@ impl From<io::Error> for MakeError {
         Self::Io(err)
     }
 }
-

@@ -1,10 +1,10 @@
-use std::time::Instant;
 use clap::Args;
 use illuminate_str::Str;
-use minijinja::{ Environment};
+use minijinja::Environment;
 use minijinja::value::Serde;
 use rustavel_core::helper::file_content::FileContent;
-use rustavel_core::helper::terminal_ui::{operation, Status};
+use rustavel_core::helper::terminal_ui::{Status, operation};
+use std::time::Instant;
 // use crate::general::lib::register_mod_file;
 use crate::general::lib::{ensure_new_file, register_mod_file};
 use crate::make::make_error::MakeError;
@@ -29,16 +29,14 @@ struct ControllerContext {
     has_model: bool,
 }
 
-
 #[allow(dead_code)]
 pub async fn controller(args: &NewControllerArgs) -> Result<(), MakeError> {
     let start = Instant::now();
-    let controller_name = Str::ucfirst( &Str::singular(&args.name) );
-
+    let controller_name = Str::ucfirst(&Str::singular(&args.name));
 
     let model_name = match &args.model {
         Some(model) => Str::ucfirst(model).to_string(),
-        None=> "".to_string(),
+        None => "".to_string(),
     };
 
     let mut env = Environment::new();
@@ -46,25 +44,27 @@ pub async fn controller(args: &NewControllerArgs) -> Result<(), MakeError> {
 
     let ctx = ControllerContext {
         model: model_name.clone(),
-        has_model: model_name.len() > 0,
+        has_model: !model_name.is_empty(),
     };
 
     let rendered = env.get_template("controller")?.render(Serde(&ctx))?;
 
     let base = std::env::current_dir()?.join("app/src/http/controllers");
-    let generated_path = base.join(format!("{}.rs", Str::snake(&controller_name,"_")));
-    
+    let generated_path = base.join(format!("{}.rs", Str::snake(&controller_name, "_")));
+
     // Write controller file
     ensure_new_file(&generated_path)?;
     FileContent::put(generated_path.to_str().unwrap(), &rendered).await?;
-
 
     // Register in mod.rs
     let mod_file = base.join("mod.rs");
 
     register_mod_file(&mod_file, &Str::snake(&controller_name, "_")).await?;
 
-    operation(&format!("controller made: {:?}", controller_name),start.elapsed(),Status::Done);
+    operation(
+        &format!("controller made: {:?}", controller_name),
+        start.elapsed(),
+        Status::Done,
+    );
     Ok(())
 }
-

@@ -1,6 +1,6 @@
 pub mod database_client;
 pub mod generator;
 pub mod mysql;
-pub mod sqlite;
-pub mod query;
 pub mod postgres;
+pub mod query;
+pub mod sqlite;

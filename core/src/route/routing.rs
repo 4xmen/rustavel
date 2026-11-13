@@ -77,13 +77,6 @@ impl<S> Clone for RouteContext<S> {
 /// # Fields
 /// * `items` - A vector of individual route entries (private, so not documented publicly).
 /// * `ctx_stack` group content stack
-
-
-// pub struct Route<S = ()> {
-//     items: Vec<RouteItem<S>>,
-//     ctx_stack: Vec<RouteContext<S>>,
-// }
-
 pub struct Route<S = ()> {
     items: Vec<RouteItem<S>>,
     ctx_stack: Vec<RouteContext<S>>,
@@ -148,6 +141,12 @@ macro_rules! define_method {
             self.add(RouteMethod::$enum_variant, path, handler)
         }
     };
+}
+
+impl<S: Clone + Send + Sync + 'static> Default for Route<S> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[allow(dead_code)]
@@ -261,7 +260,9 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
         let start = self.group_starts.last().copied().unwrap_or(0);
         let depth = self.ctx_stack.len();
         if self.items.len() > start {
-            self.items.last_mut().filter(|last| last.contexts.len() == depth)
+            self.items
+                .last_mut()
+                .filter(|last| last.contexts.len() == depth)
         } else {
             None
         }
@@ -505,7 +506,6 @@ impl<S: Clone + Send + Sync + 'static> Route<S> {
     /// This function does not perform validation or deduplication.
     /// It is intended to be used during the build phase after all
     /// route contexts have been resolved.
-
     fn build_full_path(item: &RouteItem<S>) -> String {
         let mut path = String::new();
 

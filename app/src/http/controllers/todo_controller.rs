@@ -1,31 +1,29 @@
 // use std::vec;
+use axum::Json;
 use axum::extract::{RawPathParams, RawQuery, State};
 use axum::http::StatusCode;
-use axum::response::{IntoResponse};
+use axum::response::IntoResponse;
 use rustavel_core::state::AppState;
-use axum::Json;
-use time::macros::{ datetime};
+use time::macros::datetime;
 
 // use time::PrimitiveDateTime;
 // use rustavel_core::sql::query::QueryDsl;
 use crate::models::Todo;
-use rustavel_core::helper::datetime::now_primitive;
 use rustavel_core::helper::datetime::TimeExt;
-
+use rustavel_core::helper::datetime::now_primitive;
 
 pub async fn index(State(_state): State<AppState>) -> impl IntoResponse {
     // just for test now
-    let tasks =  vec!(
-        Todo{
+    let tasks = vec![
+        Todo {
             id: 1,
             title: "create router".to_string(),
             done: true,
             created_at: Some(now_primitive()),
             updated_at: Some(now_primitive()),
             deleted_at: None,
-
         },
-        Todo{
+        Todo {
             id: 2,
             title: "create schema".to_string(),
             done: true,
@@ -36,7 +34,7 @@ pub async fn index(State(_state): State<AppState>) -> impl IntoResponse {
 
             deleted_at: None,
         },
-        Todo{
+        Todo {
             id: 3,
             title: "create controller".to_string(),
             done: false,
@@ -44,8 +42,7 @@ pub async fn index(State(_state): State<AppState>) -> impl IntoResponse {
             updated_at: Some(now_primitive()),
             deleted_at: Some(now_primitive()),
         },
-
-    );
+    ];
     (StatusCode::OK, Json(tasks))
     // (StatusCode::OK, "so so")
 }
@@ -58,22 +55,25 @@ pub async fn store(State(_state): State<AppState>) -> impl IntoResponse {
     (StatusCode::OK, "to store called")
 }
 pub async fn edit(State(_state): State<AppState>, params: RawPathParams) -> impl IntoResponse {
-
     (StatusCode::OK, println!("to edit called id: {:?}", params))
 }
 #[axum::debug_handler]
 pub async fn update(State(_state): State<AppState>, params: RawPathParams) -> impl IntoResponse {
-
     (StatusCode::OK, println!("to edit called id: {:?}", params))
 }
 pub async fn show(State(_state): State<AppState>, params: RawPathParams) -> impl IntoResponse {
-
     let x = datetime!(2026-04-12 15:20:20);
 
-    println!("{},{}",x.diff_for_humans(),x.ldate("Y/m/d H:i:s F l"));
-    (StatusCode::OK, format!("to edit called id: {:?},{}", params,x.format_php("Y/m/d H:i:s w")))
+    println!("{},{}", x.diff_for_humans(), x.ldate("Y/m/d H:i:s F l"));
+    (
+        StatusCode::OK,
+        format!(
+            "to edit called id: {:?},{}",
+            params,
+            x.format_php("Y/m/d H:i:s w")
+        ),
+    )
 }
-
 
 pub async fn destroy(
     State(_state): State<AppState>,

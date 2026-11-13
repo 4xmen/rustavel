@@ -1,5 +1,5 @@
-use std::fmt;
 use sqlx::{AssertSqlSafe, Row};
+use std::fmt;
 use std::fmt::Debug;
 #[derive(Debug)]
 pub enum DbError {
@@ -27,7 +27,11 @@ pub trait DatabaseClient: Send + Sync + Debug {
     async fn execute(&self, sql: &str) -> Result<(), DbError>;
     async fn execute_params(&self, sql: &str, params: &[&str]) -> Result<(), DbError>;
     async fn fetch_strings(&self, sql: &str) -> Result<Vec<String>, DbError>;
-    async fn fetch_strings_params(&self, sql: &str, params: &[&str]) -> Result<Vec<String>, DbError>;
+    async fn fetch_strings_params(
+        &self,
+        sql: &str,
+        params: &[&str],
+    ) -> Result<Vec<String>, DbError>;
     async fn fetch_count_params(&self, sql: &str, params: &[&str]) -> Result<i64, DbError>;
     async fn fetch_numbers(&self, sql: &str) -> Result<Vec<i64>, DbError>;
     /// Runs every statement in order on one pooled connection. Needed for
@@ -48,12 +52,13 @@ impl From<sqlx::Error> for DbError {
 
 #[async_trait::async_trait]
 impl DatabaseClient for MySqlClient {
-
     async fn execute_on_one_connection(&self, statements: &[String]) -> Result<(), DbError> {
         let mut conn = self.pool.acquire().await?;
         for statement in statements {
             for single_sql in split_sql_statements(statement) {
-                sqlx::query(AssertSqlSafe(single_sql)).execute(&mut *conn).await?;
+                sqlx::query(AssertSqlSafe(single_sql))
+                    .execute(&mut *conn)
+                    .await?;
             }
         }
         Ok(())
@@ -62,7 +67,7 @@ impl DatabaseClient for MySqlClient {
     async fn execute_params(
         &self,
         sql: &str,
-        params: &[&str],  // ← str reference
+        params: &[&str], // ← str reference
     ) -> Result<(), DbError> {
         let mut query = sqlx::query(AssertSqlSafe(sql));
 
@@ -74,7 +79,6 @@ impl DatabaseClient for MySqlClient {
         Ok(())
     }
 
-
     async fn execute(&self, sql: &str) -> Result<(), DbError> {
         // for single_sql in sql.split(";") {
         //     if !single_sql.trim().is_empty() {
@@ -83,13 +87,17 @@ impl DatabaseClient for MySqlClient {
         // }
 
         for single_sql in split_sql_statements(sql) {
-            sqlx::query(AssertSqlSafe(single_sql)).execute(&self.pool).await?;
+            sqlx::query(AssertSqlSafe(single_sql))
+                .execute(&self.pool)
+                .await?;
         }
         Ok(())
     }
 
     async fn fetch_strings(&self, sql: &str) -> Result<Vec<String>, DbError> {
-        let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&self.pool).await?;
+        let rows = sqlx::query(AssertSqlSafe(sql))
+            .fetch_all(&self.pool)
+            .await?;
 
         if rows.is_empty() {
             return Ok(vec![]);
@@ -104,8 +112,9 @@ impl DatabaseClient for MySqlClient {
     }
 
     async fn fetch_numbers(&self, sql: &str) -> Result<Vec<i64>, DbError> {
-        let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&self.pool).await?;
-
+        let rows = sqlx::query(AssertSqlSafe(sql))
+            .fetch_all(&self.pool)
+            .await?;
 
         // MAX() on an empty table returns a single NULL row, so decode as Option
         let mut numbers = Vec::with_capacity(rows.len());
@@ -128,15 +137,18 @@ impl DatabaseClient for MySqlClient {
         //     .collect())
     }
 
-    async fn fetch_strings_params(&self, sql: &str, params: &[&str]) -> Result<Vec<String>, DbError> {
+    async fn fetch_strings_params(
+        &self,
+        sql: &str,
+        params: &[&str],
+    ) -> Result<Vec<String>, DbError> {
         let mut query = sqlx::query(AssertSqlSafe(sql));
 
-            for param in params {
-                query = query.bind(*param);
-            }
+        for param in params {
+            query = query.bind(*param);
+        }
 
-            let rows = query.fetch_all(&self.pool).await?;
-
+        let rows = query.fetch_all(&self.pool).await?;
 
         Ok(rows
             .into_iter()
@@ -146,12 +158,8 @@ impl DatabaseClient for MySqlClient {
             })
             .collect())
     }
-    
-    async fn fetch_count_params(
-        &self,
-        sql: &str,
-        params: &[&str],
-    ) -> Result<i64, DbError> {
+
+    async fn fetch_count_params(&self, sql: &str, params: &[&str]) -> Result<i64, DbError> {
         let mut query = sqlx::query(AssertSqlSafe(sql));
 
         for param in params {
@@ -173,12 +181,13 @@ pub struct SqliteClient {
 
 #[async_trait::async_trait]
 impl DatabaseClient for SqliteClient {
-
     async fn execute_on_one_connection(&self, statements: &[String]) -> Result<(), DbError> {
         let mut conn = self.pool.acquire().await?;
         for statement in statements {
             for single_sql in split_sql_statements(statement) {
-                sqlx::query(AssertSqlSafe(single_sql)).execute(&mut *conn).await?;
+                sqlx::query(AssertSqlSafe(single_sql))
+                    .execute(&mut *conn)
+                    .await?;
             }
         }
         Ok(())
@@ -187,7 +196,7 @@ impl DatabaseClient for SqliteClient {
     async fn execute_params(
         &self,
         sql: &str,
-        params: &[&str],  // ← str reference
+        params: &[&str], // ← str reference
     ) -> Result<(), DbError> {
         let mut query = sqlx::query(AssertSqlSafe(sql));
 
@@ -200,7 +209,6 @@ impl DatabaseClient for SqliteClient {
     }
 
     async fn execute(&self, sql: &str) -> Result<(), DbError> {
-        
         // for single_sql in sql.split(";") {
         //     if !single_sql.trim().is_empty() {
         //         sqlx::query(AssertSqlSafe(single_sql)).execute(&self.pool).await?;
@@ -208,13 +216,17 @@ impl DatabaseClient for SqliteClient {
         // }
 
         for single_sql in split_sql_statements(sql) {
-            sqlx::query(AssertSqlSafe(single_sql)).execute(&self.pool).await?;
+            sqlx::query(AssertSqlSafe(single_sql))
+                .execute(&self.pool)
+                .await?;
         }
         Ok(())
     }
 
     async fn fetch_strings(&self, sql: &str) -> Result<Vec<String>, DbError> {
-        let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&self.pool).await?;
+        let rows = sqlx::query(AssertSqlSafe(sql))
+            .fetch_all(&self.pool)
+            .await?;
         if rows.is_empty() {
             return Ok(vec![]);
         }
@@ -225,8 +237,9 @@ impl DatabaseClient for SqliteClient {
     }
 
     async fn fetch_numbers(&self, sql: &str) -> Result<Vec<i64>, DbError> {
-        let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&self.pool).await?;
-
+        let rows = sqlx::query(AssertSqlSafe(sql))
+            .fetch_all(&self.pool)
+            .await?;
 
         // MAX() on an empty table returns a single NULL row, so decode as Option
         let mut numbers = Vec::with_capacity(rows.len());
@@ -246,7 +259,11 @@ impl DatabaseClient for SqliteClient {
         //     .collect())
     }
 
-    async fn fetch_strings_params(&self, sql: &str, params: &[&str]) -> Result<Vec<String>, DbError> {
+    async fn fetch_strings_params(
+        &self,
+        sql: &str,
+        params: &[&str],
+    ) -> Result<Vec<String>, DbError> {
         let mut query = sqlx::query(AssertSqlSafe(sql));
 
         for param in params {
@@ -254,7 +271,6 @@ impl DatabaseClient for SqliteClient {
         }
 
         let rows = query.fetch_all(&self.pool).await?;
-
 
         Ok(rows
             .into_iter()
@@ -265,11 +281,7 @@ impl DatabaseClient for SqliteClient {
             .collect())
     }
 
-    async fn fetch_count_params(
-        &self,
-        sql: &str,
-        params: &[&str],
-    ) -> Result<i64, DbError> {
+    async fn fetch_count_params(&self, sql: &str, params: &[&str]) -> Result<i64, DbError> {
         let mut query = sqlx::query(AssertSqlSafe(sql));
 
         for param in params {
@@ -278,14 +290,10 @@ impl DatabaseClient for SqliteClient {
 
         let row = query.fetch_one(&self.pool).await?;
 
-        let count: i64 = row.try_get(0)?; 
+        let count: i64 = row.try_get(0)?;
 
         Ok(count)
     }
-
-
-
-
 }
 
 /// Splits a SQL script into single statements on `;`.
@@ -317,9 +325,7 @@ pub fn split_sql_statements(sql: &str) -> Vec<String> {
                 quote = Some(c);
                 current.push(c);
             }
-            '-' if chars.peek() == Some(&'-') => {
-                while chars.next_if(|&n| n != '\n').is_some() {}
-            }
+            '-' if chars.peek() == Some(&'-') => while chars.next_if(|&n| n != '\n').is_some() {},
             '/' if chars.peek() == Some(&'*') => {
                 chars.next();
                 let mut prev = '\0';
@@ -346,7 +352,6 @@ pub fn split_sql_statements(sql: &str) -> Vec<String> {
     statements
 }
 
-
 #[derive(Debug)]
 pub struct PostgresClient {
     pub pool: sqlx::PgPool,
@@ -363,7 +368,9 @@ impl DatabaseClient for PostgresClient {
         let mut tx = self.pool.begin().await?;
         for statement in statements {
             for single_sql in split_sql_statements(statement) {
-                sqlx::query(AssertSqlSafe(single_sql)).execute(&mut *tx).await?;
+                sqlx::query(AssertSqlSafe(single_sql))
+                    .execute(&mut *tx)
+                    .await?;
             }
         }
         tx.commit().await?;
@@ -384,13 +391,17 @@ impl DatabaseClient for PostgresClient {
     /// (e.g. CREATE DATABASE / DROP DATABASE) cannot run inside one.
     async fn execute(&self, sql: &str) -> Result<(), DbError> {
         for single_sql in split_sql_statements(sql) {
-            sqlx::query(AssertSqlSafe(single_sql)).execute(&self.pool).await?;
+            sqlx::query(AssertSqlSafe(single_sql))
+                .execute(&self.pool)
+                .await?;
         }
         Ok(())
     }
 
     async fn fetch_strings(&self, sql: &str) -> Result<Vec<String>, DbError> {
-        let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&self.pool).await?;
+        let rows = sqlx::query(AssertSqlSafe(sql))
+            .fetch_all(&self.pool)
+            .await?;
 
         Ok(rows
             .into_iter()
@@ -398,9 +409,10 @@ impl DatabaseClient for PostgresClient {
             .collect())
     }
 
-
     async fn fetch_numbers(&self, sql: &str) -> Result<Vec<i64>, DbError> {
-        let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&self.pool).await?;
+        let rows = sqlx::query(AssertSqlSafe(sql))
+            .fetch_all(&self.pool)
+            .await?;
 
         // MAX() on an empty table returns a single NULL row, so decode as Option
         let mut numbers = Vec::with_capacity(rows.len());

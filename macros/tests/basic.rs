@@ -1,8 +1,8 @@
-use std::collections::HashMap;
-use macros::{CheckMate,Pawn};
+use macros::{CheckMate, Pawn};
 use macros_core::factory::Pawn;
+use std::collections::HashMap;
 
-#[derive(Debug,PartialEq)]
+#[derive(Debug, PartialEq)]
 enum Role {
     Developer,
     Admin,
@@ -10,11 +10,9 @@ enum Role {
     Guest,
 }
 
-
 #[derive(CheckMate, Debug)]
 #[allow(dead_code)] // cuz we want to test macro work here or not
 struct FullRoleCoverage {
-
     id: i64,
 
     #[validating("required|email|max:180|lowercase")]
@@ -25,7 +23,7 @@ struct FullRoleCoverage {
 
     password_confirmation: Option<String>,
 
-    #[validating("size:10","ascii","alphanumeric")]
+    #[validating("size:10", "ascii", "alphanumeric")]
     code: String,
 
     #[validating("url|ip")]
@@ -39,23 +37,22 @@ struct FullRoleCoverage {
 
     // #[validating("unique:users,email,id|exists:users,email")]
     // user_ref: String,
-
     #[validating("file|image|mimetypes:image/png,image/jpeg|extensions:png,jpg")]
     avatar: String,
 
     #[validating("date|datetime|time")]
     published_at: String,
 
-    #[validating("before:2026-01-01","after:2024-01-01")]
+    #[validating("before:2026-01-01", "after:2024-01-01")]
     date_range: String,
 
-    
     #[validating("json")]
     metadata: String,
 
     #[validating("array")]
     test: HashMap<String, String>,
 }
+#[allow(dead_code)]
 #[derive(Debug, Pawn)]
 struct UserFactory {
     #[fake(name)]
@@ -99,5 +96,4 @@ fn test_all_roles_parsed() {
         })
         .create();
     assert_eq!(admin.role, Role::Admin);
-
 }

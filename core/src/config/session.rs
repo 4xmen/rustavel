@@ -31,7 +31,9 @@ impl FromStr for SessionDriver {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim().to_lowercase().as_str() {
             "memory" => Ok(Self::Memory),
-            other => Err(format!("unknown session driver `{other}` (expected: memory)")),
+            other => Err(format!(
+                "unknown session driver `{other}` (expected: memory)"
+            )),
         }
     }
 }
@@ -43,7 +45,9 @@ impl FromStr for SameSite {
             "lax" => Ok(Self::Lax),
             "strict" => Ok(Self::Strict),
             "none" => Ok(Self::None),
-            other => Err(format!("unknown SameSite `{other}` (expected: lax, strict, none)")),
+            other => Err(format!(
+                "unknown SameSite `{other}` (expected: lax, strict, none)"
+            )),
         }
     }
 }

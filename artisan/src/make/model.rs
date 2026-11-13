@@ -26,7 +26,6 @@ pub struct NewModelArgs {
     pub has_controller: bool,
 }
 
-
 #[allow(dead_code)]
 pub async fn model(args: &NewModelArgs) -> Result<(), MakeError> {
     let start = Instant::now();
@@ -42,7 +41,6 @@ pub async fn model(args: &NewModelArgs) -> Result<(), MakeError> {
 
     // let base = std::env::current_dir()?.join("app/src/models");
     // let model_path = base.join(format!("{}.rs", model_name.to_lowercase()));
-
 
     let mut env = Environment::new();
     env.add_template("model", MODEL_TEMPLATE)?;
@@ -76,7 +74,7 @@ pub async fn model(args: &NewModelArgs) -> Result<(), MakeError> {
             name: controller_name,
             model: Some(model_name.clone()),
         };
-        _ = controller(&cont_args).await?;
+        controller(&cont_args).await?;
     }
 
     // WIP: create controller

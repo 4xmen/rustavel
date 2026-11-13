@@ -38,7 +38,7 @@ pub async fn run_migrations(rollback: i64, passive: bool, fresh: bool) -> Result
     // let downs = schema.get_ran_migrations_gt(batch - (rollback + 1)).await?;
     let downs = if passive || rollback <= 0 {
         vec![]
-    }else {
+    } else {
         schema.get_ran_migrations_gt(batch - (rollback + 1)).await?
     };
     // roll back newest first so dependent tables are dropped before their parents
@@ -48,7 +48,7 @@ pub async fn run_migrations(rollback: i64, passive: bool, fresh: bool) -> Result
 
     if passive {
         title(TitleKind::Info, "Running model generator.");
-    }else{
+    } else {
         title(TitleKind::Info, "Running migrations.");
     }
 
@@ -89,15 +89,22 @@ pub async fn run_migrations(rollback: i64, passive: bool, fresh: bool) -> Result
             let model_name = Str::studly(&Str::singular(&model_data.table));
             match save_generated_model(model_name.clone(), Some(model_data)).await {
                 Ok(_) => {
-                    operation(&format!("Model generate: {}", &model_name), start.elapsed(), Status::Done);
+                    operation(
+                        &format!("Model generate: {}", &model_name),
+                        start.elapsed(),
+                        Status::Done,
+                    );
                 }
                 Err(e) => {
-                    operation(&format!("Model generate: {}", &model_name), start.elapsed(), Status::Failed);
+                    operation(
+                        &format!("Model generate: {}", &model_name),
+                        start.elapsed(),
+                        Status::Failed,
+                    );
                     eprintln!("Error: {:?}", e);
                 }
             }
         }
-
     }
 
     if migrated_count == 0 && !passive {

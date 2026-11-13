@@ -19,7 +19,6 @@
 //! let one = User::factory().create();            // User
 //! ```
 
-
 /// A type that can produce populated instances of itself for tests and seeding.
 ///
 /// Implemented automatically by `#[derive(Pawn)]`; you should not implement

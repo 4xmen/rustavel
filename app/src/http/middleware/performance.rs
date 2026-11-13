@@ -29,7 +29,6 @@ use rustavel_core::helper::datetime::format_duration;
 
 /// Logs the elapsed time for processing an HTTP request.
 pub async fn performance_middleware(mut request: Request, next: Next) -> Response {
-
     // Capture request details before moving it into the next service.
     let method = request.method().clone();
     let path = request.uri().path().to_owned();

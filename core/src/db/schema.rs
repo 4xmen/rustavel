@@ -3,19 +3,21 @@ use crate::config::database::DatabaseEngine;
 use crate::db::table::{ColumnDataType, Table, TableAction};
 use crate::helper::terminal_ui::{Status, operation};
 use crate::logger;
-use crate::sql::database_client::{DatabaseClient, DbError, MySqlClient, PostgresClient, SqliteClient};
+use crate::sql::database_client::{
+    DatabaseClient, DbError, MySqlClient, PostgresClient, SqliteClient,
+};
 use crate::sql::generator::SqlGenerator;
 use crate::sql::mysql::MySqlGenerator;
+use crate::sql::postgres::PostgresGenerator;
 use crate::sql::sqlite::SqliteGenerator;
 use futures::future::join_all;
 use illuminate_str::Str;
+use sqlx::postgres::PgConnectOptions;
 use sqlx::{MySqlPool, PgPool, SqlitePool};
 use std::collections::HashMap;
 use std::sync::Arc;
-use sqlx::postgres::PgConnectOptions;
 use tokio::sync::OnceCell;
 use tokio::time::Instant;
-use crate::sql::postgres::PostgresGenerator;
 
 static TABLES: OnceCell<Vec<String>> = OnceCell::const_new();
 static COLUMNS: OnceCell<Vec<String>> = OnceCell::const_new();
@@ -119,7 +121,6 @@ impl Schema {
                     (Box::new(MySqlGenerator), Box::new(MySqlClient { pool }))
                 }
                 DatabaseEngine::PgSql => {
-
                     //let con_string = format!(
                     //     "postgres://{}:{}@{}:{}/{}",
                     //     CONFIG.database.username,
@@ -141,7 +142,10 @@ impl Schema {
                         e
                     })?;
 
-                    (Box::new(PostgresGenerator), Box::new(PostgresClient { pool }))
+                    (
+                        Box::new(PostgresGenerator),
+                        Box::new(PostgresClient { pool }),
+                    )
                 }
 
                 DatabaseEngine::Sqlite => {
@@ -239,9 +243,7 @@ impl Schema {
     /// - The function performs no further validation of table_name.
     /// - Errors are swallowed (converted to false) after optional logging.
     pub async fn drop_table_raw_name_if_exists(&self, table_name: impl Into<String>) -> bool {
-        let sql = self
-            .generator
-            .drop_table_if_exists(&table_name.into());
+        let sql = self.generator.drop_table_if_exists(&table_name.into());
         match self.client.execute(&sql).await {
             Ok(_) => true,
             Err(e) => {
@@ -786,28 +788,6 @@ impl Schema {
     /// - Requires highest level of database permissions.
     /// - Permanently removes all data in all tables.
     /// - sqlx don't let us use more than one query so we have to drop tables one by one
-
-
-    // pub async fn drop_all_tables(&self) -> Result<(), DbError> {
-    //     self.disable_foreign_key_constraints().await;
-    //
-    //     let tables = self.get_tables().await?;
-    //     let drop_futures: Vec<_> = tables
-    //         .into_iter()
-    //         .map(|table| self.drop_table(table))
-    //         .collect();
-    //
-    //     // execute all each other
-    //     let results = join_all(drop_futures).await;
-    //
-    //     // check result
-    //     for res in results {
-    //         res?;
-    //     }
-    //     self.enable_foreign_key_constraints().await;
-    //     Ok(())
-    // }
-
     pub async fn drop_all_tables(&self) -> Result<(), DbError> {
         // FOREIGN_KEY_CHECKS / PRAGMA foreign_keys only affect the connection
         // they run on, so all statements must share one connection.
@@ -819,7 +799,6 @@ impl Schema {
         statements.push(self.generator.enable_foreign_key_constraints());
         self.client.execute_on_one_connection(&statements).await
     }
-
 
     /// Drops all views in the database.
     ///
@@ -1400,7 +1379,6 @@ impl Schema {
     /// # Notes
     /// - This method enables flexible table definitions and can be called multiple times to define different tables.
     /// - Ensure appropriate database permissions are granted to create tables in the schema.
-
     pub fn create<F>(&mut self, table_name: impl Into<String>, f: F) -> &mut Self
     where
         F: FnOnce(&mut Table),
@@ -1463,7 +1441,6 @@ impl Schema {
     /// # Notes
     /// - This method enables modifications to the existing table structure and can be invoked multiple times for different tables.
     /// - Ensure appropriate database permissions are granted to alter tables in the schema.
-
     pub fn table<F>(&mut self, table_name: impl Into<String>, f: F) -> &mut Self
     where
         F: FnOnce(&mut Table),
@@ -1534,7 +1511,6 @@ impl Schema {
     /// # Notes
     /// - Ensure that the current migration data is valid before calling this method.
     /// - Requires appropriate database permissions to execute the migration.
-
     pub async fn execute_migration(
         &mut self,
         final_name: &str,
@@ -1568,7 +1544,7 @@ impl Schema {
         let mut post = vec![];
         let mut spliter = String::new();
         for column in &table.columns {
-            let (b, f, p, s) = self.generator.column(&column, &table.name, &table.action);
+            let (b, f, p, s) = self.generator.column(column, &table.name, &table.action);
             body.push(b);
             if !f.is_empty() {
                 foot.push(f);
@@ -1583,7 +1559,7 @@ impl Schema {
         // }
 
         for column in &table.drop_columns {
-            body.push(self.generator.drop_column(&table.name, &column));
+            body.push(self.generator.drop_column(&table.name, column));
         }
 
         // for key in &table.foreign_keys {
@@ -1601,12 +1577,8 @@ impl Schema {
         }
         body.append(&mut foot);
         let sql = Str::implode(&spliter, body);
-        self.generator.table_sql(
-            &table.name,
-            &sql,
-            &Str::implode(";\n", post),
-            &table.action,
-        )
+        self.generator
+            .table_sql(&table.name, &sql, &Str::implode(";\n", post), &table.action)
     }
 
     // pub async fn execute_migration(
@@ -1699,7 +1671,6 @@ impl Schema {
     /// # Notes
     /// - This method relies on the `has_table` function to perform the check.
     /// - Requires appropriate database permissions to query the table existence.
-
     pub async fn repository_exists(&self) -> Result<bool, DbError> {
         self.has_table("migrations").await
     }
@@ -1734,12 +1705,14 @@ impl Schema {
     /// # Notes
     /// - This method relies on the `fetch_strings` function to perform the retrieval.
     /// - Ensure appropriate database permissions are granted to access the migrations table.
-
     pub async fn get_ran_migrations(&self) -> Result<Vec<String>, DbError> {
-
         // match self.client.fetch_strings(&self.generator.get_ran()).await {
         let table = self.fix_table_name("migrations");
-        match self.client.fetch_strings(&self.generator.get_ran(&table)).await {
+        match self
+            .client
+            .fetch_strings(&self.generator.get_ran(&table))
+            .await
+        {
             // note if table not found we don't have error just empty vector
             Ok(ran) => Ok(ran),
             Err(e) => {
@@ -1781,13 +1754,14 @@ impl Schema {
     /// # Notes
     /// - This method relies on the `fetch_strings` function to perform the retrieval.
     /// - Ensure appropriate database permissions are granted to access the migrations table.
-
     pub async fn get_ran_migrations_gt(&self, batch: i64) -> Result<Vec<String>, DbError> {
         match self
             .client
             // .fetch_strings_params(&self.generator.get_ran_gt(), &[&batch.to_string()])
             .fetch_strings_params(
-                &self.generator.get_ran_gt(&self.fix_table_name("migrations")),
+                &self
+                    .generator
+                    .get_ran_gt(&self.fix_table_name("migrations")),
                 &[&batch.to_string()],
             )
             .await
@@ -1837,7 +1811,11 @@ impl Schema {
         match self
             .client
             // .fetch_numbers(&self.generator.get_next_batch_number())
-            .fetch_numbers(&self.generator.get_next_batch_number(&self.fix_table_name("migrations")))
+            .fetch_numbers(
+                &self
+                    .generator
+                    .get_next_batch_number(&self.fix_table_name("migrations")),
+            )
             .await
         {
             Ok(max_vec) => {
@@ -1899,7 +1877,7 @@ impl Schema {
             table.string("migration", 255);
             table.integer("batch");
         })
-        .execute_migration("Creating migration table", &start.into())
+        .execute_migration("Creating migration table", &start)
         .await?;
         Ok(())
     }
@@ -1943,7 +1921,9 @@ impl Schema {
         batch_number: i64,
     ) -> Result<(), DbError> {
         // let sql = &self.generator.add_migrated_table();
-        let sql = &self.generator.add_migrated_table(&self.fix_table_name("migrations"));
+        let sql = &self
+            .generator
+            .add_migrated_table(&self.fix_table_name("migrations"));
         match self
             .client
             .execute_params(sql, &[migration_name, &batch_number.to_string()])
@@ -1991,10 +1971,11 @@ impl Schema {
     /// # Notes
     /// - This method utilizes a prepared statement for safe execution of the deletion.
     /// - Ensure appropriate database permissions are granted to modify the migrations table.
-
     pub async fn rem_migrated_table(&self, migration_name: &str) -> Result<(), DbError> {
         // let sql = &self.generator.rem_migrated_table();
-        let sql = &self.generator.rem_migrated_table(&self.fix_table_name("migrations"));
+        let sql = &self
+            .generator
+            .rem_migrated_table(&self.fix_table_name("migrations"));
         match self.client.execute_params(sql, &[migration_name]).await {
             Ok(_) => Ok(()),
             Err(e) => {
@@ -2100,12 +2081,10 @@ impl Schema {
     //     }
     // }
 
-
     /// `Some(true/false)` if the lookup ran, `None` if it could not run
     /// (unknown table/column or a database error). Validators must treat
     /// `None` as a failure, otherwise `unique` would pass on any error.
     pub async fn exists_record(&self, table: &str, column: &str, wanted: &str) -> Option<bool> {
-
         // ----------------------------------------------------
         // Identifiers are checked against a cached schema whitelist
         // before being placed into the SQL statement.
@@ -2116,11 +2095,16 @@ impl Schema {
         match tables_columns.await {
             Ok(columns) => {
                 if !columns.contains(&format!("{}.{}", table, column)) {
-                    logger::error(&format!("table or column `{}` not exists in {}", column, table));
-                    logger::info("May you need to run migrations or restart app to re-cache tables!?");
+                    logger::error(&format!(
+                        "table or column `{}` not exists in {}",
+                        column, table
+                    ));
+                    logger::info(
+                        "May you need to run migrations or restart app to re-cache tables!?",
+                    );
                     return None;
                 }
-            },
+            }
             Err(_e) => {
                 return None;
             }
@@ -2153,18 +2137,23 @@ impl Schema {
         match tables_columns.await {
             Ok(columns) => {
                 if !columns.contains(&format!("{}.{}", table, column)) {
-                    logger::error(&format!("table or column `{}` not exists in {}", column, table));
-                    logger::info("May you need to run migrations or restart app to re-cache tables!?");
+                    logger::error(&format!(
+                        "table or column `{}` not exists in {}",
+                        column, table
+                    ));
+                    logger::info(
+                        "May you need to run migrations or restart app to re-cache tables!?",
+                    );
                     return None;
                 }
-            },
+            }
             Err(_e) => {
                 return None;
             }
         }
         let sql = &self
             .generator
-            .record_exists_except(&table, column, except_col);
+            .record_exists_except(table, column, except_col);
         match self
             .client
             .fetch_count_params(sql, &[wanted, except_val])
@@ -2179,8 +2168,6 @@ impl Schema {
             }
         }
     }
-
-
 
     // pub fn final_tables(&self) -> &HashMap<String,Table> {
     //     &self.tables
@@ -2220,7 +2207,7 @@ impl Schema {
 
                 ModelData {
                     table: table_name.clone(),
-                    columns :cols
+                    columns: cols
                         .iter()
                         .map(|c| format!("\"{}\"", c))
                         .collect::<Vec<_>>()
