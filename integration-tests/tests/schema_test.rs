@@ -23,6 +23,7 @@ async fn schema_create_and_drop_table_check_column() {
             .nullable()
             .default_null()
             .unsigned();
+        table.morph("todoable", "todoab").comment("morph todo");
         table.soft_delete();
         table.timestamps();
         table
@@ -51,11 +52,16 @@ async fn schema_create_and_drop_table_check_column() {
             .on(table_name.clone())
             .reference("id")
             .cascade_on_delete();
+        table.rename_column("todoable_id", "td_id");
+        table.rename_column("todoable_type", "td_type");
     });
     schema
         .execute_migration("alter table", &a.into())
         .await
         .unwrap();
+
+    assert!(schema.has_column(&table_name, "td_id").await.unwrap());
+    assert!(schema.has_column(&table_name, "td_type").await.unwrap());
 
     let tables = schema.get_tables().await.unwrap();
     assert!(tables.contains(&format!("{}{}", CONFIG.database.prefix, &table_name)),);
