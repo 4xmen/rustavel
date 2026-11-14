@@ -54,7 +54,30 @@ impl SqlGenerator for SqliteGenerator {
     }
 
     fn get_foreign_keys(&self, table_name: &str) -> String {
-        format!("PRAGMA foreign_key_list(\"{}\");", table_name)
+        // ignored col right now
+        // m.name AS table_name,
+        // fk.id AS foreign_key_id,
+        // fk.seq AS ordinal_position,
+        // fk."from" AS column_name,
+        // fk."table" AS referenced_table,
+        // fk."to" AS referenced_column,
+        // fk.on_update AS on_update,
+        // fk.on_delete AS on_delete,
+        // fk.match AS match_type,
+        format!(
+            r#""SELECT
+	m.name  || "_" || fk."from" || "_foreign" AS "fk_name"
+    FROM sqlite_master AS m
+    JOIN pragma_foreign_key_list(m.name) AS fk
+        ON 1 = 1
+    WHERE
+        m.type = 'table'
+        AND m.name = '{}'
+    ORDER BY
+        fk.id,
+        fk.seq;"#,
+            table_name
+        )
     }
 
     fn drop_table(&self, table_name: &str) -> String {
@@ -437,5 +460,8 @@ impl SqlGenerator for SqliteGenerator {
             "ALTER TABLE {} RENAME COLUMN {} TO {};",
             table_name, old_col_name, new_col_name
         )
+    }
+    fn drop_foreign_key(&self, _constraint_name: &str) -> String {
+        "-- sqlite: drop foreign key not supported via SQL".to_string()
     }
 }

@@ -1,6 +1,6 @@
 // Bugs 5, 18 and 20. Run with DB_CONNECTION=Sqlite (see the guide).
 use macros::CheckMate;
-use rustavel_core::config::{CONFIG, database::DatabaseEngine};
+use rustavel_core::config::CONFIG;
 use rustavel_core::db::schema::Schema;
 use rustavel_core::helper::database::is_sqlite;
 use std::time::Instant;

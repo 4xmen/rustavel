@@ -22,7 +22,6 @@ use tokio::time::Instant;
 
 static TABLES: OnceCell<Vec<String>> = OnceCell::const_new();
 static COLUMNS: OnceCell<Vec<String>> = OnceCell::const_new();
-
 static TABLE_DOT_COLUMN: OnceCell<Arc<Vec<String>>> = OnceCell::const_new();
 
 #[derive(Debug)]
@@ -1579,6 +1578,10 @@ impl Schema {
             body.push(self.generator.drop_column(&table.name, column));
         }
 
+        for key in &table.drop_foreign_keys {
+            body.push(self.generator.drop_foreign_key(key));
+        }
+
         // for key in &table.foreign_keys {
         //     let str = self.generator.foreign_key(&key, &table.name, &table.action);
 
@@ -1593,6 +1596,8 @@ impl Schema {
             }
         }
         body.append(&mut foot);
+        // println!("{:?}",body);
+
         let sql = Str::implode(&spliter, body);
         self.generator
             .table_sql(&table.name, &sql, &Str::implode(";\n", post), &table.action)

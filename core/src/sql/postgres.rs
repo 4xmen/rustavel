@@ -69,12 +69,43 @@ impl SqlGenerator for PostgresGenerator {
 
     fn get_foreign_keys(&self, table_name: &str) -> String {
         format!(
-            "
-            SELECT constraint_name
-            FROM information_schema.table_constraints
-            WHERE table_schema = current_schema()
-              AND table_name = '{}'
-              AND constraint_type = 'FOREIGN KEY'
+            "SELECT
+                tc.constraint_name AS fk_name,
+                tc.table_name,
+                kcu.column_name,
+                kcu.ordinal_position,
+                ccu.table_schema AS referenced_schema,
+                ccu.table_name AS referenced_table,
+                ccu.column_name AS referenced_column,
+                rc.update_rule AS on_update,
+                rc.delete_rule AS on_delete
+            FROM information_schema.table_constraints AS tc
+
+            JOIN information_schema.key_column_usage AS kcu
+                ON tc.constraint_catalog = kcu.constraint_catalog
+                AND tc.constraint_schema = kcu.constraint_schema
+                AND tc.constraint_name = kcu.constraint_name
+                AND tc.table_schema = kcu.table_schema
+                AND tc.table_name = kcu.table_name
+
+            JOIN information_schema.constraint_column_usage AS ccu
+                ON tc.constraint_catalog = ccu.constraint_catalog
+                AND tc.constraint_schema = ccu.constraint_schema
+                AND tc.constraint_name = ccu.constraint_name
+
+            LEFT JOIN information_schema.referential_constraints AS rc
+                ON tc.constraint_catalog = rc.constraint_catalog
+                AND tc.constraint_schema = rc.constraint_schema
+                AND tc.constraint_name = rc.constraint_name
+
+            WHERE
+                tc.constraint_type = 'FOREIGN KEY'
+                AND tc.table_schema = current_schema()
+                AND tc.table_name = '{}'
+
+            ORDER BY
+                tc.constraint_name,
+                kcu.ordinal_position;
             ",
             quote_str(table_name)
         )
@@ -576,5 +607,9 @@ impl SqlGenerator for PostgresGenerator {
             "ALTER TABLE {} RENAME COLUMN {} TO {};",
             table_name, old_col_name, new_col_name
         )
+    }
+
+    fn drop_foreign_key(&self, constraint_name: &str) -> String {
+        format!("DROP CONSTRAINT IF EXISTS {}", constraint_name)
     }
 }

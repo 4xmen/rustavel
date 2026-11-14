@@ -62,4 +62,6 @@ pub trait SqlGenerator: Debug + Sync + Send {
     fn get_db_tables_columns_struct(&self) -> String;
 
     fn rename_column(&self, table_name: &str, old_col_name: &str, new_col_name: &str) -> String;
+
+    fn drop_foreign_key(&self, constraint_name: &str) -> String;
 }

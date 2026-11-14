@@ -9,6 +9,7 @@ pub struct Table {
     pub comment: String,
     pub action: TableAction,
     pub drop_columns: Vec<String>,
+    pub drop_foreign_keys: Vec<String>,
     pub rename_columns: HashMap<String, String>,
 }
 
@@ -115,6 +116,7 @@ impl Table {
             comment: String::new(),
             action: TableAction::None,
             drop_columns: Vec::new(),
+            drop_foreign_keys: Vec::new(),
             rename_columns: HashMap::new(),
         }
     }
@@ -478,6 +480,10 @@ impl Table {
 
     pub fn rename_column(&mut self, old_name: impl Into<String>, new_name: impl Into<String>) {
         self.rename_columns.insert(old_name.into(), new_name.into());
+    }
+
+    pub fn drop_foreign(&mut self, constraint_name: impl Into<String>) {
+        self.drop_foreign_keys.push(constraint_name.into());
     }
     // --------------------------------------------------------------------------------------------
 }

@@ -60,12 +60,28 @@ impl SqlGenerator for MySqlGenerator {
 
     fn get_foreign_keys(&self, table_name: &str) -> String {
         format!(
-            "
-            SELECT constraint_name
-            FROM information_schema.table_constraints
-            WHERE table_schema = DATABASE()
-              AND table_name = '{}'
-              AND constraint_type = 'FOREIGN KEY'
+            "SELECT
+            kcu.CONSTRAINT_NAME AS fk_name,
+            kcu.TABLE_NAME AS table_name,
+            kcu.COLUMN_NAME AS column_name,
+            kcu.ORDINAL_POSITION AS ordinal_position,
+            kcu.REFERENCED_TABLE_SCHEMA AS referenced_schema,
+            kcu.REFERENCED_TABLE_NAME AS referenced_table,
+            kcu.REFERENCED_COLUMN_NAME AS referenced_column,
+            rc.UPDATE_RULE AS on_update,
+            rc.DELETE_RULE AS on_delete
+        FROM information_schema.KEY_COLUMN_USAGE AS kcu
+        LEFT JOIN information_schema.REFERENTIAL_CONSTRAINTS AS rc
+            ON rc.CONSTRAINT_SCHEMA = kcu.CONSTRAINT_SCHEMA
+            AND rc.TABLE_NAME = kcu.TABLE_NAME
+            AND rc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+        WHERE
+            kcu.CONSTRAINT_SCHEMA = DATABASE()
+            AND kcu.TABLE_NAME = '{}'
+            AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
+        ORDER BY
+            kcu.CONSTRAINT_NAME,
+            kcu.ORDINAL_POSITION;
             ",
             table_name
         )
@@ -546,5 +562,9 @@ impl SqlGenerator for MySqlGenerator {
 
     fn rename_column(&self, _table_name: &str, old_col_name: &str, new_col_name: &str) -> String {
         format!("RENAME COLUMN `{}` TO `{}`", old_col_name, new_col_name)
+    }
+
+    fn drop_foreign_key(&self, constraint_name: &str) -> String {
+        format!("DROP FOREIGN KEY {}", constraint_name)
     }
 }
