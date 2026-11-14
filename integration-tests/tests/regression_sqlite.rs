@@ -2,8 +2,8 @@
 use macros::CheckMate;
 use rustavel_core::config::{CONFIG, database::DatabaseEngine};
 use rustavel_core::db::schema::Schema;
-use std::time::Instant;
 use rustavel_core::helper::database::is_sqlite;
+use std::time::Instant;
 
 fn sqlite() -> bool {
     let ok = is_sqlite();

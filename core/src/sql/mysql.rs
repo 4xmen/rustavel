@@ -545,9 +545,6 @@ impl SqlGenerator for MySqlGenerator {
     }
 
     fn rename_column(&self, _table_name: &str, old_col_name: &str, new_col_name: &str) -> String {
-        format!(
-            "RENAME COLUMN `{}` TO `{}`",
-            old_col_name, new_col_name
-        )
+        format!("RENAME COLUMN `{}` TO `{}`", old_col_name, new_col_name)
     }
 }

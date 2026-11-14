@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use crate::config::CONFIG;
 use crate::config::database::DatabaseEngine;
+use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct Table {
     pub name: String,
@@ -476,7 +476,7 @@ impl Table {
         self.drop_columns.push(name.into());
     }
 
-    pub fn rename_column(&mut self, old_name: impl Into<String>,new_name: impl Into<String>) {
+    pub fn rename_column(&mut self, old_name: impl Into<String>, new_name: impl Into<String>) {
         self.rename_columns.insert(old_name.into(), new_name.into());
     }
     // --------------------------------------------------------------------------------------------

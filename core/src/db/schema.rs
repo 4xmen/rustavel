@@ -1,6 +1,7 @@
 use crate::config::CONFIG;
 use crate::config::database::DatabaseEngine;
 use crate::db::table::{ColumnDataType, Table, TableAction};
+use crate::helper::database::is_mysql;
 use crate::helper::terminal_ui::{Status, operation};
 use crate::logger;
 use crate::sql::database_client::{
@@ -18,14 +19,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::OnceCell;
 use tokio::time::Instant;
-use crate::helper::database::is_mysql;
 
 static TABLES: OnceCell<Vec<String>> = OnceCell::const_new();
 static COLUMNS: OnceCell<Vec<String>> = OnceCell::const_new();
 
 static TABLE_DOT_COLUMN: OnceCell<Arc<Vec<String>>> = OnceCell::const_new();
-
-
 
 #[derive(Debug)]
 pub struct ModelData {

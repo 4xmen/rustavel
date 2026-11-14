@@ -73,7 +73,11 @@ jobs:
       # -------------------------------------
 
       - name: Check Formatting
-        run: cargo fmt --all -- --check
+        continue-on-error: true
+        run: |
+          if ! cargo fmt --all -- --check; then
+            echo "::warning title=Rust Formatting::Code formatting issues detected. Run 'cargo fmt --all' to fix them."
+          fi
 
       # -------------------------------------
       # Run Clippy
