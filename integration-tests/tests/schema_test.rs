@@ -1,7 +1,9 @@
 use rustavel_core::config::CONFIG;
 use rustavel_core::db::schema::Schema;
+use rustavel_core::helper::database::is_sqlite;
 use rustavel_core::helper::number::random;
 use std::time::Instant;
+
 #[tokio::test]
 async fn schema_create_and_drop_table_check_column() {
     let mut schema = Schema::new().await.unwrap();
@@ -94,9 +96,12 @@ async fn schema_create_and_drop_table_check_column() {
 
     let actual = schema.get_foreign_keys(&table_name).await.unwrap();
 
-    let expected = vec![format!("{}_another_ref_foreign", &table_name)];
-
-    assert_eq!(actual, expected);
+    if is_sqlite() {
+        assert_eq!(actual, expected);
+    } else {
+        let expected = vec![format!("{}_another_ref_foreign", &table_name)];
+        assert_eq!(actual, expected);
+    }
 
     let tables = schema.get_tables().await.unwrap();
     assert!(tables.contains(&format!("{}{}", CONFIG.database.prefix, &table_name)),);

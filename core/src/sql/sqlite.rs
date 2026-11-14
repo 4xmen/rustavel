@@ -54,19 +54,18 @@ impl SqlGenerator for SqliteGenerator {
     }
 
     fn get_foreign_keys(&self, table_name: &str) -> String {
-        // ignored col right now
-        // m.name AS table_name,
-        // fk.id AS foreign_key_id,
-        // fk.seq AS ordinal_position,
-        // fk."from" AS column_name,
-        // fk."table" AS referenced_table,
-        // fk."to" AS referenced_column,
-        // fk.on_update AS on_update,
-        // fk.on_delete AS on_delete,
-        // fk.match AS match_type,
         format!(
-            r#""SELECT
-	m.name  || "_" || fk."from" || "_foreign" AS "fk_name"
+            r#"SELECT
+        m.name  || "_" || fk."from" || "_foreign" AS "fk_name",
+        m.name AS table_name,
+        fk.id AS foreign_key_id,
+        fk.seq AS ordinal_position,
+        fk."from" AS column_name,
+        fk."table" AS referenced_table,
+        fk."to" AS referenced_column,
+        fk.on_update AS on_update,
+        fk.on_delete AS on_delete,
+        fk.match AS match_type
     FROM sqlite_master AS m
     JOIN pragma_foreign_key_list(m.name) AS fk
         ON 1 = 1
@@ -75,7 +74,7 @@ impl SqlGenerator for SqliteGenerator {
         AND m.name = '{}'
     ORDER BY
         fk.id,
-        fk.seq;"#,
+        fk.seq"#,
             table_name
         )
     }

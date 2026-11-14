@@ -1,7 +1,7 @@
 use crate::config::CONFIG;
 use crate::config::database::DatabaseEngine;
 use crate::db::table::{ColumnDataType, Table, TableAction};
-use crate::helper::database::is_mysql;
+use crate::helper::database::{is_mysql, is_sqlite};
 use crate::helper::terminal_ui::{Status, operation};
 use crate::logger;
 use crate::sql::database_client::{
@@ -1578,8 +1578,12 @@ impl Schema {
             body.push(self.generator.drop_column(&table.name, column));
         }
 
-        for key in &table.drop_foreign_keys {
-            body.push(self.generator.drop_foreign_key(key));
+        if !&table.foreign_keys.is_empty() && is_sqlite() {
+            logger::warn("SQLite does not support drop foreign keys");
+        } else {
+            for key in &table.drop_foreign_keys {
+                body.push(self.generator.drop_foreign_key(key));
+            }
         }
 
         // for key in &table.foreign_keys {
